@@ -3,6 +3,7 @@ from os import path, mkdir
 import re
 import warnings
 
+import click
 import pandas as pd
 import numpy as np
 from skbio.io import read as read_sequence
@@ -41,6 +42,12 @@ VIRAL_PEPTIDASES_MEROPS = {'A02H', 'A02G', 'A02F', 'A02E', 'A02D', 'A02C', 'A02B
                            'S26C', 'S26B', 'S26A', 'S28', 'S29', 'S30', 'S31', 'S32', 'S33', 'S49C', 'S49B', 'S49A',
                            'S50', 'S53', 'S54', 'S62', 'S65', 'S69', 'S73', 'S74', 'S75', 'S77', 'S78', 'S80', 'S81',
                            'T01B', 'T01A', 'T03', 'U32', 'U40'}
+
+
+@click.group()
+@click.option('--verbose/--quiet', default=False)
+def dram2_v(verbose):
+    pass
 
 
 def is_affi_tab_not_fasta(input_file: str) -> bool:

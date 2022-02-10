@@ -1,5 +1,11 @@
 from sqlalchemy import Column, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
+import click
+
+@click.group()
+@click.option('--verbose/--quiet', default=False)
+def dram2_setup(verbose):
+    pass
 
 # TODO: Do all processing of descriptions here
 # TODO: set up init statements that can parse the line into desired parameters
