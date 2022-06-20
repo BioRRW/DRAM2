@@ -10,6 +10,7 @@ from datetime import datetime
 
 from mag_annotator.database_handler import DatabaseHandler
 from mag_annotator.utils import get_ids_from_annotation, get_ids_from_row, get_ordered_uniques
+import click
 
 # TODO: add RBH information to output
 # TODO: add flag to output table and not xlsx

@@ -1,6 +1,7 @@
 import re
 import io
 import time
+import click
 import warnings
 from glob import glob
 from functools import partial
@@ -13,6 +14,7 @@ from skbio.metadata import IntervalMetadata
 from os import path, mkdir, stat
 from shutil import rmtree, copy2
 import pandas as pd
+import click
 
 
 from mag_annotator.utils import run_process, make_mmseqs_db, merge_files, multigrep, remove_suffix
@@ -34,6 +36,11 @@ HMMSCAN_ALL_COLUMNS = ['query_id', 'query_ascession', 'query_length', 'target_id
                        'alignment_end', 'query_start', 'query_end', 'accuracy', 'description']
 HMMSCAN_COLUMN_TYPES = [str, str, int, str, str, int, float, float, float, int, int, float, float, float, float, int,
                         int, int, int, int, int, float, str]
+
+@click.group()
+@click.option('--verbose/--quiet', default=False)
+def dram2(verbose):
+    pass
 
 
 def filter_fasta(fasta_loc, min_len=5000, output_loc=None):
@@ -77,7 +84,7 @@ def get_best_hits(query_db, target_db, output_dir='.', query_prefix='query', tar
                 verbose=verbose)
     # convert results to blast outformat 6
     forward_output_loc = path.join(output_dir, '%s_%s_hits.b6' % (query_prefix, target_prefix))
-    run_process(['mmseqs', 'convertalis', query_db, target_db, query_target_db_top_filt, forward_output_loc,
+    run_process(['mmseqs', 'convertalis', query_db, target_db, query_target_db, forward_output_loc,
                  '--threads', str(threads)], verbose=verbose)
     return forward_output_loc
 
@@ -414,6 +421,10 @@ def generate_annotated_fasta(input_fasta, annotations, verbosity='short', name=N
     either add best annotation (based on grade) (verbosity = short) or all annotations (verbosity = long)
     """
     for seq in read_sequence(input_fasta, format='fasta'):
+        if not seq.metadata['id'] in annotations.index:
+            seq.metadata['description'] = ""
+            yield seq
+            continue
         annotation = annotations.loc[seq.metadata['id']]
         if 'rank' in annotations.columns and verbosity == 'short':
             annotation_str = 'rank: %s' % annotation['rank']
@@ -668,8 +679,8 @@ def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater
     if stat(forward_hits).st_size == 0:
         return pd.DataFrame()
     print('%s: Getting reverse best hits from %s' % (str(datetime.now() - start_time), db_name))
-    reverse_hits = get_reciprocal_best_hits(query_db, target_db, working_dir, 'gene', db_name,
-                                            bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
+    #reverse_hits = get_reciprocal_best_hits(query_db, target_db, working_dir, 'gene', db_name,
+    #                                        bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
     hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
     print('%s: Getting descriptions of hits from %s' % (str(datetime.now() - start_time), db_name))
     if '%s_description' % db_name in db_handler.get_database_names():
@@ -761,6 +772,119 @@ class Annotation:
     def get_rrnas(self):
         return pd.read_csv(self.rrnas_loc, sep='\t')
 
+
+def annotate_orf(gene_faa:str, curated_databases:list, db_handler, tmp_dir:str, start_time, custom_db_locs=(), custom_hmm_locs=(),
+                 custom_hmm_cutoffs_locs=(), bit_score_threshold=60, rbh_bit_score_threshold=350,
+                 kofam_use_dbcan2_thresholds=False, threads=10, verbose=False):
+    # Get kegg hits
+    print('%s: Turning genes from prodigal to mmseqs2 db' % str(datetime.now() - start_time))
+    query_db = path.join(tmp_dir, 'gene.mmsdb')
+    make_mmseqs_db(gene_faa, query_db, create_index=True, threads=threads, verbose=verbose)
+
+    if 'kegg' in curated_databases:
+        #TODO Change the get_kegg_description name in function do_blast_style_search to formater
+        print('%s: Getting hits from kegg' % (str(datetime.now() - start_time)))
+        yield do_blast_style_search(query_db, db_handler.db_locs['kegg'], tmp_dir,
+                                    db_handler, get_kegg_description, start_time,
+                                    'kegg', bit_score_threshold, rbh_bit_score_threshold, threads,
+                                    verbose)
+    if 'kofam' in curated_databases:
+        print('%s: Getting hits from kofam' % str(datetime.now() - start_time))
+        yield run_hmmscan(genes_faa=gene_faa,
+                                           db_loc=db_handler.db_locs['kofam'],
+                                           db_name='kofam',
+                                           output_loc=tmp_dir, #check_impliments
+                                           threads=threads, #check_impliments
+                                           verbose=verbose,
+                                           formater=partial(
+                                               kofam_hmmscan_formater,
+                                               hmm_info_path=db_handler.db_locs['kofam_ko_list'],
+                                               top_hit=True,
+                                               use_dbcan2_thresholds=kofam_use_dbcan2_thresholds
+                                           ))
+
+    # Get uniref hits
+    if 'uniref' in curated_databases:
+        print('%s: Getting hits from uniref' % str(datetime.now() - start_time))
+        yield do_blast_style_search(query_db, db_handler.db_locs['uniref'], tmp_dir,
+                                                     db_handler, get_uniref_description,
+                                                     start_time, 'uniref', bit_score_threshold,
+                                                     rbh_bit_score_threshold, threads, verbose)
+
+    # Get viral hits
+    if 'viral' in curated_databases:
+        print('%s: Getting hits from viral' % str(datetime.now() - start_time))
+        get_viral_description = partial(get_basic_description, db_name='viral')
+        yield do_blast_style_search(query_db, db_handler.db_locs['viral'], tmp_dir,
+                                                     db_handler, get_viral_description,
+                                                     start_time, 'viral', bit_score_threshold,
+                                                     rbh_bit_score_threshold, threads, verbose)
+
+    # Get peptidase hits
+    if 'peptidase' in curated_databases:
+        print('%s: Getting hits from peptidase' % str(datetime.now() - start_time))
+        yield do_blast_style_search(query_db, db_handler.db_locs['peptidase'], tmp_dir,
+                                                     db_handler, get_peptidase_description,
+                                                     start_time, 'peptidase', bit_score_threshold,
+                                                     rbh_bit_score_threshold, threads, verbose)
+
+    # Get pfam hits
+    if 'pfam' in curated_databases:
+        print('%s: Getting hits from pfam' % str(datetime.now() - start_time))
+        yield run_mmseqs_profile_search(query_db, db_handler.db_locs['pfam'], tmp_dir,
+                                                         output_prefix='pfam', db_handler=db_handler, threads=threads,
+                                                         verbose=verbose)
+
+    # use hmmer to detect cazy ids using dbCAN
+    if 'dbcan' in curated_databases:
+        print('%s: Getting hits from dbCAN' % str(datetime.now() - start_time))
+        yield run_hmmscan(genes_faa=gene_faa,
+                                           db_loc=db_handler.db_locs['dbcan'],
+                                           db_name='cazy',
+                                           output_loc=tmp_dir,
+                                           threads=threads,
+                                           formater=partial(
+                                               dbcan_hmmscan_formater,
+                                               db_name='cazy',
+                                               db_handler=db_handler
+                                           ))
+
+    # use hmmer to detect vogdbs
+    if 'vogdb' in curated_databases:
+        print('%s: Getting hits from VOGDB' % str(datetime.now() - start_time))
+        yield run_hmmscan(genes_faa=gene_faa,
+                                           db_loc=db_handler.db_locs['vogdb'],
+                                           db_name='vogdb',
+                                           threads=threads,
+                                           output_loc=tmp_dir,
+                                           formater=partial(
+                                               vogdb_hmmscan_formater,
+                                               db_name='vogdb',
+                                               db_handler=db_handler
+                                           ))
+
+    for db_name, db_loc in custom_db_locs.items():
+        print('%s: Getting hits from %s' % (str(datetime.now() - start_time), db_name))
+        get_custom_description = partial(get_basic_description, db_name=db_name)
+        yield do_blast_style_search(query_db, db_loc, tmp_dir, db_handler,
+                                                     get_custom_description, start_time, db_name,
+                                                     bit_score_threshold, rbh_bit_score_threshold, threads,
+                                                     verbose)
+
+    # get hits to hmm style custom databases
+    for hmm_name, hmm_loc in custom_hmm_locs.items():
+        yield run_hmmscan(genes_faa=gene_faa,
+                                           db_loc=hmm_loc,
+                                           db_name=hmm_name,
+                                           threads=threads,
+                                           output_loc=tmp_dir,
+                                           formater=partial(
+                                               generic_hmmscan_formater,
+                                               db_name=hmm_name,
+                                               hmm_info_path=custom_hmm_cutoffs_locs.get(hmm_name),
+                                               top_hit=True
+                                           ))
+
 def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), custom_hmm_locs=(),
                   custom_hmm_cutoffs_locs=(), bit_score_threshold=60, rbh_bit_score_threshold=350,
                   kofam_use_dbcan2_thresholds=False, threads=10, verbose=False):
@@ -798,6 +922,7 @@ def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), 
 
     # Get uniref hits
     if db_handler.db_locs.get('uniref') is not None:
+        print('%s: Getting hits from uniref' % str(datetime.now() - start_time))
         annotation_list.append(do_blast_style_search(query_db, db_handler.db_locs['uniref'], tmp_dir,
                                                      db_handler, get_uniref_description,
                                                      start_time, 'uniref', bit_score_threshold,
@@ -805,6 +930,7 @@ def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), 
 
     # Get viral hits
     if db_handler.db_locs.get('viral') is not None:
+        print('%s: Getting hits from viral' % str(datetime.now() - start_time))
         get_viral_description = partial(get_basic_description, db_name='viral')
         annotation_list.append(do_blast_style_search(query_db, db_handler.db_locs['viral'], tmp_dir,
                                                      db_handler, get_viral_description,
@@ -813,6 +939,7 @@ def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), 
 
     # Get peptidase hits
     if db_handler.db_locs.get('peptidase') is not None:
+        print('%s: Getting hits from peptidase' % str(datetime.now() - start_time))
         annotation_list.append(do_blast_style_search(query_db, db_handler.db_locs['peptidase'], tmp_dir,
                                                      db_handler, get_peptidase_description,
                                                      start_time, 'peptidase', bit_score_threshold,
@@ -887,6 +1014,13 @@ def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), 
     annotations = pd.concat([grades, annotations], axis=1, sort=False)
     return annotations
 
+    # run reciprocal best hits searches
+    print('%s: Turning genes from prodigal to mmseqs2 db' % str(datetime.now() - start_time))
+    query_db = path.join(tmp_dir, 'gene.mmsdb')
+    make_mmseqs_db(gene_faa, query_db, create_index=True, threads=threads, verbose=verbose)
+
+    annotation_list = list()
+
 
 def annotate_fasta(fasta_loc, fasta_name, output_dir, db_handler, min_contig_size=5000, prodigal_mode='meta',
                    trans_table='11', custom_db_locs=(), custom_hmm_locs=(), custom_hmm_cutoffs_locs=(),
@@ -931,8 +1065,6 @@ def annotate_fasta(fasta_loc, fasta_name, output_dir, db_handler, min_contig_siz
     create_annotated_fasta(gene_fna, annotations, annotated_fna, name=prefix)
     annotated_faa = path.join(output_dir, 'genes.annotated.faa')
     create_annotated_fasta(gene_faa, annotations, annotated_faa, name=prefix)
-
-    # rename gff entries to match prodigal names
     renamed_gffs = path.join(output_dir, 'genes.annotated.gff')
     annotate_gff(gene_gff, renamed_gffs, annotations, prefix=prefix)
 
@@ -1049,7 +1181,8 @@ def annotate_bins(fasta_locs, output_dir='.', min_contig_size=2500, prodigal_mod
     start_time = datetime.now()
     print('%s: Annotation started' % str(datetime.now()))
 
-    # check inputs
+    # check input
+
     prodigal_modes = ['train', 'meta', 'single']
     if prodigal_mode not in prodigal_modes:
         raise ValueError('Prodigal mode must be one of %s.' % ', '.join(prodigal_modes))
@@ -1065,7 +1198,7 @@ def annotate_bins(fasta_locs, output_dir='.', min_contig_size=2500, prodigal_mod
         raise ValueError('Prodigal translation table must be 1-25')
 
     # get database locations
-    db_handler = DatabaseHandler()
+    db_handler = databasehandler()
     db_handler.filter_db_locs(low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE)
 
     mkdir(output_dir)
@@ -1117,22 +1250,63 @@ def annotate_bins(fasta_locs, output_dir='.', min_contig_size=2500, prodigal_mod
     print("%s: Completed annotations" % str(datetime.now() - start_time))
 
 
+def check_fasta(input_faa):
+    fasta_locs = glob(input_faa)
+    if len(fasta_locs) == 0:
+        raise ValueError('Given fasta locations returns no paths: %s' % input_faa)
+    print('%s fastas found' % len(fasta_locs))
+    return fasta_locs
+
+
+@dram2.command("annotate_genes_retro")
+@click.option('-i', '--input_faa', help="fasta file, optionally with wildcards to point to "
+                                   "individual MAGs", required=True)
+@click.option('-o', '--output_dir', help="output directory")
+@click.option('--bit_score_threshold', type=int, default=60,
+         help='minimum bitScore of search to retain hits')
+@click.option('--rbh_bit_score_threshold', type=int, default=350,
+         help='minimum bitScore of reverse best hits to retain hits')
+@click.option('--kofam_use_dbcan2_thresholds', default=False,
+         help='Use dbcan2 suggested HMM cutoffs for KOfam annotation instead of KOfam '
+              'recommended cutoffs. This will be ignored if annotating with KEGG Genes.')
+@click.option('--custom_db_name', multiple=True,
+         help="Names of custom databases, can be used multiple times.")
+@click.option('--custom_fasta_loc', multiple=True,
+         help="Location of fastas to annotate against, can be used multiple times but"
+              "must match nubmer of custom_db_name's")
+@click.option('--custom_hmm_name',  multiple=True,
+         help="Names of custom hmm databases, can be used multiple times.")
+@click.option('--custom_hmm_loc',  multiple=True,
+              help="Location of hmms to annotate against, can be used multiple times but"
+                   "must match nubmer of custom_hmm_name's")
+@click.option('--custom_hmm_cutoffs_loc', multiple=True,
+              help="Location of file with custom HMM cutoffs and descriptions, can be used "
+                   "multiple times.")
+@click.option('--use_uniref', default=False,
+              help='Annotate these fastas against UniRef, drastically increases run time and '
+                   'memory requirements')
+# @click.option('--databases',
+#               #TODO make db_handler do this intelligently
+#               type=click.Choice(temporary_get_dblists(), case_sensitive=False),
+#               # type=click.Choice(db_handler.get_dblists(), case_sensitive=False),
+#               default = 'auto')
+@click.option('--low_mem_mode', default=False,
+              help='Skip annotating with uniref and use kofam instead of KEGG genes even if '
+                   'provided. Drastically decreases memory usage')
+@click.option('--keep_tmp_dir', default=False)
+@click.option('--threads', type=int, default=10, help='number of processors to use')
 def annotate_called_genes_cmd(input_faa, output_dir='.', bit_score_threshold=60, rbh_bit_score_threshold=350,
                               custom_db_name=(), custom_fasta_loc=(), custom_hmm_loc=(), custom_hmm_name=(),
                               custom_hmm_cutoffs_loc=(), use_uniref=False, use_vogdb=False,
                               kofam_use_dbcan2_thresholds=False, rename_genes=True, keep_tmp_dir=True,
                               low_mem_mode=False, threads=10, verbose=True):
-    fasta_locs = glob(input_faa)
-    if len(fasta_locs) == 0:
-        raise ValueError('Given fasta locations returns no paths: %s' % input_faa)
-    print('%s fastas found' % len(fasta_locs))
-    annotate_called_genes(fasta_locs, output_dir, bit_score_threshold, rbh_bit_score_threshold, custom_db_name,
+    annotate_called_genes(check_fasta(input_faa), output_dir, bit_score_threshold, rbh_bit_score_threshold, custom_db_name,
                           custom_fasta_loc, custom_hmm_loc, custom_hmm_name, custom_hmm_cutoffs_loc, use_uniref, use_vogdb,
-                          kofam_use_dbcan2_thresholds, rename_genes, keep_tmp_dir, low_mem_mode, threads, verbose)
+                          kofam_use_dbcan2_thresholds, rename_genes, keep_tmp_dir, threads, verbose)
 
 
 def annotate_called_genes(fasta_locs, output_dir='.', bit_score_threshold=60, rbh_bit_score_threshold=350,
-                          custom_db_name=(), custom_fasta_loc=(), custom_hmm_loc=(), custom_hmm_name=(),
+                          curated_databases=(), annotations:str=None, custom_db_name=(), custom_fasta_loc=(), custom_hmm_loc=(), custom_hmm_name=(),
                           custom_hmm_cutoffs_loc=(), use_uniref=False, use_vogdb=False,
                           kofam_use_dbcan2_thresholds=False, rename_genes=True, keep_tmp_dir=True, low_mem_mode=False,
                           threads=10, verbose=True):
@@ -1142,6 +1316,7 @@ def annotate_called_genes(fasta_locs, output_dir='.', bit_score_threshold=60, rb
 
     # get database locations
     db_handler = DatabaseHandler()
+    #TODO I hate this line
     db_handler.filter_db_locs(low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE)
 
     mkdir(output_dir)
@@ -1165,7 +1340,7 @@ def annotate_called_genes(fasta_locs, output_dir='.', bit_score_threshold=60, rb
         mkdir(fasta_dir)
 
         # annotate
-        annotations = annotate_orfs(fasta_loc, db_handler, fasta_dir, start_time, custom_db_locs, custom_hmm_locs,
+        annotations = annotate_orf(fasta_loc, db_handler, fasta_dir, start_time, custom_db_locs, custom_hmm_locs,
                                     custom_hmm_cutoffs_locs, bit_score_threshold, rbh_bit_score_threshold,
                                     kofam_use_dbcan2_thresholds, threads, verbose)
 
@@ -1192,6 +1367,163 @@ def annotate_called_genes(fasta_locs, output_dir='.', bit_score_threshold=60, rb
         rmtree(tmp_dir)
 
     print("%s: Completed annotations" % str(datetime.now() - start_time))
+
+
+def annotate_called_genes_with_dbs(fasta_locs:list=(), output_dir:str='.', bit_score_threshold:float=60,
+                                   rbh_bit_score_threshold:float=350,
+                                   past_annotations_path:str=None, curated_databases:list=(), custom_db_name:list=(),
+                                   custom_fasta_loc:list=(), custom_hmm_loc:list=(), custom_hmm_name:list=(),
+                                   custom_hmm_cutoffs_loc:list=(), use_uniref:bool=False, use_vogdb:bool=False,
+                                   kofam_use_dbcan2_thresholds:bool=False, rename_genes:bool=True,
+                                   keep_tmp_dir:bool=True, low_mem_mode:bool=False,
+                                   threads:int=10, verbose:bool=True, make_new_faa:bool=None):
+    if make_new_faa is None:
+        # We only make a new faa if the user asks or
+        # we are not apending to a past annotatons
+        make_new_faa = past_annotations_path is None
+
+    # set up
+    start_time = datetime.now()
+    print('%s: Annotation started' % str(datetime.now()))
+
+    if len(curated_databases + custom_fasta_loc + custom_hmm_loc) < 1:
+        raise ValueError("For some reason there are no database selected to"
+                         " annotate against. This is most likely a result of"
+                         " bad arguments.")
+
+    # get database locations
+    db_handler = DatabaseHandler()
+    # db_handler.filter_db_locs(low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE)
+
+    mkdir(output_dir)
+    tmp_dir = path.join(output_dir, 'working_dir')
+    mkdir(tmp_dir)
+
+    # setup custom databases to be searched
+    custom_db_locs = process_custom_dbs(custom_fasta_loc, custom_db_name, path.join(tmp_dir, 'custom_dbs'), threads,
+                                        verbose)
+    custom_hmm_locs = process_custom_hmms(custom_hmm_loc, custom_hmm_name)
+    custom_hmm_cutoffs_locs= process_custom_hmm_cutoffs(custom_hmm_cutoffs_loc, custom_hmm_name)
+    print('%s: Retrieved database locations and descriptions' % (str(datetime.now() - start_time)))
+
+    # annotate
+    annotation_locs = list()
+    faa_locs = list()
+    # TODO IO is so slow!!! We need to use more memory and make less files
+    for fasta_loc in fasta_locs:
+        # set up
+        fasta_name = get_fasta_name(fasta_loc)
+        fasta_dir = path.join(tmp_dir, fasta_name)
+        mkdir(fasta_dir)
+
+        # annotate
+        annotations = pd.concat([
+            orf for orf in
+            annotate_orf(fasta_loc, curated_databases, db_handler, fasta_dir,
+                         start_time, custom_db_locs, custom_hmm_locs,
+                         custom_hmm_cutoffs_locs, bit_score_threshold,
+                         rbh_bit_score_threshold, kofam_use_dbcan2_thresholds,
+                         threads, verbose)
+                       ])
+        if make_new_faa:
+           annotated_faa = path.join(fasta_dir, 'genes.faa')
+           create_annotated_fasta(fasta_loc, annotations, annotated_faa, name=fasta_name)
+           faa_locs.append(annotated_faa)
+
+        # add fasta name to frame and index, write file
+        annotations.insert(0, 'fasta', fasta_name)
+        if rename_genes:
+            annotations.index = annotations.fasta + '_' + annotations.index
+        annotation_loc = path.join(fasta_dir, 'annotations.tsv')
+        annotations.to_csv(annotation_loc, sep='\t')
+        annotation_locs.append(annotation_loc)
+
+    # merge
+    all_annotations = pd.concat([pd.read_csv(i, sep='\t', index_col=0) for i in annotation_locs], sort=False)
+    all_annotations = all_annotations.sort_values('fasta')
+    if past_annotations_path is not None:
+        past_annotations = pd.read_csv(past_annotations_path, sep='\t', index_col=0)
+        if set(past_annotations.columns).issubset(set(all_annotations.columns)):
+            raise Warning("You have passed an annotations file that containes"
+                          " columns matching the new annotations. You most"
+                          " likely are annotating with the same database again."
+                          " The falowing columns will be replaced in the new"
+                          " annotations file:\n%s" %
+                          set(past_annotations.columns).intersection(set(all_annotations.columns)))
+        all_annotations = all_annotations[set(all_annotations.columns) - set(past_annotations.columns)]
+        all_annotations = pd.merge(all_annotations, past_annotations, how="outer", left_index=True, right_index=True)
+    all_annotations.to_csv(path.join(output_dir, 'annotations.tsv'), sep='\t')
+    if len(faa_locs) > 0:
+        merge_files(faa_locs, path.join(output_dir, 'genes.faa'))
+
+    # clean up
+    if not keep_tmp_dir:
+        rmtree(tmp_dir)
+
+    print("%s: Completed annotations" % str(datetime.now() - start_time))
+
+
+@dram2.command("annotate_genes")
+@click.option('-i', '--input_faa', help="fasta file, optionally with wildcards to point to "
+                                   "individual MAGs", required=True)
+@click.option('-o', '--output_dir', help="output directory", required=True)
+@click.option('-a', '--past_annotations_path',
+              help="past_annotations to append new annotations to.")
+@click.option('--bit_score_threshold', type=int, default=60,
+         help='minimum bitScore of search to retain hits')
+@click.option('--rbh_bit_score_threshold', type=int, default=350,
+         help='minimum bitScore of reverse best hits to retain hits')
+@click.option('--kofam_use_dbcan2_thresholds', default=False,
+         help='Use dbcan2 suggested HMM cutoffs for KOfam annotation instead of KOfam '
+              'recommended cutoffs. This will be ignored if annotating with KEGG Genes.')
+@click.option('--custom_db_name', multiple=True,
+         help="Names of custom databases, can be used multiple times.")
+@click.option('--custom_fasta_loc', multiple=True,
+         help="Location of fastas to annotate against, can be used multiple times but"
+              "must match nubmer of custom_db_name's")
+@click.option('--custom_hmm_name',  multiple=True,
+         help="Names of custom hmm databases, can be used multiple times.")
+@click.option('--custom_hmm_loc',  multiple=True,
+              help="Location of hmms to annotate against, can be used multiple times but"
+                   "must match nubmer of custom_hmm_name's")
+@click.option('--custom_hmm_cutoffs_loc', multiple=True,
+              help="Location of file with custom HMM cutoffs and descriptions, can be used "
+                   "multiple times.")
+# @click.option('--use_uniref', default=False,
+#               help='Annotate these fastas against UniRef, drastically increases run time and '
+#                    'memory requirements')
+@click.option('--curated_databases', multiple=True,
+              #TODO make db_handler do this intelligently
+              type=click.Choice(['kegg', 'kofam', 'uniref', 'viral',
+                                 'peptidase', 'pfam', 'dbcan', 'vogdb'],
+                                case_sensitive=False),
+              # type=click.Choice(db_handler.get_dblists(), case_sensitive=False),
+              )
+@click.option('--keep_tmp_dir', default=False)
+@click.option('--make_new_faa', default=None,
+              help="If true the output directory will have a new genes.faa file with the"
+              " anotation information apended to the headers. If false this file will not"
+              " be made and time will be saved. If not specified the value will be set"
+              " based on other arguments.")
+@click.option('--threads', type=int, default=10, help='number of processors to use')
+def annotate_genes(input_faa, output_dir='.', bit_score_threshold=60, rbh_bit_score_threshold=350,
+                    past_annotations_path:str=None, curated_databases=(),
+                    custom_db_name=(), custom_fasta_loc=(), custom_hmm_loc=(), custom_hmm_name=(),
+                    custom_hmm_cutoffs_loc=(), use_uniref=False, use_vogdb=False,
+                    kofam_use_dbcan2_thresholds=False, rename_genes=True, keep_tmp_dir=True,
+                    threads=10, verbose=True, make_new_faa:bool=None):
+    annotate_called_genes_with_dbs(fasta_locs=check_fasta(input_faa), output_dir=output_dir,
+                                   bit_score_threshold=bit_score_threshold, rbh_bit_score_threshold=rbh_bit_score_threshold,
+                                   past_annotations_path=past_annotations_path, curated_databases=curated_databases,
+                                   custom_db_name=custom_db_name, custom_fasta_loc=custom_fasta_loc,
+                                   custom_hmm_loc=custom_hmm_loc, custom_hmm_name=custom_hmm_name,
+                                   custom_hmm_cutoffs_loc=custom_hmm_cutoffs_loc,
+                                   use_uniref=use_uniref, use_vogdb=use_vogdb,
+                                   kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+                                   rename_genes=rename_genes, keep_tmp_dir=keep_tmp_dir,
+                                   low_mem_mode=False, threads=threads, verbose=verbose, make_new_faa=make_new_faa)
+
+
 
 
 def merge_annotations(annotations_list, output_dir, write_annotations=False):
