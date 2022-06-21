@@ -2,9 +2,10 @@
 
 import argparse
 
-from mag_annotator.database_processing import prepare_databases, update_dram_forms
-from mag_annotator.database_handler import set_database_paths, print_database_locations, populate_description_db, \
-    export_config, import_config
+from mag_annotator.database_processing import prepare_databases, update_dram_forms, \
+    DEFAULT_DBCAN_DATE, DEFAULT_DBCAN_RELEASE, DEFAULT_UNIREF_VERSION
+from mag_annotator.database_handler import DatabaseHandler,  set_database_paths,  populate_description_db, \
+    export_config, import_config, print_database_locations, print_database_settings
 from mag_annotator import __version__ as version
 
 
@@ -25,6 +26,8 @@ if __name__ == '__main__':
                                                      help='Update DRAM distillate and liquor forms',
                                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     print_db_locs_parser = subparsers.add_parser('print_config', help="Print database locations",
+                                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    print_db_settings_parser = subparsers.add_parser('print_settings', help="Print database settings",
                                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     import_config_parser = subparsers.add_parser('import_config', help="Import CONFIG file",
                                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -48,13 +51,13 @@ if __name__ == '__main__':
                                     help="Date KEGG was download to include in database name")
     prepare_dbs_parser.add_argument('--uniref_loc', default=None, help="File path to uniref, if already downloaded "
                                                                        "(uniref90.fasta.gz)")
-    prepare_dbs_parser.add_argument('--uniref_version', default='90', help="UniRef version to download")
+    prepare_dbs_parser.add_argument('--uniref_version', default=DEFAULT_UNIREF_VERSION, help="UniRef version to download")
     prepare_dbs_parser.add_argument('--skip_uniref', default=False, action='store_true',
-                                    help="Do not download and process uniref90. Saves time and memory usage and does "
+                                    help=f"Do not download and process uniref{DEFAULT_UNIREF_VERSION}. Saves time and memory usage and does "
                                          "not impact DRAM distillation")
     prepare_dbs_parser.add_argument('--pfam_loc', default=None,
                                     help="File path to pfam-A full file, if already downloaded (Pfam-A.full.gz)")
-    prepare_dbs_parser.add_argument('--pfam_hmm_dat', default=None,
+    prepare_dbs_parser.add_argument('--pfam_hmm_loc', default=None,
                                     help="pfam hmm .dat file to get PF descriptions, if already downloaded "
                                          "(Pfam-A.hmm.dat.gz)")
     prepare_dbs_parser.add_argument('--dbcan_loc', default=None, help="File path to dbCAN, if already downloaded "
@@ -62,7 +65,7 @@ if __name__ == '__main__':
     prepare_dbs_parser.add_argument('--dbcan_fam_activities', default=None,
                                     help='CAZY family activities file, if already downloaded '
                                          '(CAZyDB.07302020.fam-activities.txt)')
-    prepare_dbs_parser.add_argument('--dbcan_version', default='9', type=str, help='version of dbCAN to use')
+    prepare_dbs_parser.add_argument('--dbcan_version', default=DEFAULT_DBCAN_RELEASE, type=str, help='version of dbCAN to use')
     prepare_dbs_parser.add_argument('--vogdb_loc', default=None,
                                     help='hmm file for vogdb, if already downloaded (vog.hmm.tar.gz)')
     prepare_dbs_parser.add_argument('--vog_annotations', default=None,
@@ -88,27 +91,40 @@ if __name__ == '__main__':
                                     help="Keep unporcessed database files")
     prepare_dbs_parser.add_argument('--threads', default=10, type=int,
                                     help="Number of threads to use building mmseqs2 databases")
+    prepare_dbs_parser.add_argument('--select_db', action='append',
+                                    help="The db or dbs the you want to update if you don't want to do a full upgrade")
     prepare_dbs_parser.add_argument('--verbose', default=False, action='store_true', help="Make it talk more")
     prepare_dbs_parser.set_defaults(func=prepare_databases)
 
     # parser for setting database locations when you already have processed database files
-    set_db_locs_parser.add_argument('--kegg_db_loc', default=None, help='mmseqs2 database file from kegg .pep file')
+    set_db_locs_parser.add_argument('--kegg_loc', default=None, help='mmseqs2 database file from kegg .pep file')
     set_db_locs_parser.add_argument('--kofam_hmm_loc', default=None, help='hmm file for KOfam, already processed with'
                                                                           'hmmpress')
     set_db_locs_parser.add_argument('--kofam_ko_list_loc', default=None, help='KOfam ko list file')
-    set_db_locs_parser.add_argument('--uniref_db_loc', default=None, help='mmseqs2 database file from uniref .faa')
-    set_db_locs_parser.add_argument('--pfam_db_loc', default=None, help='mmseqs2 database file from pfam .hmm')
-    set_db_locs_parser.add_argument('--pfam_hmm_dat', default=None, help='pfam hmm .dat file to get PF descriptions')
-    set_db_locs_parser.add_argument('--dbcan_db_loc', default=None,
+    set_db_locs_parser.add_argument('--uniref_loc', default=None, help='mmseqs2 database file from uniref .faa')
+    set_db_locs_parser.add_argument('--pfam_loc', default=None, help='mmseqs2 database file from pfam .hmm')
+    set_db_locs_parser.add_argument('--pfam_hmm_loc', default=None, help='pfam hmm .dat file to get PF descriptions')
+    set_db_locs_parser.add_argument('--dbcan_loc', default=None,
                                     help='hmm file for dbcan, already processed with hmmpress')
     set_db_locs_parser.add_argument('--dbcan_fam_activities', default=None, help='CAZY family activities file')
-    set_db_locs_parser.add_argument('--vogdb_db_loc', default=None,
+    set_db_locs_parser.add_argument('--dbcan_subfam_ec', default=None, help='CAZY sub-family ECs file')
+    set_db_locs_parser.add_argument('--vogdb_loc', default=None,
                                     help='hmm file for vogdb, already processed with hmmpress')
     set_db_locs_parser.add_argument('--vog_annotations', default=None,
                                     help='vog annotations file') # add loc to vog_annotations to match the rest
-    set_db_locs_parser.add_argument('--viral_db_loc', default=None,
+
+    set_db_locs_parser.add_argument('--camper_tar_gz_loc', default=None, 
+                                    help='The source for the CAMPER database files, this is a tar.gz file downloaded'
+                                    ' from the release page https://github.com/WrightonLabCSU/CAMPER/releases')
+    set_db_locs_parser.add_argument('--fegenie_tar_gz_loc', default=None,
+                                    help='The source for the FeGenie database files, this is a tar.gz file downloaded'
+                                    ' from the release page https://github.com/Arkadiy-Garber/FeGenie/releases')
+    set_db_locs_parser.add_argument('--sulphur_tar_gz_loc', default=None, 
+                                    help='This is the tar.gz for the Sulphur db, get it from the  github releases page')
+
+    set_db_locs_parser.add_argument('--viral_refseq_loc', default=None,
                                     help='mmseqs2 database file from ref seq viral gene collection')
-    set_db_locs_parser.add_argument('--peptidase_db_loc', default=None,
+    set_db_locs_parser.add_argument('--peptidase_loc', default=None,
                                     help='mmseqs2 database file from MEROPS database')
     set_db_locs_parser.add_argument('--description_db_loc', default=None,
                                     help="Location to write description sqlite db")
@@ -140,6 +156,10 @@ if __name__ == '__main__':
                                                                    "default the locations from the built in CONFIG "
                                                                    "will be used")
     print_db_locs_parser.set_defaults(func=print_database_locations)
+    print_db_settings_parser.add_argument('--config_loc', help="Location of CONFIG to print locations from, by "
+                                                                   "default the locations from the built in CONFIG "
+                                                                   "will be used")
+    print_db_settings_parser.set_defaults(func=print_database_settings)
 
     # parser for printing out or saving CONFIG to file
     export_config_parser.add_argument('--output_file', help="File to save exported CONFIG file to, by default will"

@@ -53,25 +53,31 @@ if __name__ == '__main__':
                                       'recommended cutoffs. This will be ignored if annotating with KEGG Genes.')
     annotate_parser.add_argument('--custom_db_name', action='append', help="Names of custom databases, can be used"
                                                                            "multiple times.")
-    annotate_parser.add_argument('--custom_fasta_loc', action='append', default=(),
+    annotate_parser.add_argument('--custom_fasta_loc', action='append', default=[], # empty list is not bug, can't be changed
                                  help="Location of fastas to annotate against, can be used multiple times but"
                                       "must match nubmer of custom_db_name's")
-    annotate_parser.add_argument('--custom_hmm_name', action='append',  default=(),
+    annotate_parser.add_argument('--custom_hmm_name', action='append',  default=[], # empty list is not bug, can't be changed
                                  help="Names of custom hmm databases, can be used multiple times.")
-    annotate_parser.add_argument('--custom_hmm_loc', action='append', default=(),
+    annotate_parser.add_argument('--custom_hmm_loc', action='append', default=[], # empty list is not bug, can't be changed
                                  help="Location of hmms to annotate against, can be used multiple times but"
                                       "must match nubmer of custom_hmm_name's")
-    annotate_parser.add_argument('--custom_hmm_cutoffs_loc', action='append', default=(),
+    annotate_parser.add_argument('--custom_hmm_cutoffs_loc', action='append', default=[], # empty list is not bug, can't be changed
                                  help="Location of file with custom HMM cutoffs and descriptions, can be used "
                                       "multiple times.")
-    annotate_parser.add_argument('--gtdb_taxonomy', action='append', default=(),
+    annotate_parser.add_argument('--gtdb_taxonomy', action='append', default=[], # empty list is not bug, can't be changed
                                  help='Summary file from gtdbtk taxonomy assignment from bins, can be used multiple'
                                       'times')
-    annotate_parser.add_argument('--checkm_quality', action='append', default=(),
+    annotate_parser.add_argument('--checkm_quality', action='append', default=[], # empty list is not bug, can't be changed
                                  help='Summary of of checkM quality assessment from bins, can be used multiple times')
     annotate_parser.add_argument('--use_uniref', action='store_true', default=False,
                                  help='Annotate these fastas against UniRef, drastically increases run time and memory '
                                       'requirements')
+    annotate_parser.add_argument('--use_camper', action='store_true', default=False,
+                                 help="Annotate these fastas against the CAMPER dataset to study polyphenol metabolism")
+    annotate_parser.add_argument('--use_fegenie', action='store_true', default=False,
+                                 help="Annotate these fastas against the FeGenie dataset to study iron metabolism")
+    annotate_parser.add_argument('--use_sulphur', action='store_true', default=False,
+                                 help="Annotate these fastas against the Sulphur dataset to study sulphur metabolism")
     annotate_parser.add_argument('--use_vogdb', action='store_true', default=False,
                                  help='Annotate these fastas against VOGDB, drastically decreases run time')
     annotate_parser.add_argument('--low_mem_mode', action='store_true', default=False,
@@ -86,7 +92,9 @@ if __name__ == '__main__':
     # parser for annotating already called genes
     annotate_genes_parser.add_argument('-i', '--input_faa', help="fasta file, optionally with wildcards to point to "
                                                                  "individual MAGs", required=True)
-    annotate_genes_parser.add_argument('-o', '--output_dir', help="output directory")
+    annotate_genes_parser.add_argument('-o', '--output_dir', help="output directory", required=True)
+    annotate_genes_parser.add_argument('--log_file_path', 
+                                       help="A name and loctation for the log file")
     annotate_genes_parser.add_argument('--bit_score_threshold', type=int, default=60,
                                        help='minimum bitScore of search to retain hits')
     annotate_genes_parser.add_argument('--rbh_bit_score_threshold', type=int, default=350,
@@ -94,22 +102,28 @@ if __name__ == '__main__':
     annotate_genes_parser.add_argument('--kofam_use_dbcan2_thresholds', action='store_true', default=False,
                                        help='Use dbcan2 suggested HMM cutoffs for KOfam annotation instead of KOfam '
                                             'recommended cutoffs. This will be ignored if annotating with KEGG Genes.')
-    annotate_genes_parser.add_argument('--custom_db_name', action='append', default=(),
+    annotate_genes_parser.add_argument('--custom_db_name', action='append', default=[], # empty list is not bug, can't be changed
                                        help="Names of custom databases, can be used multiple times.")
-    annotate_genes_parser.add_argument('--custom_fasta_loc', action='append', default=(),
+    annotate_genes_parser.add_argument('--custom_fasta_loc', action='append', default=[], # empty list is not bug, can't be changed
                                        help="Location of fastas to annotate against, can be used multiple times but"
                                             "must match nubmer of custom_db_name's")
-    annotate_genes_parser.add_argument('--custom_hmm_name', action='append', default=(),
+    annotate_genes_parser.add_argument('--custom_hmm_name', action='append', default=[], # empty list is not bug, can't be changed
                                        help="Names of custom hmm databases, can be used multiple times.")
-    annotate_genes_parser.add_argument('--custom_hmm_loc', action='append', default=(),
+    annotate_genes_parser.add_argument('--custom_hmm_loc', action='append', default=[], # empty list is not bug, can't be changed
                                        help="Location of hmms to annotate against, can be used multiple times but"
                                             "must match nubmer of custom_hmm_name's")
-    annotate_genes_parser.add_argument('--custom_hmm_cutoffs_loc', action='append', default=(),
+    annotate_genes_parser.add_argument('--custom_hmm_cutoffs_loc', action='append', default=[], # empty list is not bug, can't be changed
                                        help="Location of file with custom HMM cutoffs and descriptions, can be used "
                                             "multiple times.")
     annotate_genes_parser.add_argument('--use_uniref', action='store_true', default=False,
                                        help='Annotate these fastas against UniRef, drastically increases run time and '
                                             'memory requirements')
+    annotate_genes_parser.add_argument('--use_camper', action='store_true', default=False,
+                                 help="Annotate these fastas against the CAMPER dataset to study polyphenol metabolism")
+    annotate_genes_parser.add_argument('--use_fegenie', action='store_true', default=False,
+                                 help="Annotate these fastas against the FeGenie dataset to study iron metabolism")
+    annotate_genes_parser.add_argument('--use_sulphur', action='store_true', default=False,
+                                 help="Annotate these fastas against the Sulphur dataset to study sulphur metabolism")
     annotate_genes_parser.add_argument('--low_mem_mode', action='store_true', default=False,
                                        help='Skip annotating with uniref and use kofam instead of KEGG genes even if '
                                             'provided. Drastically decreases memory usage')
@@ -121,6 +135,8 @@ if __name__ == '__main__':
     # parser for summarizing genomes
     distill_parser.add_argument("-i", "--input_file", help="Annotations path")
     distill_parser.add_argument("-o", "--output_dir", help="Directory to write summarized genomes")
+    distill_parser.add_argument('--log_file_path', 
+                                       help="A name and loctation for the log file")
     distill_parser.add_argument("--rrna_path", help="rRNA output from annotation")
     distill_parser.add_argument("--trna_path", help="tRNA output from annotation")
     distill_parser.add_argument("--groupby_column", help="Column from annotations to group as organism units",
