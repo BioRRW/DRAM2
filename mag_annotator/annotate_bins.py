@@ -22,6 +22,16 @@ from shutil import rmtree, copy2
 import pandas as pd
 import click
 
+from pkg_resources import resource_filename
+
+
+
+import importlib
+import pkgutil
+import mag_annotator.db_kits
+DB_KITS = [importlib.import_module(i.name) for i in pkgutil.iter_modules(mag_annotator.db_kits.__path__, mag_annotator.db_kits.__name__ + ".")]
+
+
 # TODO Exceptions are not fully handled
 # TODO Distillate sheets is part of the config, drop it
 
@@ -30,8 +40,8 @@ from mag_annotator.utils import run_process, make_mmseqs_db, merge_files, \
     multigrep, remove_suffix, setup_logger, run_hmmscan, sig_scores, get_sig_row, \
     generic_hmmscan_formater, get_reciprocal_best_hits, get_best_hits, BOUTFMT6_COLUMNS
 from mag_annotator.database_handler import DatabaseHandler
-from mag_annotator.camper_kit import search as camper_search, DRAM_SETTINGS as CAMPER_SETTINGS
-from mag_annotator.fegenie_kit import search as fegenie_search, DRAM_SETTINGS as FEGENIE_SETTINGS
+# from mag_annotator.camper_kit import search as camper_search, DRAM_SETTINGS as CAMPER_SETTINGS
+# from mag_annotator.fegenie_kit import search as fegenie_search, DRAM_SETTINGS as FEGENIE_SETTINGS
 # TODO: add ability to take into account multiple best hits as in old_code.py
 # TODO: add real logging
 # TODO: add silent mode
@@ -40,8 +50,9 @@ from mag_annotator.fegenie_kit import search as fegenie_search, DRAM_SETTINGS as
 # TODO: add ability to handle [] in file names
 
 MAG_DBS_TO_ANNOTATE = ('kegg', 'kofam_hmm', 'kofam_ko_list', 'uniref', 'peptidase', 'pfam', 'dbcan', 'vogdb') 
-MAG_DBS_TO_ANNOTATE += tuple(CAMPER_SETTINGS.keys())
-MAG_DBS_TO_ANNOTATE += tuple(FEGENIE_SETTINGS.keys())
+for kit in DB_KITS:
+    MAG_DBS_TO_ANNOTATE += tuple(kit.DRAM_SETTINGS.keys())
+
 """
 import os
 os.system("DRAM.py annotate_genes -i /home/projects-wrighton-2/DRAM/development_flynn/release_validation/data_sets/mini_data/small.faa -o test_small")
@@ -1490,7 +1501,7 @@ def annotate_called_genes_with_dbs(fasta_locs:list=(), output_dir:str='.', bit_s
 @click.option('--curated_databases', multiple=True,
               #TODO make db_handler do this intelligently
               type=click.Choice(['kegg', 'kofam', 'uniref', 'viral',
-                                 'peptidase', 'pfam', 'dbcan', 'vogdb'],
+                                 'peptidase', 'pfam', 'dbcan', 'vogdb'] + [i.NAME for i in DB_KITS],
                                 case_sensitive=False),
               # type=click.Choice(db_handler.get_dblists(), case_sensitive=False),
               )
