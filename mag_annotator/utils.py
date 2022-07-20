@@ -77,6 +77,29 @@ def run_process(command, logger, shell:bool=False, capture_stdout:bool=True, sav
         return results.stdout
 
 
+def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater, logger,
+                          db_name='database', bit_score_threshold=60, rbh_bit_score_threshold=350, threads=10,
+                          verbose=False):
+    """A convenience function to do a blast style reciprocal best hits search"""
+    # Get kegg hits
+    logger.info('Getting forward best hits from %s' % db_name)
+    forward_hits = get_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name, bit_score_threshold,
+                                 threads, verbose=verbose)
+    if stat(forward_hits).st_size == 0:
+        return pd.DataFrame()
+    logger.info('Getting reverse best hits from %s' % db_name)
+    reverse_hits = get_reciprocal_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name,
+                                            bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
+    hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
+    logger.info('Getting descriptions of hits from %s' % (db_name))
+    if '%s_description' % db_name in db_handler.get_database_names():
+        header_dict = db_handler.get_descriptions(hits['%s_hit' % db_name], '%s_description' % db_name)
+    else:
+        header_dict = multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, '\x00', working_dir)
+    hits = formater(hits, header_dict)
+    return hits
+
+
 # TODO: refactor following to methods to a shared run hmm step and individual get description steps
 def parse_hmmsearch_domtblout(file):
     df_lines = list()
@@ -196,6 +219,33 @@ def get_reciprocal_best_hits(query_db, target_db, logger, output_dir='.', query_
 
     return get_best_hits(target_db_filt, query_db, logger, output_dir, target_prefix, query_prefix, rbh_bit_score_threshold,
                          threads, verbose)
+
+
+def process_reciprocal_best_hits(forward_output_loc, reverse_output_loc, target_prefix='target'):
+    """Process the forward and reverse best hits results to find reverse best hits
+    Returns the query gene, target gene, if it was a reverse best hit, % identity, bit score and e-value
+    """
+    forward_hits = pd.read_csv(forward_output_loc, sep='\t', header=None, names=BOUTFMT6_COLUMNS)
+    forward_hits = forward_hits.set_index('qId')
+    reverse_hits = pd.read_csv(reverse_output_loc, sep='\t', header=None, names=BOUTFMT6_COLUMNS)
+    reverse_hits = reverse_hits.set_index('qId')
+
+    def check_hit(row:pd.Series):
+        rbh = False
+        if row.tId in reverse_hits.index:
+            rbh = row.name == reverse_hits.loc[row.tId].tId
+        return {'%s_hit' % target_prefix:      row.tId,
+                '%s_RBH' % target_prefix:      rbh,
+                '%s_identity' % target_prefix: row.seqIdentity,
+                '%s_bitScore' % target_prefix: row.bitScore,
+                '%s_eVal' % target_prefix:     row.eVal,
+                'index':                       row.name
+                }
+    hits = forward_hits.apply(check_hit, axis=1, result_type='expand')
+    # NOTE these lines may not be necessary
+    hits.set_index('index', drop=True, inplace=True)
+    hits.index.name = None
+    return hits
 
 
 def run_hmmscan(genes_faa:str, db_loc:str, db_name:str, output_loc:str, formater:Callable,

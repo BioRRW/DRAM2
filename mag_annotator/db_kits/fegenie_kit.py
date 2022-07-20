@@ -12,14 +12,31 @@ from mag_annotator.utils import download_file, run_process, make_mmseqs_db, \
 
 
 VERSION = '1.2'
-NAME = 'FeGenie'
-
+NAME = 'fegenie'
+NAME_FORMAL = 'FeGenie'
 CITATION = "Garber AI, Nealson KH, Okamoto A, McAllister SM, Chan CS, Barco RA and Merino N (2020) FeGenie: A Comprehensive Tool for the Identification of Iron Genes and Iron Gene Neighborhoods in Genome and Metagenome Assemblies. Front. Microbiol. 11:37. doi: 10.3389/fmicb.2020.00037"
+SETTINGS = { 
+    "search_databases": {
+         'fegenie_hmm': {
+             'location': None,
+             'name': 'FeGenie HMM', 
+             'citation': CITATION,
+             'notes': "Only iron_oxidation and iron_reduction hmms are used."},
+    },
+    "database_descriptions": {
+         'fegenie_cutoffs': {
+             'name': 'FeGenie cutoffs', 
+             'citation': CITATION
+         }
+
+    },
+  "dram_sheets": {
+  }
+}
+
 DOWNLOAD_OPTIONS ={'fegenie_tar_gz': {'version': VERSION}}
 PROCESS_OPTIONS ={'fegenie_tar_gz': {'version': VERSION}}
-DRAM_SETTINGS = {'fegenie_hmm': {'name': 'FeGenie HMM', 'citation': CITATION,
-                                 'notes': "Only iron_oxidation and iron_reduction hmms are used."},
-                  'fegenie_cutoffs': {'name': 'FeGenie cutoffs', 'citation': CITATION}
+DRAM_SETTINGS = {
                  }
 
 def download(temporary, logger, version=VERSION, verbose=True):
@@ -112,18 +129,17 @@ def hmmscan_formater(hits:pd.DataFrame,  db_name:str, hmm_info_path:str=None, to
     return hits_df
 
 
-def search(genes_faa:str, tmp_dir:str, fegenie_hmm:str, fegenie_cutoffs:str, 
-           logger:logging.Logger, threads:int, db_name:str=NAME, top_hit:bool=True, 
-           verbose:bool=True):
-    return run_hmmscan(genes_faa=genes_faa,
-                       db_loc=fegenie_hmm,
-                       db_name=db_name,
+def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
+           threads:str, verbose:str, db_handler, **args):
+    return run_hmmscan(genes_faa=gene_faa,
+                       db_loc=db_handler.config["search_databases"]['fegenie_hmm']['location'],
+                       db_name=NAME,
                        threads=threads,
                        output_loc=tmp_dir,
                        formater=partial(
                            hmmscan_formater,
-                           db_name=db_name,
-                           hmm_info_path=fegenie_cutoffs,
+                           db_name=NAME,
+                           hmm_info_path=db_handler.config["database_descriptions"]['fegenie_cutoffs']['location'],
                            top_hit=True
                        ),
                        logger=logger)

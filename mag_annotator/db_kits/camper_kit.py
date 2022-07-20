@@ -9,13 +9,21 @@ import pandas as pd
 
 VERSION = '1.0.0-beta.1'
 NAME = 'camper'
+NAME_FORMAL = 'camper'
 CITATION = "CAMPER has no citeation and is in beta so you should not be using it."
-DRAM_SETTINGS = { 
-    'camper_hmm':           {'citation': CITATION, 'name': 'CAMPER HMM db'}, 
-    'camper_fa_db':         {'citation': CITATION, 'name': 'CAMPER FASTA db'},
-    'camper_hmm_cutoffs':   {'citation': CITATION, 'name': 'CAMPER HMM cutoffs'},
-    'camper_distillate':    {'citation': CITATION, 'name': 'CAMPER Distillate form'},
-    'camper_fa_db_cutoffs': {'citation': CITATION, 'name': 'CAMPER FASTA cutoffs'}}
+SETTINGS = { 
+    "search_databases": {
+        'camper_hmm': {'location': None, 'citation': CITATION, 'name': 'CAMPER HMM db'}, 
+        'camper_fa_db': {'location': None, 'citation': CITATION, 'name': 'CAMPER FASTA db'},
+    },
+    "database_descriptions": {
+        'camper_hmm_cutoffs': {'location': None, 'citation': CITATION, 'name': 'CAMPER HMM cutoffs'},
+        'camper_fa_db_cutoffs': {'location': None, 'citation': CITATION, 'name': 'CAMPER FASTA cutoffs'}
+    },
+  "dram_sheets": {
+    'camper_distillate': {'location': None,'citation': CITATION, 'name': 'CAMPER Distillate form'}
+  }
+}
 # the format is input file: options
 DOWNLOAD_OPTIONS = {'camper_tar_gz': {'version': VERSION}}
 PROCESS_OPTIONS = {'camper_tar_gz': {'version': VERSION}}
@@ -174,9 +182,12 @@ def blast_search(query_db, target_db, working_dir, info_db_path,
 
 
 # in the future the database will get the same input as was given in the data
-def search(query_db:str, genes_faa:str, tmp_dir:str, logger:logging.Logger, 
-           threads:str, verbose:str, camper_fa_db:str, camper_hmm:str, 
-           camper_fa_db_cutoffs:str, camper_hmm_cutoffs:str):
+def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
+           threads:str, verbose:str, db_handler, **args):
+        camper_fa_db:str = db_handler.config["search_databases"]["camper_fa_db"]['location']
+        camper_hmm:str = db_handler.config["search_databases"]["camper_hmm"]['location']
+        camper_fa_db_cutoffs:str = db_handler.config["database_descriptions"]["camper_fa_db_cutoffs"]['location']
+        camper_hmm_cutoffs:str = db_handler.config["database_descriptions"]["camper_hmm_cutoffs"]['location']
         fasta = blast_search(query_db=query_db, 
                              target_db=camper_fa_db, 
                              working_dir=tmp_dir, 
@@ -185,7 +196,7 @@ def search(query_db:str, genes_faa:str, tmp_dir:str, logger:logging.Logger,
                              logger=logger,
                              threads=threads,
                              verbose=verbose)
-        hmm = run_hmmscan(genes_faa=genes_faa,
+        hmm = run_hmmscan(genes_faa=gene_faa,
                           db_loc=camper_hmm,
                           db_name=NAME,
                           threads=threads,

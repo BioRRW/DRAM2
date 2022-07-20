@@ -17,10 +17,20 @@ NAME = 'Sulphur'
 CITATION = "None"
 DOWNLOAD_OPTIONS ={'sulphur_tar_gz': {'version': VERSION}}
 PROCESS_OPTIONS ={'sulphur_tar_gz': {'version': VERSION}}
-DRAM_SETTINGS = {'sulphur_hmm': {'name': 'Sulphur placeholder', 'citation': CITATION,
-                                 'notes': "This is just fegenie_hmm pretending to be sulphur."},
-                  'sulphur_cutoffs': {'name': 'Sulphur cutoffs', 'citation': CITATION}
-                 }
+SETTINGS = { 
+    "search_databases": {
+          'sulphur_hmm': {'name': 'Sulphur placeholder', 
+                    'citation': CITATION,
+                    'notes': "This is just fegenie_hmm pretending to be sulphur."},
+    },
+    "database_descriptions": {
+                  'sulphur_cutoffs': {
+                      'name': 'Sulphur cutoffs', 
+                      'citation': CITATION}
+     },
+
+  "dram_sheets": { }
+}
 
 def download(temporary, logger, version=VERSION, verbose=True):
     """
@@ -115,18 +125,17 @@ def hmmscan_formater(hits:pd.DataFrame,  db_name:str, hmm_info_path:str=None, to
     return hits_df
 
 
-def search(genes_faa:str, tmp_dir:str, sulphur_hmm:str, sulphur_cutoffs:str, 
-           logger:logging.Logger, threads:int, db_name:str=NAME, top_hit:bool=True, 
-           verbose:bool=True):
-    return run_hmmscan(genes_faa=genes_faa,
-                       db_loc=sulphur_hmm,
-                       db_name=db_name,
+def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
+           threads:str, verbose:str, db_handler, **args):
+    return run_hmmscan(genes_faa=gene_faa,
+                       db_loc=db_handler.config["search_databases"]['sulphur_hmm']['location'],
+                       db_name=NAME,
                        threads=threads,
                        output_loc=tmp_dir,
                        formater=partial(
                            hmmscan_formater,
-                           db_name=db_name,
-                           hmm_info_path=sulphur_cutoffs,
+                           db_name=NAME,
+                           hmm_info_path=db_handler.config["database_descriptions"]['sulphur_cutoffs']['location'],
                            top_hit=True
                        ),
                        logger=logger)
