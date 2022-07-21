@@ -1386,8 +1386,12 @@ def annotate_called_genes(input_faa:str, output_dir:str='.', bit_score_threshold
                           " The falowing columns will be replaced in the new"
                           " annotations file:\n%s" %
                           set(past_annotations.columns).intersection(set(all_annotations.columns)))
-        all_annotations = all_annotations[list(set(all_annotations.columns) - set(past_annotations.columns))]
+        past_annotations = past_annotations[list(set(past_annotations.columns) - set(all_annotations.columns))]
+        all_annotations.index = all_annotations.index.str.removeprefix('genes_')
         all_annotations = pd.merge(all_annotations, past_annotations, how="outer", left_index=True, right_index=True)
+        if len(all_annotations) != len(past_annotations):
+            logger.critical("The old and new annotations filles did not merge correctly! Check the new"
+                            " annotations file for errors. Did you use the corect genes.faa for your annotations?")
     all_annotations.to_csv(path.join(output_dir, 'annotations.tsv'), sep='\t')
     if len(faa_locs) > 0:
         merge_files(faa_locs, path.join(output_dir, 'genes.faa'))

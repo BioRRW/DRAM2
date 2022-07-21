@@ -38,6 +38,14 @@
       "version": "1.2",
       "Download time": "06/16/2022, 11:59:47",
       "Origin": "Downloaded by DRAM"
+    },
+    "sulphur_hmm": {
+      "location": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/sulphur_hmm.hmm",
+      "name": "Sulphur HMM",
+      "citation": "check add script",
+      "notes": "Made in house.",
+      "version": "1",
+      "Origin": "User provided"
     }
   },
   "database_descriptions": {
