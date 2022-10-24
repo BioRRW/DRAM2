@@ -1,50 +1,134 @@
 import re
 import subprocess
-from collections import Counter
-from os import path
-from urllib.request import urlopen
+from os import path, stat
+from urllib.request import urlopen, urlretrieve
+from urllib.error import HTTPError
 import pandas as pd
+import logging
+from typing import Callable
+
+HMMSCAN_ALL_COLUMNS = ['query_id', 'query_ascession', 'query_length', 'target_id', 'target_ascession', 'target_length',
+                       'full_evalue', 'full_score', 'full_bias', 'domain_number', 'domain_count', 'domain_cevalue',
+                       'domain_ievalue', 'domain_score', 'domain_bias', 'target_start', 'target_end', 'alignment_start',
+                       'alignment_end', 'query_start', 'query_end', 'accuracy', 'description']
+HMMSCAN_COLUMN_TYPES = [str, str, int, str, str, int, float, float, float, int, int, float, float, float, float, int,
+                        int, int, int, int, int, float, str]
+BOUTFMT6_COLUMNS = ['qId', 'tId', 'seqIdentity', 'alnLen', 'mismatchCnt', 'gapOpenCnt', 'qStart', 'qEnd', 'tStart',
+                    'tEnd', 'eVal', 'bitScore']
 
 
-def download_file(url, output_file=None, verbose=True):
+
+def download_file(url, logger, output_file=None, verbose=True):
     # TODO: catching error 4 and give error message to retry or retry automatically
     if verbose:
         print('downloading %s' % url)
     if output_file is None:
         return urlopen(url).read().decode('utf-8')
     else:
-        run_process(['wget', '-O', output_file, url], verbose=verbose)
+        try:
+            urlretrieve(url, output_file)
+        except HTTPError as error:
+            logger.critical(f"Something went wrong with the download of the url: {url}")
+            raise error
+        # run_process(['wget', '-O', output_file, url], verbose=verbose)
 
 
-def run_process(command, shell=False, capture_stdout=True, check=True, verbose=False):
-    """Standardization of parameters for using subprocess.run, provides verbose mode and option to run via shell"""
-    stdout = subprocess.DEVNULL
-    stderr = subprocess.DEVNULL
-    if verbose:
-        stdout = None
-        stderr = None
+def setup_logger(logger, *log_file_paths, level=logging.INFO):
+    logger.setLevel(level)
+    formatter = logging.Formatter('%(asctime)s - %(message)s')
+    # create console handler
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    # create formatter and add it to the handlers
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    for log_file_path in log_file_paths:
+        fh = logging.FileHandler(log_file_path)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(formatter)
+        # add the handlers to the logger
+        logger.addHandler(fh)
+
+
+def run_process(command, logger, shell:bool=False, capture_stdout:bool=True, save_output:str=None, 
+                check:bool=False, stop_on_error:bool=True, verbose:bool=False) -> str:
+    """
+    Standardization of parameters for using subprocess.run, provides verbose mode and option to run via shell
+    """
+    # TODO just remove check
+    try:
+        results = subprocess.run(command, check=check, shell=shell,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except subprocess.CalledProcessError as error:
+        logger.critical(f'The subcommand {command} experienced an error')
+        if stop_on_error:
+            raise error
+    if results.returncode != 0:
+        logger.critical(f'The subcommand {command} experienced an error: {results.stderr}')
+        logging.debug(results.stdout)
+        if stop_on_error:
+           raise subprocess.SubprocessError(f"The subcommand {' '.join(command)} experienced an error, see the log for more info.")
+
+    if save_output is not None:
+        with open(save_output, 'w') as out:
+            out.write(results.stdout)
+
     if capture_stdout:
-        return subprocess.run(command, check=check, shell=shell, stdout=subprocess.PIPE,
-                              stderr=stderr).stdout.decode(errors='ignore')
+        return results.stdout
+
+
+def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater, logger,
+                          db_name='database', bit_score_threshold=60, rbh_bit_score_threshold=350, threads=10,
+                          verbose=False):
+    """A convenience function to do a blast style reciprocal best hits search"""
+    # Get kegg hits
+    logger.info('Getting forward best hits from %s' % db_name)
+    forward_hits = get_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name, bit_score_threshold,
+                                 threads, verbose=verbose)
+    if stat(forward_hits).st_size == 0:
+        return pd.DataFrame()
+    logger.info('Getting reverse best hits from %s' % db_name)
+    reverse_hits = get_reciprocal_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name,
+                                            bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
+    hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
+    logger.info('Getting descriptions of hits from %s' % (db_name))
+    if '%s_description' % db_name in db_handler.get_database_names():
+        header_dict = db_handler.get_descriptions(hits['%s_hit' % db_name], '%s_description' % db_name)
     else:
-        subprocess.run(command, check=check, shell=shell, stdout=stdout, stderr=stderr)
+        header_dict = multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, '\x00', working_dir)
+    hits = formater(hits, header_dict)
+    return hits
 
 
-def make_mmseqs_db(fasta_loc, output_loc, create_index=True, threads=10, verbose=False):
+# TODO: refactor following to methods to a shared run hmm step and individual get description steps
+def parse_hmmsearch_domtblout(file):
+    df_lines = list()
+    for line in open(file):
+        if not line.startswith('#'):
+            line = line.split()
+            line = line[:22] + [' '.join(line[22:])]
+            df_lines.append(line)
+    hmmsearch_frame = pd.DataFrame(df_lines, columns=HMMSCAN_ALL_COLUMNS)
+    for i, column in enumerate(hmmsearch_frame.columns):
+        hmmsearch_frame[column] = hmmsearch_frame[column].astype(HMMSCAN_COLUMN_TYPES[i])
+    return hmmsearch_frame
+
+
+def make_mmseqs_db(fasta_loc, output_loc, logger, create_index=True, threads=10, verbose=False):
     """Takes a fasta file and makes a mmseqs2 database for use in blast searching and hmm searching with mmseqs2"""
-    run_process(['mmseqs', 'createdb', fasta_loc, output_loc], verbose=verbose)
+    run_process(['mmseqs', 'createdb', fasta_loc, output_loc], logger, verbose=verbose)
     if create_index:
         tmp_dir = path.join(path.dirname(output_loc), 'tmp')
-        run_process(['mmseqs', 'createindex', output_loc, tmp_dir, '--threads', str(threads)], verbose=verbose)
+        run_process(['mmseqs', 'createindex', output_loc, tmp_dir, '--threads', str(threads)], logger, verbose=verbose)
 
 
-def multigrep(search_terms, search_against, split_char='\n', output='.'):
+def multigrep(search_terms, search_against, logger, split_char='\n', output='.'):
     # TODO: multiprocess this over the list of search terms
     """Search a list of exact substrings against a database, takes name of mmseqs db index with _h to search against"""
     hits_file = path.join(output, 'hits.txt')
     with open(hits_file, 'w') as f:
         f.write('%s\n' % '\n'.join(search_terms))
-    results = run_process(['grep', '-a', '-F', '-f', hits_file, search_against], capture_stdout=True, verbose=False)
+    results = run_process(['grep', '-a', '-F', '-f', hits_file, search_against], logger, capture_stdout=True, verbose=False)
     processed_results = [i.strip() for i in results.strip().split(split_char)
                          if len(i) > 0]
     # remove(hits_file)
@@ -61,60 +145,6 @@ def merge_files(files_to_merge, outfile, has_header=False):
                 if has_header:
                     _ = f.readline()
                 outfile_handle.write(f.read())
-
-
-def get_ids_from_annotation(frame):
-    id_list = list()
-    # get kegg gene ids
-    if 'kegg_genes_id' in frame:
-        id_list += [j.strip() for i in frame.kegg_genes_id.dropna() for j in i.split(',')]
-    # get kegg orthology ids
-    if 'ko_id' in frame:
-        id_list += [j.strip() for i in frame.ko_id.dropna() for j in i.split(',')]
-    # get kegg ec numbers
-    if 'kegg_hit' in frame:
-        for kegg_hit in frame.kegg_hit.dropna():
-            id_list += [i[1:-1] for i in re.findall(r'\[EC:\d*.\d*.\d*.\d*\]', kegg_hit)]
-    # get merops ids
-    if 'peptidase_family' in frame:
-        id_list += [j.strip() for i in frame.peptidase_family.dropna() for j in i.split(';')]
-    # get cazy ids
-    if 'cazy_id' in frame:
-        id_list += [j for i in frame.cazy_id.dropna() for j in i.split('; ')]
-    # get cazy ec numbers
-    if 'cazy_hits' in frame:
-        id_list += [f"{j[1:3]}:{j[4:-1]}" for i in frame.cazy_hits.dropna()
-                    for j in re.findall(r'\(EC [\d+\.]+[\d-]\)', i)]
-    # get pfam ids
-    if 'pfam_hits' in frame:
-        id_list += [j[1:-1].split('.')[0] for i in frame.pfam_hits.dropna()
-                    for j in re.findall(r'\[PF\d\d\d\d\d.\d*\]', i)]
-    return Counter(id_list)
-
-
-#TODO unify this with get_ids_from_annotation
-def get_ids_from_row(row):
-    id_list = list()
-    # get kegg gene ids
-    if 'kegg_genes_id' in row and not pd.isna(row['kegg_genes_id']):
-        id_list += row['kegg_genes_id']
-    # get kegg orthology ids
-    if 'ko_id' in row and not pd.isna(row['ko_id']):
-        id_list += [j for j in row['ko_id'].split(',')]
-    # get ec numbers
-    if 'kegg_hit' in row and not pd.isna(row['kegg_hit']):
-        id_list += [i[1:-1] for i in re.findall(r'\[EC:\d*.\d*.\d*.\d*\]', row['kegg_hit'])]
-    # get merops ids
-    if 'peptidase_family' in row and not pd.isna(row['peptidase_family']):
-        id_list += [j for j in row['peptidase_family'].split(';')]
-    # get cazy ids
-    if 'cazy_hits' in row and not pd.isna(row['cazy_hits']):
-        id_list += [i[1:-1].split('_')[0] for i in re.findall(r'\[[A-Z]*\d*?\]', row['cazy_hits'])]
-    # get pfam ids
-    if 'pfam_hits' in row and not pd.isna(row['pfam_hits']):
-        id_list += [j[1:-1].split('.')[0]
-                    for j in re.findall(r'\[PF\d\d\d\d\d.\d*\]', row['pfam_hits'])]
-    return set(id_list)
 
 
 def divide_chunks(l, n):
@@ -138,4 +168,150 @@ def remove_suffix(text, suffix):
 def get_ordered_uniques(seq):
     seen = set()
     seen_add = seen.add
-    return [x for x in seq if not (x in seen or seen_add(x))]
+    return [x for x in seq if not (x in seen or seen_add(x) or pd.isna(x))]
+
+
+def get_best_hits(query_db, target_db, logger, output_dir='.', query_prefix='query', target_prefix='target',
+                  bit_score_threshold=60, threads=10, verbose=False):
+    """Uses mmseqs2 to do a blast style search of a query db against a target db, filters to only include best hits
+    Returns a file location of a blast out format 6 file with search results
+    """
+    # make query to target db
+    tmp_dir = path.join(output_dir, 'tmp')
+    query_target_db = path.join(output_dir, '%s_%s.mmsdb' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'search', query_db, target_db, query_target_db, tmp_dir, '--threads', str(threads)],
+                 logger, verbose=verbose)
+    # filter query to target db to only best hit
+    query_target_db_top = path.join(output_dir, '%s_%s.tophit.mmsdb' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'filterdb', query_target_db, query_target_db_top, '--extract-lines', '1'], logger,
+                verbose=verbose)
+    # filter query to target db to only hits with min threshold
+    query_target_db_top_filt = path.join(output_dir, '%s_%s.tophit.minbitscore%s.mmsdb'
+                                         % (query_prefix, target_prefix, bit_score_threshold))
+    run_process(['mmseqs', 'filterdb', '--filter-column', '2', '--comparison-operator', 'ge', '--comparison-value',
+                 str(bit_score_threshold), '--threads', str(threads), query_target_db_top, query_target_db_top_filt],
+                logger, verbose=verbose)
+    # convert results to blast outformat 6
+    forward_output_loc = path.join(output_dir, '%s_%s_hits.b6' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'convertalis', query_db, target_db, query_target_db_top_filt, forward_output_loc,
+                 '--threads', str(threads)], logger, verbose=verbose)
+    return forward_output_loc
+
+
+def get_reciprocal_best_hits(query_db, target_db, logger, output_dir='.', query_prefix='query', target_prefix='target',
+                             bit_score_threshold=60, rbh_bit_score_threshold=350, threads=10, verbose=False):
+    """Take results from best hits and use for a reciprocal best hits search"""
+    # TODO: Make it take query_target_db as a parameter
+    # create subset for second search
+    query_target_db_top_filt = path.join(output_dir, '%s_%s.tophit.minbitscore%s.mmsdb'
+                                         % (query_prefix, target_prefix, bit_score_threshold))  # I DON'T LIKE THIS
+    query_target_db_filt_top_swapped = path.join(output_dir, '%s_%s.minbitscore%s.tophit.swapped.mmsdb'
+                                                 % (query_prefix, target_prefix, bit_score_threshold))
+    # swap queries and targets in results database
+    run_process(['mmseqs', 'swapdb', query_target_db_top_filt, query_target_db_filt_top_swapped, '--threads',
+                 str(threads)], logger, verbose=verbose)
+    target_db_filt = path.join(output_dir, '%s.filt.mmsdb' % target_prefix)
+    # create a subdatabase of the target database with the best hits as well as the index of the target database
+    run_process(['mmseqs', 'createsubdb', query_target_db_filt_top_swapped, target_db, target_db_filt],
+                logger, verbose=verbose)
+    run_process(['mmseqs', 'createsubdb', query_target_db_filt_top_swapped, '%s_h' % target_db,
+                 '%s_h' % target_db_filt], logger, verbose=verbose)
+
+    return get_best_hits(target_db_filt, query_db, logger, output_dir, target_prefix, query_prefix, rbh_bit_score_threshold,
+                         threads, verbose)
+
+
+def process_reciprocal_best_hits(forward_output_loc, reverse_output_loc, target_prefix='target'):
+    """Process the forward and reverse best hits results to find reverse best hits
+    Returns the query gene, target gene, if it was a reverse best hit, % identity, bit score and e-value
+    """
+    forward_hits = pd.read_csv(forward_output_loc, sep='\t', header=None, names=BOUTFMT6_COLUMNS)
+    forward_hits = forward_hits.set_index('qId')
+    reverse_hits = pd.read_csv(reverse_output_loc, sep='\t', header=None, names=BOUTFMT6_COLUMNS)
+    reverse_hits = reverse_hits.set_index('qId')
+
+    def check_hit(row:pd.Series):
+        rbh = False
+        if row.tId in reverse_hits.index:
+            rbh = row.name == reverse_hits.loc[row.tId].tId
+        return {'%s_hit' % target_prefix:      row.tId,
+                '%s_RBH' % target_prefix:      rbh,
+                '%s_identity' % target_prefix: row.seqIdentity,
+                '%s_bitScore' % target_prefix: row.bitScore,
+                '%s_eVal' % target_prefix:     row.eVal,
+                'index':                       row.name
+                }
+    hits = forward_hits.apply(check_hit, axis=1, result_type='expand')
+    # NOTE these lines may not be necessary
+    hits.set_index('index', drop=True, inplace=True)
+    hits.index.name = None
+    return hits
+
+
+def run_hmmscan(genes_faa:str, db_loc:str, db_name:str, output_loc:str, formater:Callable,
+                logger:logging.Logger, threads:int=2, db_handler=None, verbose:bool=False):
+    output = path.join(output_loc, f'{db_name}_results.unprocessed.b6')
+    run_process(['hmmsearch', '--domtblout', output, '--cpu', str(threads), db_loc, genes_faa], logger, verbose=verbose)
+    # Parse hmmsearch output
+    if not (path.isfile(output) and stat(output).st_size > 0):
+        return pd.DataFrame()
+    hits = parse_hmmsearch_domtblout(output)
+    if len(hits) < 1:
+        return pd.DataFrame()
+    return formater(hits)
+
+
+def get_sig_row(row, evalue_lim:float=1e-15):
+    """Check if hmm match is significant, based on dbCAN described parameters"""
+    tstart, tend, tlen, evalue = row[['target_start', 'target_end', 'target_length', 'full_evalue']].values
+    perc_cov = (tend - tstart)/tlen
+    if perc_cov >= .35 and evalue <= evalue_lim:
+        return True
+    else:
+        return False
+
+
+#TODO decide if we need use_hmmer_thresholds:bool=False
+def generic_hmmscan_formater(hits:pd.DataFrame,  db_name:str, hmm_info_path:str=None, top_hit:bool=True):
+    if hmm_info_path is None:
+        hmm_info = None
+        hits_sig = hits[hits.apply(get_sig_row, axis=1)]
+    else:
+        hmm_info = pd.read_csv(hmm_info_path, sep='\t', index_col=0)
+        hits_sig = sig_scores(hits, hmm_info)
+    if len(hits_sig) == 0:
+        # if nothing significant then return nothing, don't get descriptions
+        return pd.DataFrame()
+    if top_hit:
+        # Get the best hits
+        hits_sig = hits_sig.sort_values('full_evalue').drop_duplicates(subset=["query_id"])
+    hits_df = hits_sig[['target_id', 'query_id']]
+    hits_df.set_index('query_id', inplace=True, drop=True)
+    hits_df.rename_axis(None, inplace=True)
+    hits_df.columns = [f"{db_name}_id"]
+    if hmm_info is not None:
+        hits_df = hits_df.merge(hmm_info[['definition']], how='left', left_on=f"{db_name}_id", right_index=True)
+        hits_df.rename(columns={'definition': f"{db_name}_hits"}, inplace=True)
+    return hits_df
+
+
+def sig_scores(hits:pd.DataFrame, score_db:pd.DataFrame) -> pd.DataFrame:
+    is_sig = list()
+    for i, frame in hits.groupby('target_id'):
+        row = score_db.loc[i]
+        if row['score_type'] == 'domain':
+            score = frame.domain_score
+        elif row['score_type'] == 'full':
+            score = frame.full_score
+        elif row['score_type'] == '-':
+            continue
+        else:
+            raise ValueError(row['score_type'])
+        frame = frame.loc[score.astype(float) > float(row.threshold)]
+        is_sig.append(frame)
+    if len(is_sig) > 0:
+        return pd.concat(is_sig)
+    else:
+        return pd.DataFrame()
+
+

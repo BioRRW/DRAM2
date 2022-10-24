@@ -11,16 +11,15 @@ from shutil import copy
 import pandas as pd
 from skbio.io import read as read_sequence
 
-from mag_annotator.utils import make_mmseqs_db
+from mag_annotator.utils import make_mmseqs_db, parse_hmmsearch_domtblout
 from mag_annotator.annotate_bins import filter_fasta, run_prodigal, get_best_hits, \
     get_reciprocal_best_hits, process_reciprocal_best_hits, get_kegg_description, get_uniref_description, \
     get_basic_description, get_peptidase_description, get_sig_row, get_gene_data, get_unannotated, assign_grades, \
     generate_annotated_fasta, create_annotated_fasta, generate_renamed_fasta, rename_fasta, run_trna_scan, \
     run_barrnap, do_blast_style_search, count_motifs, strip_endings, process_custom_dbs, get_dups, \
-    parse_hmmsearch_domtblout, annotate_gff, make_gbk_from_gff_and_fasta, make_trnas_interval, make_rrnas_interval,\
-    add_intervals_to_gff, vogdb_hmmscan_formater, generic_hmmscan_formater, dbcan_hmmscan_formater, \
+    annotate_gff, make_gbk_from_gff_and_fasta, make_trnas_interval, make_rrnas_interval,\
+    add_intervals_to_gff, vogdb_hmmscan_formater, dbcan_hmmscan_formater, \
     kofam_hmmscan_formater
-
 
 @pytest.fixture()
 def fasta_loc():
@@ -264,11 +263,11 @@ def test_assign_grades():
     annotations = pd.DataFrame(annotations_data, index=['gene1', 'gene2', 'gene3', 'gene4', 'gene5'],
                                columns=['kegg_RBH', 'kegg_hit', 'uniref_RBH', 'uniref_hit', 'pfam_hits'])
     test_grades = assign_grades(annotations)
-    assert test_grades.loc['gene1'] == 'A'
-    assert test_grades.loc['gene2'] == 'B'
-    assert test_grades.loc['gene3'] == 'C'
-    assert test_grades.loc['gene4'] == 'E'
-    assert test_grades.loc['gene5'] == 'D'
+    assert test_grades.loc['gene1', 'rank'] == 'A'
+    assert test_grades.loc['gene2', 'rank'] == 'B'
+    assert test_grades.loc['gene3', 'rank'] == 'C'
+    assert test_grades.loc['gene4', 'rank'] == 'E'
+    assert test_grades.loc['gene5', 'rank'] == 'D'
     # test no uniref
     annotations_data2 = [[True, 'K00001', ['PF00001']],
                          [False, 'K00002', ['PF01234']],
@@ -278,11 +277,11 @@ def test_assign_grades():
     annotations2 = pd.DataFrame(annotations_data2, index=['gene1', 'gene2', 'gene3', 'gene4', 'gene5'],
                                 columns=['kegg_RBH', 'kegg_hit', 'pfam_hits'])
     test_grades2 = assign_grades(annotations2)
-    assert test_grades2.loc['gene1'] == 'A'
-    assert test_grades2.loc['gene2'] == 'C'
-    assert test_grades2.loc['gene3'] == 'C'
-    assert test_grades2.loc['gene4'] == 'E'
-    assert test_grades2.loc['gene5'] == 'D'
+    assert test_grades2.loc['gene1', 'rank'] == 'A'
+    assert test_grades2.loc['gene2', 'rank'] == 'C'
+    assert test_grades2.loc['gene3', 'rank'] == 'C'
+    assert test_grades2.loc['gene4', 'rank'] == 'E'
+    assert test_grades2.loc['gene5', 'rank'] == 'D'
 
 
 @pytest.fixture()
@@ -503,38 +502,6 @@ def test_kofam_hmmscan_formater():
     output_rcvd.sort_index(inplace=True)
     output_expt.sort_index(inplace=True)
     assert output_rcvd.equals(output_expt), "Error in kofam_hmmscan_formater"
-
-
-def test_generic_hmmscan_formater_custom_cuts():
-    output_expt = pd.DataFrame({
-        "bin_1.scaffold_2": ["K00002", "KO2; description 2"]
-    }, index=["test_id", "test_hits"]).T
-    input_b6 = os.path.join('tests', 'data', 'unformatted_kofam.b6')
-    hits = parse_hmmsearch_domtblout(input_b6)
-    output_rcvd = generic_hmmscan_formater(
-        hits,
-        hmm_info_path=os.path.join('tests', 'data', 'hmm_thresholds.txt'),
-        db_name='test',
-        top_hit=True)
-    output_rcvd.sort_index(inplace=True)
-    output_expt.sort_index(inplace=True)
-    assert output_rcvd.equals(output_expt), "Error in generic_hmmscan_formater, with custom cuts"
-
-
-def test_generic_hmmscan_formater():
-    output_expt = pd.DataFrame({
-        "bin_1.scaffold_1": ["K00001"],
-        "bin_1.scaffold_2": ["K00002"]
-    }, index=["test_id"]).T
-    input_b6 = os.path.join('tests', 'data', 'unformatted_kofam.b6')
-    hits = parse_hmmsearch_domtblout(input_b6)
-    output_rcvd = generic_hmmscan_formater(
-        hits,
-        db_name='test',
-        top_hit=True)
-    output_rcvd.sort_index(inplace=True)
-    output_expt.sort_index(inplace=True)
-    assert output_rcvd.equals(output_expt), "Error in generic_hmmscan_formater"
 
 
 def test_vogdb_hmmscan_formater():
