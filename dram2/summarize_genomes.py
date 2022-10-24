@@ -18,6 +18,7 @@ from dram2.utils import get_ordered_uniques, setup_logger
 from dram2.camper_kit import NAME as CAMPER_NAME
 from dram2.fegenie_kit import NAME as FEGENIE_NAME
 from dram2.sulphur_kit import NAME as SULPHUR_NAME
+import click
 
 # TODO: add RBH information to output
 # TODO: add flag to output table and not xlsx

@@ -65,6 +65,11 @@ os.system("DRAM.py annotate_bins -i /home/projects-wrighton-2/DRAM/input_dataset
 
 """
 
+@click.group()
+@click.option('--verbose/--quiet', default=False)
+def dram2(verbose):
+    pass
+
 
 @click.group()
 @click.option('--verbose/--quiet', default=False)
@@ -89,6 +94,56 @@ def run_prodigal(fasta_loc, output_dir, logger, mode='meta', trans_table='11', v
                  output_faa, '-d', output_fna], logger, verbose=verbose)
     return output_gff, output_fna, output_faa
 
+
+def get_best_hits(query_db, target_db, output_dir='.', query_prefix='query', target_prefix='target',
+                  bit_score_threshold=60, threads=10, verbose=False):
+    """Uses mmseqs2 to do a blast style search of a query db against a target db, filters to only include best hits
+    Returns a file location of a blast out format 6 file with search results
+    """
+    # make query to target db
+    tmp_dir = path.join(output_dir, 'tmp')
+    query_target_db = path.join(output_dir, '%s_%s.mmsdb' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'search', query_db, target_db, query_target_db, tmp_dir, '--threads', str(threads)],
+                verbose=verbose)
+    # filter query to target db to only best hit
+    query_target_db_top = path.join(output_dir, '%s_%s.tophit.mmsdb' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'filterdb', query_target_db, query_target_db_top, '--extract-lines', '1'], verbose=verbose)
+    # filter query to target db to only hits with min threshold
+    query_target_db_top_filt = path.join(output_dir, '%s_%s.tophit.minbitscore%s.mmsdb'
+                                         % (query_prefix, target_prefix, bit_score_threshold))
+    run_process(['mmseqs', 'filterdb', '--filter-column', '2', '--comparison-operator', 'ge', '--comparison-value',
+                 str(bit_score_threshold), '--threads', str(threads), query_target_db_top, query_target_db_top_filt],
+                verbose=verbose)
+    # convert results to blast outformat 6
+    forward_output_loc = path.join(output_dir, '%s_%s_hits.b6' % (query_prefix, target_prefix))
+    run_process(['mmseqs', 'convertalis', query_db, target_db, query_target_db, forward_output_loc,
+                 '--threads', str(threads)], verbose=verbose)
+    return forward_output_loc
+
+
+def get_reciprocal_best_hits(query_db, target_db, output_dir='.', query_prefix='query', target_prefix='target',
+                             bit_score_threshold=60, rbh_bit_score_threshold=350, threads=10, verbose=False):
+    """Take results from best hits and use for a reciprocal best hits search"""
+    # TODO: Make it take query_target_db as a parameter
+    # create subset for second search
+    query_target_db_top_filt = path.join(output_dir, '%s_%s.tophit.minbitscore%s.mmsdb'
+                                         % (query_prefix, target_prefix, bit_score_threshold))  # I DON'T LIKE THIS
+    query_target_db_filt_top_swapped = path.join(output_dir, '%s_%s.minbitscore%s.tophit.swapped.mmsdb'
+                                                 % (query_prefix, target_prefix, bit_score_threshold))
+    # swap queries and targets in results database
+    run_process(['mmseqs', 'swapdb', query_target_db_top_filt, query_target_db_filt_top_swapped, '--threads',
+                 str(threads)], verbose=verbose)
+    target_db_filt = path.join(output_dir, '%s.filt.mmsdb' % target_prefix)
+    # create a subdatabase of the target database with the best hits as well as the index of the target database
+    run_process(['mmseqs', 'createsubdb', query_target_db_filt_top_swapped, target_db, target_db_filt], verbose=verbose)
+    run_process(['mmseqs', 'createsubdb', query_target_db_filt_top_swapped, '%s_h' % target_db,
+                 '%s_h' % target_db_filt], verbose=verbose)
+
+    return get_best_hits(target_db_filt, query_db, output_dir, target_prefix, query_prefix, rbh_bit_score_threshold,
+                         threads, verbose)
+
+
+def process_reciprocal_best_hits(forward_output_loc, reverse_output_loc, target_prefix='target'):
     """Process the forward and reverse best hits results to find reverse best hits
     Returns the query gene, target gene, if it was a reverse best hit, % identity, bit score and e-value
     """
@@ -582,6 +637,29 @@ def add_intervals_to_gff(annotations_loc, gff_loc, len_dict, interval_function, 
                 gff_intervals.merge(annotation_dict[scaffold])
                 gff_intervals.sort()
             f.write(gff_intervals.write(io.StringIO(), format='gff3', seq_id=scaffold).getvalue())
+
+
+def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater, start_time,
+                          db_name='database', bit_score_threshold=60, rbh_bit_score_threshold=350, threads=10,
+                          verbose=False):
+    """A convenience function to do a blast style reciprocal best hits search"""
+    # Get kegg hits
+    print('%s: Getting forward best hits from %s' % (str(datetime.now() - start_time), db_name))
+    forward_hits = get_best_hits(query_db, target_db, working_dir, 'gene', db_name, bit_score_threshold,
+                                 threads, verbose=verbose)
+    if stat(forward_hits).st_size == 0:
+        return pd.DataFrame()
+    print('%s: Getting reverse best hits from %s' % (str(datetime.now() - start_time), db_name))
+    #reverse_hits = get_reciprocal_best_hits(query_db, target_db, working_dir, 'gene', db_name,
+    #                                        bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
+    hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
+    print('%s: Getting descriptions of hits from %s' % (str(datetime.now() - start_time), db_name))
+    if '%s_description' % db_name in db_handler.get_database_names():
+        header_dict = db_handler.get_descriptions(hits['%s_hit' % db_name], '%s_description' % db_name)
+    else:
+        header_dict = multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, '\x00', working_dir)
+    hits = formater(hits, header_dict)
+    return hits
 
 
 def count_motifs(gene_faa, motif='(C..CH)'):
@@ -1178,6 +1256,7 @@ def annotate_bins(fasta_locs:list, output_dir='.', min_contig_size=2500, prodiga
         raise ValueError('Prodigal translation table must be 1-25')
 
     # get database locations
+    db_handler = databasehandler()
     db_handler.filter_db_locs(low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE)
 
     mkdir(output_dir)
