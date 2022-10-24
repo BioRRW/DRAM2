@@ -86,7 +86,7 @@ def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater
     forward_hits = get_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name, bit_score_threshold,
                                  threads, verbose=verbose)
     if stat(forward_hits).st_size == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=[f'{db_name}_hit'])
     logger.info('Getting reverse best hits from %s' % db_name)
     reverse_hits = get_reciprocal_best_hits(query_db, target_db, logger, working_dir, 'gene', db_name,
                                             bit_score_threshold, rbh_bit_score_threshold, threads, verbose=verbose)
@@ -95,9 +95,23 @@ def do_blast_style_search(query_db, target_db, working_dir, db_handler, formater
     if '%s_description' % db_name in db_handler.get_database_names():
         header_dict = db_handler.get_descriptions(hits['%s_hit' % db_name], '%s_description' % db_name)
     else:
-        header_dict = multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, '\x00', working_dir)
+        header_dict = multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, logger, '\x00', working_dir)
     hits = formater(hits, header_dict)
     return hits
+
+
+def get_basic_description(hits, header_dict, db_name='viral'):
+    """Get viral gene full descriptions based on headers (text before first space)"""
+    hit_list = list()
+    description = list()
+    for hit in hits['%s_hit' % db_name]:
+        header = header_dict[hit]
+        hit_list.append(hit)
+        description.append(header)
+    new_df = pd.DataFrame([hit_list, description],
+                          index=['%s_id' % db_name, '%s_hit' % db_name],
+                          columns=hits.index)
+    return pd.concat([new_df.transpose(), hits.drop('%s_hit' % db_name, axis=1)], axis=1, sort=False)
 
 
 # TODO: refactor following to methods to a shared run hmm step and individual get description steps

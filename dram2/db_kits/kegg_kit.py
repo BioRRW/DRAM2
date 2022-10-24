@@ -48,6 +48,7 @@ def get_kegg_description(kegg_hits, header_dict):
 def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
            threads:str, verbose:str, db_handler, bit_score_threshold, 
            rbh_bit_score_threshold, **args, ):
+    logger.info(f"Annotating genes with {NAME_FORMAL}.")
     hits = do_blast_style_search(query_db, 
                           db_handler.config["search_databases"]['kegg']['location'], 
                           tmp_dir,

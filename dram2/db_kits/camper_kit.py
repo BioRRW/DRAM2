@@ -29,6 +29,7 @@ DOWNLOAD_OPTIONS = {'camper_tar_gz': {'version': VERSION}}
 PROCESS_OPTIONS = {'camper_tar_gz': {'version': VERSION}}
 #NAME = 'CAMPER'
 
+
 def download(temporary, logger, version=VERSION, verbose=True):
     """
     Retrieve CAMPER release tar.gz
@@ -68,8 +69,6 @@ def process(camper_tar_gz, output_dir, logger, version=VERSION,
         "camper_hmm_cutoffs"  : path.join(output_dir, "CAMPER_hmm_scores.tsv"),
     }
     
-    new_fa_db = path.join(output_dir, f"{name}_blast.faa")
-    new_hmm = path.join(output_dir, f"{name}_hmm.hmm")
     with tarfile.open(camper_tar_gz) as tar:
         for v in tar_paths.values():
             tar.extract(v, temp_dir)
@@ -184,39 +183,40 @@ def blast_search(query_db, target_db, working_dir, info_db_path,
 # in the future the database will get the same input as was given in the data
 def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
            threads:str, verbose:str, db_handler, **args):
-        camper_fa_db:str = db_handler.config["search_databases"]["camper_fa_db"]['location']
-        camper_hmm:str = db_handler.config["search_databases"]["camper_hmm"]['location']
-        camper_fa_db_cutoffs:str = db_handler.config["database_descriptions"]["camper_fa_db_cutoffs"]['location']
-        camper_hmm_cutoffs:str = db_handler.config["database_descriptions"]["camper_hmm_cutoffs"]['location']
-        fasta = blast_search(query_db=query_db, 
-                             target_db=camper_fa_db, 
-                             working_dir=tmp_dir, 
-                             info_db_path=camper_fa_db_cutoffs,
-                             db_name=NAME, 
-                             logger=logger,
-                             threads=threads,
-                             verbose=verbose)
-        hmm = run_hmmscan(genes_faa=gene_faa,
-                          db_loc=camper_hmm,
-                          db_name=NAME,
-                          threads=threads,
-                          output_loc=tmp_dir,
+     logger.info(f"Annotating genes with {NAME_FORMAL}.")
+     camper_fa_db:str = db_handler.config["search_databases"]["camper_fa_db"]['location']
+     camper_hmm:str = db_handler.config["search_databases"]["camper_hmm"]['location']
+     camper_fa_db_cutoffs:str = db_handler.config["database_descriptions"]["camper_fa_db_cutoffs"]['location']
+     camper_hmm_cutoffs:str = db_handler.config["database_descriptions"]["camper_hmm_cutoffs"]['location']
+     fasta = blast_search(query_db=query_db, 
+                          target_db=camper_fa_db, 
+                          working_dir=tmp_dir, 
+                          info_db_path=camper_fa_db_cutoffs,
+                          db_name=NAME, 
                           logger=logger,
-                          formater=partial(
-                              hmmscan_formater,
-                              db_name=NAME,
-                              hmm_info_path=camper_hmm_cutoffs,
-                              top_hit=True
-                          ))
-        full = pd.concat([fasta, hmm])
-        if len(full) < 1:
-            return pd.DataFrame()
-        return (full
-               .groupby(full.index)
-               .apply(
-                   lambda x: (x
-                              .sort_values(f'{NAME}_search_type', ascending=True) # make sure hmm is first
-                              .sort_values(f'{NAME}_bitScore', ascending=False)
-                              .iloc[0])
-                  )
+                          threads=threads,
+                          verbose=verbose)
+     hmm = run_hmmscan(genes_faa=gene_faa,
+                       db_loc=camper_hmm,
+                       db_name=NAME,
+                       threads=threads,
+                       output_loc=tmp_dir,
+                       logger=logger,
+                       formater=partial(
+                           hmmscan_formater,
+                           db_name=NAME,
+                           hmm_info_path=camper_hmm_cutoffs,
+                           top_hit=True
+                       ))
+     full = pd.concat([fasta, hmm])
+     if len(full) < 1:
+         return pd.DataFrame()
+     return (full
+            .groupby(full.index)
+            .apply(
+                lambda x: (x
+                           .sort_values(f'{NAME}_search_type', ascending=True) # make sure hmm is first
+                           .sort_values(f'{NAME}_bitScore', ascending=False)
+                           .iloc[0])
                )
+            )

@@ -6,14 +6,6 @@
       "description_db_updated": "Unknown, or Never",
       "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021)."
     },
-    "kofam_hmm": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/kofam_profiles.hmm",
-    "kofam_ko_list": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/kofam_ko_list.tsv",
-    "uniref": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/uniref90.20220609.mmsdb",
-    "pfam": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/pfam.mmspro",
-    "dbcan": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/dbCAN-HMMdb-V10.txt",
-    "viral": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/refseq_viral.20220610.mmsdb",
-    "peptidase": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/peptidases.20220609.mmsdb",
-    "vogdb": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/vog_latest_hmms.txt",
     "camper_hmm": {
       "location": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/CAMPER.hmm",
       "citation": "CAMPER has no citeation and is in beta so you should not be using it.",
@@ -39,9 +31,16 @@
       "Download time": "06/16/2022, 11:59:47",
       "Origin": "Downloaded by DRAM"
     },
-    "sulphur_hmm": {
-      "location": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/sulphur_hmm.hmm",
-      "name": "Sulphur HMM",
+    "methyl_fa_db": {
+      "location": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/methyl.mmsdb",
+      "name": "Methyl Faa",
+      "citation": "None for now",
+      "version": "0.1",
+      "Origin": "User provided"
+    },
+    "sulfur_hmm": {
+      "location": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/sulfur_hmm.hmm",
+      "name": "Sulfur HMM",
       "citation": "check add script",
       "notes": "Made in house.",
       "version": "1",

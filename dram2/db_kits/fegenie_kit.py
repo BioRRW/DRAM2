@@ -131,6 +131,7 @@ def hmmscan_formater(hits:pd.DataFrame,  db_name:str, hmm_info_path:str=None, to
 
 def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
            threads:str, verbose:str, db_handler, **args):
+    logger.info(f"Annotating genes with {NAME_FORMAL}.")
     return run_hmmscan(genes_faa=gene_faa,
                        db_loc=db_handler.config["search_databases"]['fegenie_hmm']['location'],
                        db_name=NAME,

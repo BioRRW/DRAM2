@@ -11,7 +11,7 @@ import click
 import warnings
 import logging
 from glob import glob
-from functools import partial
+from functools import partial, reduce
 from datetime import datetime
 from skbio.io import read as read_sequence
 from skbio.io import write as write_sequence
@@ -33,6 +33,13 @@ import dram2.db_kits
 DB_KITS = [importlib.import_module(i.name) for i in pkgutil.iter_modules(dram2.db_kits.__path__, dram2.db_kits.__name__ + ".")]
 
 
+"""
+import os
+
+os.system('rm -r /home/projects-wrighton-2/CrossWetlandComparison/genomes/linked_genomes_for_anno/DRAM_Methyl/annotations_s_and_fe')
+os.system("~/miniconda3/envs/dram2/bin/dram2 annotate_genes  -i /home/rmflynn/pw2/DRAM/scratch_space_flynn/aug_9_22_methyl/test_output/dram1_output_osu/genes.faa  -i /home/rmflynn/pw2/DRAM/scratch_space_flynn/aug_9_22_methyl/snakeSpeed/results/dram/genes.faa  -a /home/projects-wrighton-2/CrossWetlandComparison/genomes/linked_genomes_for_anno/DRAM_Methyl/annotations.tsv  -o /home/projects-wrighton-2/CrossWetlandComparison/genomes/linked_genomes_for_anno/DRAM_Methyl/annotations_s_and_fe  --threads 100  --use_db sulfur  --use_db fegenie")
+"""
+
 # TODO Exceptions are not fully handled
 # TODO Distillate sheets is part of the config, drop it
 
@@ -51,25 +58,6 @@ from dram2.database_handler import DatabaseHandler
 MAG_DBS_TO_ANNOTATE = ('kegg', 'kofam_hmm', 'kofam_ko_list', 'uniref', 'peptidase', 'pfam', 'dbcan', 'vogdb') 
 for kit in DB_KITS:
     MAG_DBS_TO_ANNOTATE += tuple(kit.SETTINGS.keys())
-
-"""
-
-import os
-os.system("rm -r test_small")
-os.system("DRAM.py annotate_genes -i /home/projects-wrighton-2/DRAM/development_flynn/release_validation/data_sets/mini_data/small.faa -o test_small")
-os.system("DRAM.py annotate_bins -i /home/projects-wrighton-2/DRAM/development_flynn/release_validation/data_sets/mini_data/small.faa --use_fegenie --use_camper --use_sulphur -o test_small")
-os.system("DRAM.py annotate_genes -i /home/projects-wrighton-2/DRAM/input_datasets/camper_test_data/genes.faa --use_fegenie --use_camper --use_sulphur -o test_small")
-os.system("rm -r small_genes_fa")
-os.system("dram2 annotate_genes -i /home/projects-wrighton-2/DRAM/input_datasets/camper_test_data/genes.faa -a ../../DRAM/test_camper/annotations.tsv -o small_genes_fa --curated_databases camper --curated_databases fegenie  --curated_databases kegg ")
-os.system("DRAM.py annotate_bins -i /home/projects-wrighton-2/DRAM/input_datasets/SoilGenomess/Cytophaga_hutchinsonii_ATCC_33406.fasta --use_fegenie --use_camper --use_sulphur -o soil_part")
-
-"""
-
-@click.group()
-@click.option('--verbose/--quiet', default=False)
-def dram2(verbose):
-    pass
-
 
 @click.group()
 @click.option('--verbose/--quiet', default=False)
@@ -184,20 +172,6 @@ def get_uniref_description(uniref_hits, header_dict):
                           index=['uniref_id', 'uniref_hit', 'uniref_taxonomy'],
                           columns=uniref_hits.index)
     return pd.concat([new_df.transpose(), uniref_hits.drop('uniref_hit', axis=1)], axis=1, sort=False)
-
-
-def get_basic_description(hits, header_dict, db_name='viral'):
-    """Get viral gene full descriptions based on headers (text before first space)"""
-    hit_list = list()
-    description = list()
-    for hit in hits['%s_hit' % db_name]:
-        header = header_dict[hit]
-        hit_list.append(hit)
-        description.append(header)
-    new_df = pd.DataFrame([hit_list, description],
-                          index=['%s_id' % db_name, '%s_hit' % db_name],
-                          columns=hits.index)
-    return pd.concat([new_df.transpose(), hits.drop('%s_hit' % db_name, axis=1)], axis=1, sort=False)
 
 
 def get_peptidase_description(peptidase_hits, header_dict):
@@ -743,7 +717,7 @@ class Annotation:
     def get_rrnas(self):
         return pd.read_csv(self.rrnas_loc, sep='\t')
 
-def annotate_orf(gene_faa:str, curated_databases:list, db_handler, tmp_dir:str, logger:str, custom_db_locs=(), custom_hmm_locs=(),
+def annotate_orf(gene_faa:str, use_db:list, db_handler, tmp_dir:str, logger:str, custom_db_locs=(), custom_hmm_locs=(),
                  custom_hmm_cutoffs_locs=(), bit_score_threshold=60, rbh_bit_score_threshold=350,
                  kofam_use_dbcan2_thresholds=False, threads=10, verbose=False):
     # Get kegg hits
@@ -764,113 +738,13 @@ def annotate_orf(gene_faa:str, curated_databases:list, db_handler, tmp_dir:str, 
         'kofam_use_dbcan2_thresholds': kofam_use_dbcan2_thresholds,
     }
     for i in DB_KITS:
-        if i.NAME not in curated_databases:
+        if i.NAME not in use_db:
             continue
         if not np.all([path.exists(db_handler.config["search_databases"][j]['location'])
                        for j in i.SETTINGS["search_databases"]]):
-            continue
+            raise ValueError(f"Missing databases for {i.NAME_FORMAL}: {[j for j in i.SETTINGS['search_databases']]}")
         yield i.search(**arguments)
 
-    # if 'kegg' in curated_databases:
-    #     #TODO Change the get_kegg_description name in function do_blast_style_search to formater
-    #     yield 
-
-    # if 'kofam' in curated_databases:
-    #     print('%s: Getting hits from kofam' % str(datetime.now() - start_time))
-    #     yield run_hmmscan(genes_faa=gene_faa,
-    #                       db_loc=db_handler.db_locs['kofam'],
-    #                       db_name='kofam',
-    #                       output_loc=tmp_dir, #check_impliments
-    #                       threads=threads, #check_impliments
-    #                       verbose=verbose,
-    #                       formater=partial(
-    #                           kofam_hmmscan_formater,
-    #                           hmm_info_path=db_handler.db_locs['kofam_ko_list'],
-    #                           top_hit=True,
-    #                           use_dbcan2_thresholds=kofam_use_dbcan2_thresholds
-    #                       ))
-
-    # # Get uniref hits
-    # if 'uniref' in curated_databases:
-    #     print('%s: Getting hits from uniref' % str(datetime.now() - start_time))
-    #     yield do_blast_style_search(query_db, db_handler.db_locs['uniref'], tmp_dir,
-    #                                                  db_handler, get_uniref_description,
-    #                                                  start_time, 'uniref', bit_score_threshold,
-    #                                                  rbh_bit_score_threshold, threads, verbose)
-
-    # # Get viral hits
-    # if 'viral' in curated_databases:
-    #     print('%s: Getting hits from viral' % str(datetime.now() - start_time))
-    #     get_viral_description = partial(get_basic_description, db_name='viral')
-    #     yield do_blast_style_search(query_db, db_handler.db_locs['viral'], tmp_dir,
-    #                                                  db_handler, get_viral_description,
-    #                                                  start_time, 'viral', bit_score_threshold,
-    #                                                  rbh_bit_score_threshold, threads, verbose)
-
-    # # Get peptidase hits
-    # if 'peptidase' in curated_databases:
-    #     print('%s: Getting hits from peptidase' % str(datetime.now() - start_time))
-    #     yield do_blast_style_search(query_db, db_handler.db_locs['peptidase'], tmp_dir,
-    #                                                  db_handler, get_peptidase_description,
-    #                                                  start_time, 'peptidase', bit_score_threshold,
-    #                                                  rbh_bit_score_threshold, threads, verbose)
-
-    # # Get pfam hits
-    # if 'pfam' in curated_databases:
-    #     print('%s: Getting hits from pfam' % str(datetime.now() - start_time))
-    #     yield run_mmseqs_profile_search(query_db, db_handler.db_locs['pfam'], tmp_dir,
-    #                                                      output_prefix='pfam', db_handler=db_handler, threads=threads,
-    #                                                      verbose=verbose)
-
-    # # use hmmer to detect cazy ids using dbCAN
-    # if 'dbcan' in curated_databases:
-    #     print('%s: Getting hits from dbCAN' % str(datetime.now() - start_time))
-    #     yield run_hmmscan(genes_faa=gene_faa,
-    #                                        db_loc=db_handler.db_locs['dbcan'],
-    #                                        db_name='cazy',
-    #                                        output_loc=tmp_dir,
-    #                                        threads=threads,
-    #                                        formater=partial(
-    #                                            dbcan_hmmscan_formater,
-    #                                            db_name='cazy',
-    #                                            db_handler=db_handler
-    #                                        ))
-
-    # # use hmmer to detect vogdbs
-    # if 'vogdb' in curated_databases:
-    #     print('%s: Getting hits from VOGDB' % str(datetime.now() - start_time))
-    #     yield run_hmmscan(genes_faa=gene_faa,
-    #                                        db_loc=db_handler.db_locs['vogdb'],
-    #                                        db_name='vogdb',
-    #                                        threads=threads,
-    #                                        output_loc=tmp_dir,
-    #                                        formater=partial(
-    #                                            vogdb_hmmscan_formater,
-    #                                            db_name='vogdb',
-    #                                            db_handler=db_handler
-    #                                        ))
-
-    # for db_name, db_loc in custom_db_locs.items():
-    #     print('%s: Getting hits from %s' % (str(datetime.now() - start_time), db_name))
-    #     get_custom_description = partial(get_basic_description, db_name=db_name)
-    #     yield do_blast_style_search(query_db, db_loc, tmp_dir, db_handler,
-    #                                                  get_custom_description, start_time, db_name,
-    #                                                  bit_score_threshold, rbh_bit_score_threshold, threads,
-    #                                                  verbose)
-
-    # # get hits to hmm style custom databases
-    # for hmm_name, hmm_loc in custom_hmm_locs.items():
-    #     yield run_hmmscan(genes_faa=gene_faa,
-    #                                        db_loc=hmm_loc,
-    #                                        db_name=hmm_name,
-    #                                        threads=threads,
-    #                                        output_loc=tmp_dir,
-    #                                        formater=partial(
-    #                                            generic_hmmscan_formater,
-    #                                            db_name=hmm_name,
-    #                                            hmm_info_path=custom_hmm_cutoffs_locs.get(hmm_name),
-    #                                            top_hit=True
-    #                                        ))
 
 def annotate_orfs(gene_faa, db_handler, tmp_dir, start_time, custom_db_locs=(), custom_hmm_locs=(),
                   custom_hmm_cutoffs_locs=(), bit_score_threshold=60, rbh_bit_score_threshold=350,
@@ -1315,6 +1189,24 @@ def check_fasta(input_faa:str):
     print('%s fastas found' % len(fasta_locs))
     return fasta_locs
 
+def annotate_one_fasta(fasta_loc:str, partial_annotate_orf, tmp_dir:str, make_new_faa:bool, rename_genes:bool) -> str:
+        fasta_name = get_fasta_name(fasta_loc)
+        fasta_dir = path.join(tmp_dir, fasta_name)
+        mkdir(fasta_dir)
+        orfs = [orf for orf in partial_annotate_orf(fasta_loc, tmp_dir=fasta_dir)]
+        annotations = pd.concat(orfs, axis=1)
+        if make_new_faa:
+           annotated_faa = path.join(fasta_dir, 'genes.faa')
+           create_annotated_fasta(fasta_loc, annotations, annotated_faa, name=fasta_name)
+           faa_locs.append(annotated_faa)
+
+        # add fasta name to frame and index, write file
+        annotations.insert(0, 'fasta', fasta_name)
+        if rename_genes:
+            annotations.index = annotations.fasta + '_' + annotations.index
+        annotation_loc = path.join(fasta_dir, 'annotations.tsv')
+        annotations.to_csv(annotation_loc, sep='\t')
+        return annotation_loc
 
 @dram2.command("list_databases")
 def list_databases():
@@ -1355,7 +1247,7 @@ def annotate_bins():
 # @click.option('--use_uniref', default=False,
 #               help='Annotate these fastas against UniRef, drastically increases run time and '
 #                    'memory requirements')
-@click.option('--curated_databases', multiple=True,
+@click.option('--use_db', multiple=True,
               #TODO make db_handler do this intelligently
               type=click.Choice([i.NAME for i in DB_KITS],
                                 case_sensitive=False),
@@ -1370,7 +1262,7 @@ def annotate_bins():
 @click.option('--threads', type=int, default=10, help='number of processors to use')
 def annotate_called_genes(input_faa:str, output_dir:str='.', bit_score_threshold:float=60,
                           rbh_bit_score_threshold:float=350, log_file_path:str=None,
-                                   past_annotations_path:str=None, curated_databases:list=(), custom_db_name:list=(),
+                                   past_annotations_path:str=None, use_db:list=(), custom_db_name:list=(),
                                    custom_fasta_loc:list=(), custom_hmm_loc:list=(), custom_hmm_name:list=(),
                                    custom_hmm_cutoffs_loc:list=(), use_uniref:bool=False, use_vogdb:bool=False,
                                    kofam_use_dbcan2_thresholds:bool=False, rename_genes:bool=True,
@@ -1403,7 +1295,7 @@ def annotate_called_genes(input_faa:str, output_dir:str='.', bit_score_threshold
     if len(fasta_names) != len(set(fasta_names)):
         raise ValueError('Genome file names must be unique. At least one name appears twice in this search.')
 
-    if len(curated_databases + custom_fasta_loc + custom_hmm_loc) < 1:
+    if len(use_db + custom_fasta_loc + custom_hmm_loc) < 1:
         raise ValueError("For some reason there are no database selected to"
                          " annotate against. This is most likely a result of"
                          " bad arguments.")
@@ -1425,41 +1317,36 @@ def annotate_called_genes(input_faa:str, output_dir:str='.', bit_score_threshold
     annotation_locs = list()
     faa_locs = list()
     # TODO IO is so slow!!! We need to use more memory and make less files
-    for fasta_loc in fasta_locs:
-        # set up
-        fasta_name = get_fasta_name(fasta_loc)
-        fasta_dir = path.join(tmp_dir, fasta_name)
-        mkdir(fasta_dir)
-
-        # annotate
-        annotations = pd.concat([
-            orf for orf in
-            annotate_orf(fasta_loc, curated_databases, db_handler, fasta_dir,
-                         logger, custom_db_locs, custom_hmm_locs,
-                         custom_hmm_cutoffs_locs, bit_score_threshold,
-                         rbh_bit_score_threshold, kofam_use_dbcan2_thresholds,
-                         threads, verbose)
-                       ])
-        if make_new_faa:
-           annotated_faa = path.join(fasta_dir, 'genes.faa')
-           create_annotated_fasta(fasta_loc, annotations, annotated_faa, name=fasta_name)
-           faa_locs.append(annotated_faa)
-
-        # add fasta name to frame and index, write file
-        annotations.insert(0, 'fasta', fasta_name)
-        if rename_genes:
-            annotations.index = annotations.fasta + '_' + annotations.index
-        annotation_loc = path.join(fasta_dir, 'annotations.tsv')
-        annotations.to_csv(annotation_loc, sep='\t')
-        annotation_locs.append(annotation_loc)
-
+    
+    partial_annotate_orf = partial(
+        annotate_orf,
+        use_db=use_db,
+        db_handler=db_handler, 
+        logger=logger, 
+        custom_db_locs=custom_db_locs, 
+        custom_hmm_locs=custom_hmm_locs, 
+        custom_hmm_cutoffs_locs=custom_hmm_cutoffs_locs, 
+        bit_score_threshold=bit_score_threshold,
+        rbh_bit_score_threshold=rbh_bit_score_threshold, 
+        kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+        threads=threads,
+        verbose=verbose
+    )
+    partial_annotate_one_fasta = partial(annotate_one_fasta,
+                                         partial_annotate_orf=partial_annotate_orf,
+                                         tmp_dir=tmp_dir,
+                                         make_new_faa=make_new_faa, 
+                                         rename_genes=rename_genes)
+    annotation_locs:list = [partial_annotate_one_fasta(fasta_loc) for fasta_loc in fasta_locs]
     # merge
-    all_annotations = pd.concat([pd.read_csv(i, sep='\t', index_col=0) for i in annotation_locs], sort=False)
+    annotation_frames:list = [pd.read_csv(i, sep='\t', index_col=0) for i in annotation_locs]
+    all_annotations = pd.concat(annotation_frames, sort=False,)
     all_annotations = all_annotations.sort_values('fasta')
     if past_annotations_path is not None:
+        all_annotations.drop('fasta', axis=1, inplace=True)
         past_annotations = pd.read_csv(past_annotations_path, sep='\t', index_col=0)
         if set(past_annotations.columns).issubset(set(all_annotations.columns)):
-            raise Warning("You have passed an annotations file that containes"
+            logger.warning("You have passed an annotations file that containes"
                           " columns matching the new annotations. You most"
                           " likely are annotating with the same database again."
                           " The falowing columns will be replaced in the new"
@@ -1467,6 +1354,7 @@ def annotate_called_genes(input_faa:str, output_dir:str='.', bit_score_threshold
                           set(past_annotations.columns).intersection(set(all_annotations.columns)))
         past_annotations = past_annotations[list(set(past_annotations.columns) - set(all_annotations.columns))]
         all_annotations.index = all_annotations.index.str.removeprefix('genes_')
+        # Note we use the old annotations fasts
         all_annotations = pd.merge(all_annotations, past_annotations, how="outer", left_index=True, right_index=True)
         if len(all_annotations) != len(past_annotations):
             logger.critical("The old and new annotations filles did not merge correctly! Check the new"
