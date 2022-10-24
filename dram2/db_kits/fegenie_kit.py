@@ -7,7 +7,7 @@ from numpy import any
 from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
-from mag_annotator.utils import download_file, run_process, make_mmseqs_db, \
+from dram2.utils import download_file, run_process, make_mmseqs_db, \
     run_hmmscan, get_sig_row
 
 

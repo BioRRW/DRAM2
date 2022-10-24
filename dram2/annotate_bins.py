@@ -29,18 +29,18 @@ from pkg_resources import resource_filename
 
 import importlib
 import pkgutil
-import mag_annotator.db_kits
-DB_KITS = [importlib.import_module(i.name) for i in pkgutil.iter_modules(mag_annotator.db_kits.__path__, mag_annotator.db_kits.__name__ + ".")]
+import dram2.db_kits
+DB_KITS = [importlib.import_module(i.name) for i in pkgutil.iter_modules(dram2.db_kits.__path__, dram2.db_kits.__name__ + ".")]
 
 
 # TODO Exceptions are not fully handled
 # TODO Distillate sheets is part of the config, drop it
 
 
-from mag_annotator.utils import run_process, make_mmseqs_db, merge_files, \
+from dram2.utils import run_process, make_mmseqs_db, merge_files, \
     multigrep, remove_suffix, setup_logger, run_hmmscan, sig_scores, get_sig_row, \
     generic_hmmscan_formater, get_reciprocal_best_hits, get_best_hits, BOUTFMT6_COLUMNS
-from mag_annotator.database_handler import DatabaseHandler
+from dram2.database_handler import DatabaseHandler
 # TODO: add ability to take into account multiple best hits as in old_code.py
 # TODO: add real logging
 # TODO: add silent mode

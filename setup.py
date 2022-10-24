@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from mag_annotator import __version__ as version
+from dram2 import __version__ as version
 from os import path
 
 __author__ = 'shafferm, rmflynn'
@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name="DRAM-bio",
+    name="DRAM2-bio",
     version=__version__,
     # scripts=['scripts/DRAM.py', 'scripts/DRAM-v.py', 'scripts/DRAM-setup.py'],
     packages=find_packages(),
@@ -19,14 +19,14 @@ setup(
                 " microbial and viral genomes",
     long_description=long_description,
     long_description_content_type='text/markdown',  # Optional (see note above)
-    package_data={'mag_annotator': ['CONFIG']},
+    package_data={'dram2': ['CONFIG']},
     python_requires='>=3',
     install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click'],
     entry_points={
         'console_scripts': [
-            'dram2 = mag_annotator.annotate_bins:dram2',
-            'dram2-v = mag_annotator.annotate_vgfs:dram2_v',
-            'dram2-setup = mag_annotator.database_setup.py:dram2_setup',
+            'dram2 = dram2.annotate_bins:dram2',
+            'dram2-v = dram2.annotate_vgfs:dram2_v',
+            'dram2-setup = dram2.database_setup.py:dram2_setup',
         ],
     },
     author="Michael Shaffer",

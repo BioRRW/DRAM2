@@ -1,7 +1,7 @@
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
-from mag_annotator.utils import download_file, run_process, make_mmseqs_db, \
+from dram2.utils import download_file, run_process, make_mmseqs_db, \
     run_hmmscan, get_best_hits, BOUTFMT6_COLUMNS
 from functools import partial
 import logging

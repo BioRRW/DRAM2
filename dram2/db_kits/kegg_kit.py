@@ -1,7 +1,8 @@
 from os import path, stat
+import re
 import tarfile
 from shutil import move, rmtree
-from mag_annotator.utils import download_file, run_process, make_mmseqs_db, \
+from dram2.utils import download_file, run_process, make_mmseqs_db, \
     run_hmmscan, get_best_hits, BOUTFMT6_COLUMNS, do_blast_style_search
 from functools import partial
 import logging
@@ -47,7 +48,7 @@ def get_kegg_description(kegg_hits, header_dict):
 def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger, 
            threads:str, verbose:str, db_handler, bit_score_threshold, 
            rbh_bit_score_threshold, **args, ):
-    do_blast_style_search(query_db, 
+    hits = do_blast_style_search(query_db, 
                           db_handler.config["search_databases"]['kegg']['location'], 
                           tmp_dir,
                           db_handler, 
@@ -57,3 +58,4 @@ def search(query_db:str, gene_faa:str, tmp_dir:str, logger:logging.Logger,
                           bit_score_threshold, 
                           rbh_bit_score_threshold, 
                           threads)
+    return hits

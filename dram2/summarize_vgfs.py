@@ -7,8 +7,8 @@ from collections import defaultdict, Counter
 from datetime import datetime
 import warnings
 
-from mag_annotator.database_handler import DatabaseHandler
-from mag_annotator.summarize_genomes import get_ids_from_row, get_ids_from_annotation, get_ordered_uniques
+from dram2.database_handler import DatabaseHandler
+from dram2.summarize_genomes import get_ids_from_row, get_ids_from_annotation, get_ordered_uniques
 
 VOGDB_TYPE_NAMES = {'Xr': 'Viral replication genes', 'Xs': 'Viral structure genes',
                     'Xh': 'Viral genes with host benefits', 'Xp': 'Viral genes with viral benefits',

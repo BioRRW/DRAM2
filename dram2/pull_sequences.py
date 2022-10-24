@@ -5,10 +5,10 @@ from os import mkdir, path
 import warnings
 import logging
 
-from mag_annotator.summarize_vgfs import filter_to_amgs
-from mag_annotator.utils import setup_logger
-from mag_annotator.summarize_genomes import get_ids_from_row
-from mag_annotator.database_handler import DatabaseHandler
+from dram2.summarize_vgfs import filter_to_amgs
+from dram2.utils import setup_logger
+from dram2.summarize_genomes import get_ids_from_row
+from dram2.database_handler import DatabaseHandler
 
 # TODO: filter by taxonomic level, completeness, contamination
 # TODO: filter scaffolds file, gff file

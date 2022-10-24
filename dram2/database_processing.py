@@ -13,8 +13,8 @@ import tarfile
 from skbio import read as read_sequence
 from skbio import write as write_sequence
 
-from mag_annotator.database_handler import DatabaseHandler
-from mag_annotator.utils import run_process, make_mmseqs_db, download_file, merge_files, remove_prefix, setup_logger
+from dram2.database_handler import DatabaseHandler
+from dram2.utils import run_process, make_mmseqs_db, download_file, merge_files, remove_prefix, setup_logger
 NUMBER_OF_VIRAL_FILES = 2
 
 
@@ -27,21 +27,21 @@ DFLT_OUTPUT_DIR = '.'
 LOGGER = logging.getLogger("database_processing.log")
 DEFAULT_MMMSPRO_DB_NAME = 'db'
 
-from mag_annotator.camper_kit import download as download_camper_tar_gz
-from mag_annotator.camper_kit import process as process_camper_tar_gz
-from mag_annotator.camper_kit import DOWNLOAD_OPTIONS as CAMPER_DOWNLOAD_OPTIONS
-from mag_annotator.camper_kit import PROCESS_OPTIONS as CAMPER_PROCESS_OPTIONS
-from mag_annotator.camper_kit import DRAM_SETTINGS as CAMPER_DRAM_SETTINGS
-from mag_annotator.fegenie_kit import download as download_fegenie_tar_gz
-from mag_annotator.fegenie_kit import process as process_fegenie_tar_gz
-from mag_annotator.fegenie_kit import DOWNLOAD_OPTIONS as FEGENIE_DOWNLOAD_OPTIONS
-from mag_annotator.fegenie_kit import PROCESS_OPTIONS as FEGENIE_PROCESS_OPTIONS
-from mag_annotator.fegenie_kit import DRAM_SETTINGS as FEGENIE_DRAM_SETTINGS
-from mag_annotator.sulphur_kit import download as download_sulphur_tar_gz
-from mag_annotator.sulphur_kit import process as process_sulphur_tar_gz
-from mag_annotator.sulphur_kit import DOWNLOAD_OPTIONS as SULPHUR_DOWNLOAD_OPTIONS
-from mag_annotator.sulphur_kit import PROCESS_OPTIONS as SULPHUR_PROCESS_OPTIONS
-from mag_annotator.sulphur_kit import DRAM_SETTINGS as SULPHUR_DRAM_SETTINGS
+from dram2.camper_kit import download as download_camper_tar_gz
+from dram2.camper_kit import process as process_camper_tar_gz
+from dram2.camper_kit import DOWNLOAD_OPTIONS as CAMPER_DOWNLOAD_OPTIONS
+from dram2.camper_kit import PROCESS_OPTIONS as CAMPER_PROCESS_OPTIONS
+from dram2.camper_kit import DRAM_SETTINGS as CAMPER_DRAM_SETTINGS
+from dram2.fegenie_kit import download as download_fegenie_tar_gz
+from dram2.fegenie_kit import process as process_fegenie_tar_gz
+from dram2.fegenie_kit import DOWNLOAD_OPTIONS as FEGENIE_DOWNLOAD_OPTIONS
+from dram2.fegenie_kit import PROCESS_OPTIONS as FEGENIE_PROCESS_OPTIONS
+from dram2.fegenie_kit import DRAM_SETTINGS as FEGENIE_DRAM_SETTINGS
+from dram2.sulphur_kit import download as download_sulphur_tar_gz
+from dram2.sulphur_kit import process as process_sulphur_tar_gz
+from dram2.sulphur_kit import DOWNLOAD_OPTIONS as SULPHUR_DOWNLOAD_OPTIONS
+from dram2.sulphur_kit import PROCESS_OPTIONS as SULPHUR_PROCESS_OPTIONS
+from dram2.sulphur_kit import DRAM_SETTINGS as SULPHUR_DRAM_SETTINGS
 
 KEGG_CITATION = "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021)."
 GENE_KO_LINK_CITATION = ""
@@ -594,7 +594,7 @@ os.system('DRAM-setup.py -h ')
     export_config       Export CONFIG file
 os.system('DRAM-setup.py print_config')
 os.system('DRAM-setup.py export_config')
-os.system('DRAM-setup.py import_config --config_loc mag_annotator/CONFIG')
+os.system('DRAM-setup.py import_config --config_loc dram2/CONFIG')
 os.system('DRAM-setup.py set_database_locations')
 os.system('DRAM-setup.py update_description_db')
 

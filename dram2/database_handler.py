@@ -12,9 +12,9 @@ from functools import partial
 
 import pandas as pd
 
-from mag_annotator import __version__ as current_dram_version
-from mag_annotator.database_setup import TABLE_NAME_TO_CLASS_DICT, create_description_db
-from mag_annotator.utils import divide_chunks, setup_logger
+from dram2 import __version__ as current_dram_version
+from dram2.database_setup import TABLE_NAME_TO_CLASS_DICT, create_description_db
+from dram2.utils import divide_chunks, setup_logger
 
 SEARCH_DATABASES = {'kegg', 'kofam_hmm', 'kofam_ko_list', 'uniref', 'pfam', 'dbcan', 'viral', 'peptidase', 'vogdb'
                     'camper', 'fegenie', 'sulphur', }
@@ -30,7 +30,7 @@ DATABASE_DESCRIPTIONS = ('pfam_hmm', 'dbcan_fam_activities', 'vog_annotations')
 
 
 def get_config_loc():
-    return path.abspath(resource_filename('mag_annotator', 'CONFIG'))
+    return path.abspath(resource_filename('dram2', 'CONFIG'))
 
 
 def clear_dict(val):

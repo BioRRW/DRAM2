@@ -12,12 +12,12 @@ import re
 import numpy as np
 from datetime import datetime
 
-from mag_annotator.database_handler import DatabaseHandler
+from dram2.database_handler import DatabaseHandler
 import click
-from mag_annotator.utils import get_ordered_uniques, setup_logger
-from mag_annotator.camper_kit import NAME as CAMPER_NAME
-from mag_annotator.fegenie_kit import NAME as FEGENIE_NAME
-from mag_annotator.sulphur_kit import NAME as SULPHUR_NAME
+from dram2.utils import get_ordered_uniques, setup_logger
+from dram2.camper_kit import NAME as CAMPER_NAME
+from dram2.fegenie_kit import NAME as FEGENIE_NAME
+from dram2.sulphur_kit import NAME as SULPHUR_NAME
 
 # TODO: add RBH information to output
 # TODO: add flag to output table and not xlsx
