@@ -24,9 +24,7 @@ setup(
     install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click'],
     entry_points={
         'console_scripts': [
-            'dram2 = dram2.annotate_bins:dram2',
-            'dram2-v = dram2.annotate_vgfs:dram2_v',
-            'dram2-setup = dram2.database_setup.py:dram2_setup',
+            'dram2 = dram2.cmdline:dram2',
         ],
     },
     author="Michael Shaffer",

@@ -17,7 +17,6 @@ BOUTFMT6_COLUMNS = ['qId', 'tId', 'seqIdentity', 'alnLen', 'mismatchCnt', 'gapOp
                     'tEnd', 'eVal', 'bitScore']
 
 
-
 def download_file(url, logger, output_file=None, verbose=True):
     # TODO: catching error 4 and give error message to retry or retry automatically
     if verbose:
