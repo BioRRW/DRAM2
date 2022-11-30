@@ -1,9 +1,11 @@
+"""Setup file for package"""
 from setuptools import setup, find_packages
-from dram2 import __version__ as version
+from dram2.annotate import __version__ as version
 from os import path
 
-__author__ = 'shafferm, rmflynn'
+__author__ = 'rmflynn'
 __version__ = version
+# from some_python_init_file import __version__ as version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -11,6 +13,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
+<<<<<<< HEAD
     name="DRAM2-bio",
     version=__version__,
     # scripts=['scripts/DRAM.py', 'scripts/DRAM-v.py', 'scripts/DRAM-setup.py'],
@@ -21,16 +24,15 @@ setup(
     long_description_content_type='text/markdown',  # Optional (see note above)
     package_data={'dram2': ['CONFIG']},
     python_requires='>=3',
-    install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click'],
+    install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click', 'pytest'],
     entry_points={
         'console_scripts': [
-            'dram2 = dram2.annotate_bins:dram2',
-            'dram2-v = dram2.annotate_vgfs:dram2_v',
-            'dram2-setup = dram2.database_setup.py:dram2_setup',
+            'dram2 = dram2.utils.command_line',
         ],
     },
-    author="Michael Shaffer",
-    author_email='michael.t.shaffer@colostate.edu',
-    url="https://github.com/shafferm/DRAM/",
-    download_url="https://github.com/shafferm/DRAM/tarball/%s" % __version__
+    author="Rory Flynn",
+    author_email='Rory.Flynn@colostate.edu',
+    url="",  # this will change
+    download_url=""
+    include_package_data=True,  # include all files in MANIFEST.in
 )
