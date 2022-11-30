@@ -22,8 +22,8 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',  # Optional (see note above)
     package_data={'dram2': ['CONFIG']},
-    python_requires='>=3',
-    install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click', 'pytest'],
+    python_requires='>=3.10',
+    install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click', 'pytest', 'biopython'],
     entry_points={
         'console_scripts': [
             'dram2 = dram2.utils.command_line',
