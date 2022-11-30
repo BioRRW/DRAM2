@@ -13,7 +13,6 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-<<<<<<< HEAD
     name="DRAM2-bio",
     version=__version__,
     # scripts=['scripts/DRAM.py', 'scripts/DRAM-v.py', 'scripts/DRAM-setup.py'],
@@ -33,6 +32,6 @@ setup(
     author="Rory Flynn",
     author_email='Rory.Flynn@colostate.edu',
     url="",  # this will change
-    download_url=""
-    include_package_data=True,  # include all files in MANIFEST.in
+    download_url="",
+    include_package_data=True  # include all files in MANIFEST.in
 )
