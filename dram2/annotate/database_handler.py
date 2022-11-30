@@ -12,9 +12,9 @@ from functools import partial
 
 import pandas as pd
 
-from dram2 import __version__ as current_dram_version
-from dram2.database_setup import TABLE_NAME_TO_CLASS_DICT, create_description_db
-from dram2.utils import divide_chunks, setup_logger
+from dram2.annotate import __version__ as current_dram_version
+from dram2.setup_databases.database_setup import TABLE_NAME_TO_CLASS_DICT, create_description_db
+from dram2.utils.utils import divide_chunks, setup_logger
 
 SEARCH_DATABASES = {'kegg', 'kofam_hmm', 'kofam_ko_list', 'uniref', 'pfam', 'dbcan', 'viral', 'peptidase', 'vogdb'
                     'camper', 'fegenie', 'sulphur', }

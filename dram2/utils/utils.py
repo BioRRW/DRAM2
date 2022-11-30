@@ -1,3 +1,4 @@
+"""General utilitys, avalible to all dram2 tools"""
 import re
 import subprocess
 from os import path, stat
