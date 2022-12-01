@@ -5,9 +5,9 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import graphviz
-from rule_adjectives.annotations import Annotations, SULFUR_ID, FEGENIE_ID, FUNCTION_DICT
+from dram2.rule_adjectives.annotations import Annotations, SULFUR_ID, FEGENIE_ID, FUNCTION_DICT
 
-LEAF_NODES = ['ko', 'camper', 'fegenie', 'sulfur', 'PF', 'ec', 'columnvalue']
+LEAF_NODES = ['ko', 'camper', 'fegenie', 'sulfur', 'PF', 'ec', 'columnvalue', "tree"]
 
 def parse_ands(logic:str):
     depth = 0
@@ -99,6 +99,8 @@ def ec_func(ec:str, annotations):
 def ko_func(ko:str, annotations):
     return ko in annotations
 
+def tree_func(tr:str, annotations):
+    return tr in annotations
 
 def sulfur_func(so:str, annotations):
     return so in annotations
@@ -211,6 +213,12 @@ class RuleParser():
             nodeid = logic[2:]
             self.G.add_node(nodeid, display=nodeid, type='sulfur',
                             function=sulfur_func, genomes={})
+            self.G.add_edge(parent, nodeid)
+            return
+        if re.match(r'^t>*$', logic):
+            nodeid = logic[2:]
+            self.G.add_node(nodeid, display=nodeid, type='tree',
+                            function=tree_func, genomes={})
             self.G.add_edge(parent, nodeid)
             return
         if re.match(r'^PF\d+', logic):
@@ -430,6 +438,8 @@ class RuleParser():
             case  'ec':
                 return self.G.nodes[node]['function'](node, annotations)
             case  'ko':
+                return self.G.nodes[node]['function'](node, annotations)
+            case  'tree':
                 return self.G.nodes[node]['function'](node, annotations)
             case  'camper':
                 return self.G.nodes[node]['function'](node, annotations)

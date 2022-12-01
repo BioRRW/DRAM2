@@ -8,12 +8,12 @@ import click
 from dram2.globals import (PRODIGAL_MODE_CHOICES, PRODIGAL_TRANS_TABLE_CHOICES, PRODIGAL_MODE_DFT, PRODIGAL_TRANS_TABLE_DFT)
 
 
-# @click.group()
-# @click.option("--verbose/--quiet", default=False)
-# def dram2(verbose):
-#     pass
-# 
-# 
+@click.group()
+@click.option("--verbose/--quiet", default=False)
+def dram2(verbose):
+    pass
+
+
 # @dram2.command("annotate")
 # @click.option(
 #     "-i",
@@ -166,7 +166,7 @@ class RequiredIfNot(click.Option):
             else:
                 self.prompt = None
 
-        return super(RequiredIf, self).handle_parse_result(
+        return super(RequiredIfNot, self).handle_parse_result(
             ctx, opts, args)
 
 @dram2.command("annotate")

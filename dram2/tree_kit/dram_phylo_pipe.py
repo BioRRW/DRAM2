@@ -142,7 +142,7 @@ UNPLACE_PREFIX: str = "Can't be placed:"
     default="./",
     help="Don't place uncertain genes, place all of them",
 )
-def dram_tree_kit(
+def tree_kit(
     dram_annotations: str = str(None),
     gene_fasta: str = str(None),
     dram_directory: str = str(None),

@@ -16,6 +16,7 @@ FUNCTION_DICT = {
     FEGENIE_ID: lambda x: [x],
     SULFUR_ID: lambda x: [x],
     'kegg_genes_id': lambda x: [x],
+    'nxr_nar_labels': lambda x: [x],
     'ko_id': lambda x: [j for j in x.split(',')],
     'kegg_id': lambda x: [j for j in x.split(',')],
     'kegg_hit': lambda x: [i[1:-1] for i in
@@ -28,6 +29,7 @@ FUNCTION_DICT = {
     'pfam_hits': lambda x: [j[1:-1].split('.')[0]
                             for j in re.findall(r'\[PF\d\d\d\d\d.\d*\]', x)]
 }
+
 
 def get_ids_from_annotations_by_row(data):
     missing = [i for i in FUNCTION_DICT if i not in data.columns]

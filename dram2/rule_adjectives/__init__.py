@@ -4,8 +4,8 @@ import click
 
 import pandas as pd
 
-from rule_adjectives.rule_graph import RuleParser, get_positive_genes
-from rule_adjectives.annotations import Annotations
+from dram2.rule_adjectives.rule_graph import RuleParser, get_positive_genes
+from dram2.rule_adjectives.annotations import Annotations
 
 
 
@@ -91,7 +91,7 @@ def show_rules_path(ctx, param, value):
 def evaluate(annotations_tsv:str, adjectives_tsv:str,
              rules_tsv:str=get_package_path('rules.tsv'),
              adjectives:list=None, plot_adjectives:list=None,
-             plot_genomes:list=None,plot_path:str=None,
+             plot_genomes:list=None, plot_path:str=None,
              debug_ids_by_fasta_to_tsv:str=None,
              strainer_tsv:str=None, strainer_type='pgtb'):
     """

@@ -21,12 +21,15 @@ setup(
                 " microbial and viral genomes",
     long_description=long_description,
     long_description_content_type='text/markdown',  # Optional (see note above)
-    package_data={'dram2': ['CONFIG']},
+    package_data={'dram2': ['CONFIG', "./dram2/rule_adjectives/rules.tsv"]},
     python_requires='>=3.10',
     install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click', 'pytest', 'biopython'],
     entry_points={
         'console_scripts': [
-            'dram2 = dram2.utils.command_line',
+            'dram2 = dram2.utils.command_line:dram2',
+            'adj = dram2.rule_adjectives:evaluate',
+            'tree = dram2.tree_kit.dram_phylo_pipe:tree_kit',
+
         ],
     },
     author="Rory Flynn",
