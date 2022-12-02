@@ -12,7 +12,7 @@ import re
 import numpy as np
 from datetime import datetime
 
-from dram2.setup_databases.database_handler import DatabaseHandler
+from dram2.annotate.database_handler import DatabaseHandler
 from dram2.utils.utils import get_ordered_uniques, setup_logger
 from dram2.db_kits.camper_kit import NAME as CAMPER_NAME
 from dram2.db_kits.fegenie_kit import NAME as FEGENIE_NAME

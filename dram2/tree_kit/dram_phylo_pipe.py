@@ -19,12 +19,10 @@ import click
 import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
-# from dram2.tree_kit import __version__
-# from dram2.tree_kit.pplacer import DramTree
-__version__ = "tmp"
-from pplacer import DramTree
-from dram2.utils import run_process, setup_logger
-from dram2.summarize_genomes import get_ids_from_annotations_by_row
+from dram2.tree_kit import __version__
+from dram2.tree_kit.pplacer import DramTree
+from dram2.utils.utils import run_process, setup_logger
+from dram2.distill.summarize_genomes import get_ids_from_annotations_by_row
 from skbio import write as write_sq
 from skbio import read as read_sq
 from Bio import Phylo as phy

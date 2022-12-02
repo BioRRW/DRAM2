@@ -1,10 +1,10 @@
 """Setup file for package"""
 from setuptools import setup, find_packages
-from dram2.annotate import __version__ as version
+# from dram2.annotate import __version__ as version
+__version__ = "beta2"
 from os import path
 
 __author__ = 'rmflynn'
-__version__ = version
 # from some_python_init_file import __version__ as version
 
 here = path.abspath(path.dirname(__file__))
@@ -27,8 +27,8 @@ setup(
     entry_points={
         'console_scripts': [
             'dram2 = dram2.utils.command_line:dram2',
-            'adj = dram2.rule_adjectives:evaluate',
-            'tree = dram2.tree_kit.dram_phylo_pipe:tree_kit',
+            # 'adj = dram2.rule_adjectives:evaluate',
+            # 'tree = dram2.tree_kit.dram_phylo_pipe:tree_kit',
 
         ],
     },

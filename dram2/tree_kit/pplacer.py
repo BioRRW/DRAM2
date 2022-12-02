@@ -4,7 +4,7 @@ import json
 import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
-from dram2.utils import run_process
+from dram2.utils.utils import run_process
 
 QUERY_TMP_NAME = "query"
 
