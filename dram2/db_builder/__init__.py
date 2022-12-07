@@ -2,7 +2,8 @@ import click
 
 __version__ = '2.0.0'
 
-@click.command('generate_genbank')
+
+@click.command('build_database_set')
 @click.version_option(__version__)
-def generate_genbank():
+def db_builder():
     print("This comand is comming soon")

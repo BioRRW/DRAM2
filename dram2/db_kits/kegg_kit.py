@@ -1,5 +1,5 @@
 import re
-from dram2.utils.utils import do_blast_style_search
+from dram2.db_kits.utils import do_blast_style_search, DBKits
 from functools import partial
 import logging
 import pandas as pd

@@ -1,4 +1,5 @@
 __version__ = "2.0.0"
+
 from dram2.utils.globals import (
     PRODIGAL_MODE_CHOICES,
     PRODIGAL_TRANS_TABLE_CHOICES,
@@ -8,45 +9,18 @@ from dram2.utils.globals import (
 from dram2.annotate.annotate import DB_KITS
 import click
 
-class RequiredIfNot(click.Option):
-    def __init__(self, *args, **kwargs):
-        self.required_if_not = kwargs.pop('required_if_not')
-        if not self.required_if_not: raise click.UsageError("'required_if_not' parameter required")
-        kwargs['help'] = (kwargs.get('help', '') +
-            ' NOTE: This argument or {self.required_if_not} is requered').strip()
-        super(RequiredIfNot, self).__init__(*args, **kwargs)
 
-    def handle_parse_result(self, ctx, opts, args):
-        we_are_present = self.name in opts
-        other_present = self.required_if_not not in opts
-
-        if not other_present:
-            if not we_are_present:
-                raise click.UsageError(
-                    f"Illegal usage: {self.name} or {self.required_if_not} must be used")
-            else:
-                self.prompt = None
-
-        return super(RequiredIfNot, self).handle_parse_result(
-            ctx, opts, args)
-
-
-
-@click.command("annotate_bins")
+@click.command("annotate")
 @click.argument(
     "fasta_paths",
     type=click.Path(exists=True),
-    multiple=True,
-    nargs=-1.
-    cls=RequiredIfNot,
-    required_if_not="gene_faa_paths",
-    help="fasta file, optionally with wildcards to point to " "individual MAGs",
+    nargs=-1,
 )
 @click.option(
     "-g",
-    "--gene_faa_paths",
-    required_if_not="annotate_bins",
-    help="fasta file, optionally with wildcards to point to " "individual MAGs",
+    "--genes_called",
+    is_flag=True,
+    help="Specify that you are using called genes and not MAGs. The gene calling step will be skipped. Note that this will try to add new genes to the databases not in fact call old genes. For that you should use the --annotations_path argument.",
 )
 @click.option("-o", "--output_dir", help="output directory", required=True)
 @click.option(
@@ -118,14 +92,11 @@ class RequiredIfNot(click.Option):
     help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
 )
 @click.option(
-    "--prodigal_mode",
+    "--prodigal_trans_tables",
     type=click.Choice([str(i) for i in range(1, 26)], case_sensitive=False),
     default=PRODIGAL_MODE_DFT,
     help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
 )
-#     prodigal_trans_table_choices =
-#     annotate_parser.add_argument('--trans_table', type=str, default='11', choices=prodigal_trans_table_choices,
-#                                  help='Translation table for prodigal to use for gene calling.')
 @click.option(
     "--dry",
     is_flag=True,
@@ -140,9 +111,6 @@ class RequiredIfNot(click.Option):
     help="Location of file with custom HMM cutoffs and descriptions, can be used "
     "multiple times.",
 )
-# @click.option('--use_uniref', default=False,
-#               help='Annotate these fastas against UniRef, drastically increases run time and '
-#                    'memory requirements')
 @click.option(
     "--use_db",
     multiple=True,
@@ -160,10 +128,9 @@ class RequiredIfNot(click.Option):
 @click.option("--threads", type=int, default=10, help="number of processors to use")
 def annotate(args):
     from dram2.annotate.annotate import annotate
-
     annotate(**args)
 
 
-@dram2.command("list_databases")
+@click.command("list_databases")
 def list_databases():
     print([i.NAME for i in DB_KITS])

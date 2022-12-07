@@ -2,7 +2,7 @@ import click
 
 __version__ = '2.0.0'
 
-@click.command('generate_genbank')
+@click.command('merge')
 @click.version_option(__version__)
-def generate_genbank():
+def merger():
     print("This comand is comming soon")

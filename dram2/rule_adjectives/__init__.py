@@ -56,7 +56,8 @@ def show_rules_path(ctx, param, value):
         return
     print(get_package_path('rules.tsv'))
 
-@click.command()
+
+@click.command('adjectives')
 @click.version_option(__version__)
 @click.argument('annotations_tsv', type=click.Path(exists=True))#, required=1, help="One of only 2 required files. Path to a DRAM annotations file.")
 @click.argument('adjectives_tsv', type=click.Path(), required=1)#, help="One of only 2 required files.Path for the output true false table created by this script.")
@@ -125,7 +126,7 @@ def evaluate(annotations_tsv:str, adjectives_tsv:str,
         strainer_data.to_csv(strainer_tsv, sep='\t')
 
 
-@click.command()
+@click.command('adjectives_plot')
 @click.version_option(__version__)
 @click.argument('plot_path', type=click.Path(exists=False),
               default=None)#, help='will become a folder of output plots, no path no plots.')

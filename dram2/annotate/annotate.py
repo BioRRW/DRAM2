@@ -1,8 +1,6 @@
 """
 Main control point for the annotation process
 
-os.system("DRAM.py annotate_genes -i /home/projects-wrighton-2/EMERGE_DRAM/97_clusters/20100900_E1D_13_annotated/genes.faa -o test_camper --use_camper --use_fegenie")
-os.system("DRAM.py annotate_genes -i /home/projects-wrighton-2/DRAM/development_flynn/release_validation/data_sets/mini_data/small.faa -o test_small --use_camper --use_fegenie")
 """
 import re
 import io
@@ -49,7 +47,7 @@ from dram2.utils.utils import (
     get_best_hits,
     BOUTFMT6_COLUMNS,
 )
-from dram2.annotate.database_handler import DatabaseHandler
+from dram2.utils.database_handler import DatabaseHandler
 
 # TODO Exceptions are not fully handled
 # TODO Distillate sheets is part of the config, drop it
@@ -993,47 +991,7 @@ def strip_endings(text, suffixes: list):
     return text
 
 
-def process_custom_dbs(
-    custom_fasta_loc, custom_db_name, output_dir, threads=1, verbose=False
-):
-    # if none is passed from argparse then set to tuple of len 0
-    mkdir(output_dir)
 
-    if custom_fasta_loc is None:
-        custom_fasta_loc = ()
-    if custom_db_name is None:
-        custom_db_name = ()
-    if len(custom_fasta_loc) != len(custom_db_name):
-        raise ValueError(
-            "Lengths of custom db fasta list and custom db name list must be the same."
-        )
-    custom_dbs = {
-        custom_db_name[i]: custom_fasta_loc[i] for i in range(len(custom_db_name))
-    }
-    custom_db_locs = dict()
-    for db_name, db_loc in custom_dbs.items():
-        custom_db_loc = path.join(output_dir, "%s.custom.mmsdb" % db_name)
-        make_mmseqs_db(db_loc, custom_db_loc, threads=threads, verbose=verbose)
-        custom_db_locs[db_name] = custom_db_loc
-    return custom_db_locs
-
-
-def process_custom_hmms(custom_hmm_loc, custom_hmm_name, logger, verbose=False):
-    if custom_hmm_loc is None:
-        custom_hmm_loc = ()
-    if custom_hmm_name is None:
-        custom_hmm_name = ()
-    if len(custom_hmm_loc) != len(custom_hmm_name):
-        raise ValueError(
-            "Lengths of custom db hmm list and custom hmm db name list must be the same."
-        )
-    custom_hmm_locs = dict()
-    for i in range(len(custom_hmm_name)):
-        run_process(
-            ["hmmpress", "-f", custom_hmm_loc[i]], logger, verbose=verbose
-        )  # all are pressed just in case
-        custom_hmm_locs[custom_hmm_name[i]] = custom_hmm_loc[i]
-    return custom_hmm_locs
 
 
 def process_custom_hmm_cutoffs(custom_hmm_cutoffs_loc, custom_hmm_name, verbose=False):
@@ -1054,7 +1012,16 @@ def process_custom_hmm_cutoffs(custom_hmm_cutoffs_loc, custom_hmm_name, verbose=
 
 class Annotation:
     def __init__(
-        self, name, scaffolds, genes_faa, genes_fna, annotations, gff=None, gbk=None,  trnas=None, rrnas=None
+        self,
+        name,
+        scaffolds,
+        genes_faa,
+        genes_fna,
+        annotations,
+        gff=None,
+        gbk=None,
+        trnas=None,
+        rrnas=None,
     ):
         # TODO: get abspath for every input file/dir
         # TODO: check that files exist
@@ -1212,8 +1179,6 @@ def annotate_fasta(
     annotations_loc = path.join(output_dir, "annotations.tsv")
     annotations.to_csv(annotations_loc, sep="\t")
 
-
-
     if not keep_tmp_dir:
         rmtree(tmp_dir)
 
@@ -1223,7 +1188,8 @@ def annotate_fasta(
         genes_faa=annotated_faa,
         genes_fna=annotated_fna,
         gff=renamed_gffs,
-        annotations=annotations_loc)
+        annotations=annotations_loc,
+    )
 
 
 def get_fasta_name(fasta_loc):
@@ -1252,18 +1218,22 @@ def annotate_fastas(
     threads=10,
     verbose=True,
 ):
+    if not genes_called:
+        if prodigal_mode in ["single"]:
+            logger.warning(
+                "When running prodigal in single mode your bins must have long contigs (average length >3 Kbp), "
+                "be long enough (total length > 500 Kbp) and have very low contamination in order for prodigal "
+                "training to work well."
+            )
+    # get database locations
+    db_handler = databasehandler()
+    db_handler.filter_db_locs(
+        low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE
+    )
     # check for no conflicting options/configurations
     tmp_dir = path.join(output_dir, "working_dir")
     mkdir(tmp_dir)
 
-    # setup custom databases to be searched
-    custom_db_locs = process_custom_dbs(
-        custom_fasta_loc,
-        custom_db_name,
-        path.join(tmp_dir, "custom_dbs"),
-        threads,
-        verbose,
-    )
     custom_hmm_locs = process_custom_hmms(custom_hmm_loc, custom_hmm_name, logger)
     custom_hmm_cutoffs_locs = process_custom_hmm_cutoffs(
         custom_hmm_cutoffs_loc, custom_hmm_name
@@ -1369,11 +1339,59 @@ def annotate_bins_cmd(
         verbose,
     )
 
+def merge_gtdb_taxonomy(annotations, gtdb_taxonomy):
+        gtdb_taxonomy = pd.concat(
+            [pd.read_csv(i, sep="\t", index_col=0) for i in gtdb_taxonomy]
+        )
+        taxonomy = list()
+        taxonomy_missing_bins = list()
+        for i in annotations.fasta:
+            # add taxonomy
+            if i in gtdb_taxonomy.index:
+                taxonomy.append(gtdb_taxonomy.loc[i, "classification"])
+            else:
+                taxonomy.append(i)
+                taxonomy_missing_bins.append(i)
+        for i in set(taxonomy_missing_bins):
+            logger.warning(
+                "Bin %s was not found in taxonomy file, replaced with bin name." % i
+            )
+        annotations["bin_taxonomy"] = taxonomy
+
+def merge_checkm_quality(annotations, checkm_quality):
+        checkm_quality = pd.concat(
+            [pd.read_csv(i, sep="\t", index_col=0) for i in checkm_quality]
+        )
+        checkm_quality.index = [
+            strip_endings(i, [".fa", ".fasta", ".fna"]) for i in checkm_quality.index
+        ]
+
+        completeness = list()
+        contamination = list()
+        quality_missing_bins = list()
+        for i in annotations.fasta:
+            # add completeness and contamination
+            if i in checkm_quality.index:
+                completeness.append(checkm_quality.loc[i, "Completeness"])
+                contamination.append(checkm_quality.loc[i, "Contamination"])
+            else:
+                completeness.append(0)
+                contamination.append(100)
+                quality_missing_bins.append(i)
+            for j in set(quality_missing_bins):
+                logger.warning(
+                    "Bin %s was not found in quality file, "
+                    "replaced with completeness 0 and contamination 100." % j
+                )
+        annotations["bin_completeness"] = completeness
+        annotations["bin_contamination"] = contamination
 
 # TODO: Add force flag to remove output dir if it already exists
 # TODO: Add continute flag to continue if output directory already exists
 # TODO: make fasta loc either a string or list to remove annotate_bins_cmd and annotate_called_genes_cmd?
 def annotate_bins(
+    fasta_paths,
+    genes_called,
     kofam_use_dbcan2_thresholds=False,
     skip_trnascan=False,
     gtdb_taxonomy=(),
@@ -1392,127 +1410,76 @@ def annotate_bins(
     logger = logging.getLogger("annotation_log")
     setup_logger(logger, log_file_path)
     logger.info(f"The log file is created at {log_file_path}.")
+    try:
 
-    if len(fasta_locs) == 0:
-        raise ValueError("Given fasta locations return no paths: %s" % input_fasta)
-    fasta_names = [get_fasta_name(i) for i in fasta_locs]
-    if len(fasta_names) != len(set(fasta_names)):
-        raise ValueError(
-            "Genome file names must be unique. At least one name appears twice in this search."
-        )
-    logger.info("%s FASTAs found" % len(fasta_locs))
-    # set up
-    db_handler = DatabaseHandler(logger)
-    db_handler.filter_db_locs(
-        low_mem_mode,
-        use_uniref,
-        use_camper,
-        use_fegenie,
-        use_sulphur,
-        use_vogdb,
-        master_list=MAG_DBS_TO_ANNOTATE,
-    )
-    db_conf = db_handler.get_settings_str()
-    logger.info(
-        f"Starting the Annotation of Bins with database configuration: \n {db_conf}"
-    )
-
-    # check input
-
-    prodigal_modes = ["train", "meta", "single"]
-    if prodigal_mode not in prodigal_modes:
-        raise ValueError("Prodigal mode must be one of %s." % ", ".join(prodigal_modes))
-    elif prodigal_mode in ["normal", "single"]:
-        logger.warning(
-            "When running prodigal in single mode your bins must have long contigs (average length >3 Kbp), "
-            "be long enough (total length > 500 Kbp) and have very low contamination in order for prodigal "
-            "training to work well."
-        )
-
-    # prodigal_trans_tables = ['auto'] + [str(i) for i in range(1, 26)]
-    prodigal_trans_tables = [str(i) for i in range(1, 26)]
-    if trans_table not in prodigal_trans_tables:
-        # raise ValueError('Prodigal translation table must be 1-25 or auto')
-        raise ValueError("Prodigal translation table must be 1-25")
-
-    # get database locations
-    db_handler = databasehandler()
-    db_handler.filter_db_locs(
-        low_mem_mode, use_uniref, use_vogdb, master_list=MAG_DBS_TO_ANNOTATE
-    )
-
-    mkdir(output_dir)
-
-    all_annotations = annotate_fastas(
-        fasta_locs,
-        output_dir,
-        db_handler,
-        logger,
-        min_contig_size,
-        prodigal_mode,
-        trans_table,
-        bit_score_threshold,
-        rbh_bit_score_threshold,
-        custom_db_name,
-        custom_fasta_loc,
-        custom_hmm_name,
-        custom_hmm_loc,
-        custom_hmm_cutoffs_loc,
-        kofam_use_dbcan2_thresholds,
-        skip_trnascan,
-        rename_bins,
-        keep_tmp_dir,
-        threads,
-        verbose,
-    )
-    # if given add taxonomy information
-    if len(gtdb_taxonomy) > 0:
-        gtdb_taxonomy = pd.concat(
-            [pd.read_csv(i, sep="\t", index_col=0) for i in gtdb_taxonomy]
-        )
-        taxonomy = list()
-        taxonomy_missing_bins = list()
-        for i in all_annotations.fasta:
-            # add taxonomy
-            if i in gtdb_taxonomy.index:
-                taxonomy.append(gtdb_taxonomy.loc[i, "classification"])
-            else:
-                taxonomy.append(i)
-                taxonomy_missing_bins.append(i)
-        for i in set(taxonomy_missing_bins):
-            logger.warning(
-                "Bin %s was not found in taxonomy file, replaced with bin name." % i
+        if len(fasta_locs) == 0:
+            raise ValueError("Given fasta locations return no paths: %s" % input_fasta)
+        fasta_names = [get_fasta_name(i) for i in fasta_locs]
+        if len(fasta_names) != len(set(fasta_names)):
+            raise ValueError(
+                "Genome file names must be unique. At least one name appears twice in this search."
             )
-        all_annotations["bin_taxonomy"] = taxonomy
-    # if given add quality information
-    if len(checkm_quality) > 0:
-        checkm_quality = pd.concat(
-            [pd.read_csv(i, sep="\t", index_col=0) for i in checkm_quality]
+        logger.info("%s FASTAs found" % len(fasta_locs))
+        # set up
+        db_handler = DatabaseHandler(logger)
+        db_handler.filter_db_locs(
+            low_mem_mode,
+            use_uniref,
+            use_camper,
+            use_fegenie,
+            use_sulphur,
+            use_vogdb,
+            master_list=MAG_DBS_TO_ANNOTATE,
         )
-        checkm_quality.index = [
-            strip_endings(i, [".fa", ".fasta", ".fna"]) for i in checkm_quality.index
-        ]
+        db_conf = db_handler.get_settings_str()
+        logger.info(
+            f"Starting the Annotation of Bins with database configuration: \n {db_conf}"
+        )
 
-        completeness = list()
-        contamination = list()
-        quality_missing_bins = list()
-        for i in all_annotations.fasta:
-            # add completeness and contamination
-            if i in checkm_quality.index:
-                completeness.append(checkm_quality.loc[i, "Completeness"])
-                contamination.append(checkm_quality.loc[i, "Contamination"])
-            else:
-                completeness.append(0)
-                contamination.append(100)
-                quality_missing_bins.append(i)
-            for j in set(quality_missing_bins):
-                logger.warning(
-                    "Bin %s was not found in quality file, "
-                    "replaced with completeness 0 and contamination 100." % j
-                )
-        all_annotations["bin_completeness"] = completeness
-        all_annotations["bin_contamination"] = contamination
-    all_annotations.to_csv(path.join(output_dir, "annotations.tsv"), sep="\t")
+        # check input
+
+
+        mkdir(output_dir)
+
+        new_annotations = 
+        annotate_fastas(
+            fasta_locs,
+            genes_called,
+            output_dir,
+            db_handler,
+            logger,
+            min_contig_size,
+            prodigal_mode,
+            trans_table,
+            bit_score_threshold,
+            rbh_bit_score_threshold,
+            custom_db_name,
+            custom_fasta_loc,
+            custom_hmm_name,
+            custom_hmm_loc,
+            custom_hmm_cutoffs_loc,
+            kofam_use_dbcan2_thresholds,
+            skip_trnascan,
+            rename_bins,
+            keep_tmp_dir,
+            threads,
+            verbose,
+        )
+        
+        annotations
+        # if given add taxonomy information
+        if len(gtdb_taxonomy) > 0:
+            merge_gtdb_taxonomy(annotations, gtdb_taxonomy)
+        # if given add quality information
+        if len(checkm_quality) > 0:
+            merge_checkm_quality(annotations, gtdb_taxonomy)
+
+        annotations.to_csv(path.join(output_dir, "annotations.tsv"), sep="\t")
+    except Exception as e:
+        breakpoint()
+        logger.critical(e)
+        logger.critical("An error ocured! The exicution of DRAM is incompleat")
+        raise e
 
     logger.info("Completed annotations")
 
@@ -1541,68 +1508,6 @@ def annotate_one_fasta(
     annotation_loc = path.join(fasta_dir, "annotations.tsv")
     annotations.to_csv(annotation_loc, sep="\t")
     return annotation_loc
-
-
-def annotate(
-    input_mag: str,
-    input_faa: str,
-    output_dir: str = ".",
-    bit_score_threshold: float = 60,
-    rbh_bit_score_threshold: float = 350,
-    log_file_path: str = None,
-    past_annotations_path: str = None,
-    use_uniref: bool = False,
-    use_vogdb: bool = False,
-):
-    mkdir(output_dir)
-    if log_file_path is None:
-        log_file_path = path.join(output_dir, "Annotation.log")
-    logger = logging.getLogger("annotation_log")
-    setup_logger(logger, log_file_path)
-    logger.info(f"The log file is created at {log_file_path}.")
-
-    if len(fasta_locs) == 0:
-        raise ValueError("Given fasta locations return no paths: %s" % input_fasta)
-    fasta_names = [get_fasta_name(i) for i in fasta_locs]
-    if len(fasta_names) != len(set(fasta_names)):
-        raise ValueError(
-            "Genome file names must be unique. At least one name appears twice in this search."
-        )
-    logger.info("%s FASTAs found" % len(fasta_locs))
-    # set up
-    db_handler = DatabaseHandler(logger)
-    db_handler.filter_db_locs(
-        low_mem_mode,
-        use_uniref,
-        use_camper,
-        use_fegenie,
-        use_sulphur,
-        use_vogdb,
-        master_list=MAG_DBS_TO_ANNOTATE,
-    )
-    db_conf = db_handler.get_settings_str()
-    logger.info(
-        f"Starting the Annotation of Bins with database configuration: \n {db_conf}"
-    )
-
-    # check input
-
-    prodigal_modes = ["train", "meta", "single"]
-    if prodigal_mode not in prodigal_modes:
-        raise ValueError("Prodigal mode must be one of %s." % ", ".join(prodigal_modes))
-    elif prodigal_mode in ["normal", "single"]:
-        logger.warning(
-            "When running prodigal in single mode your bins must have long contigs (average length >3 Kbp), "
-            "be long enough (total length > 500 Kbp) and have very low contamination in order for prodigal "
-            "training to work well."
-        )
-
-    # prodigal_trans_tables = ['auto'] + [str(i) for i in range(1, 26)]
-    prodigal_trans_tables = [str(i) for i in range(1, 26)]
-    if trans_table not in prodigal_trans_tables:
-        # raise ValueError('Prodigal translation table must be 1-25 or auto')
-        raise ValueError("Prodigal translation table must be 1-25")
-    pass
 
 
 def annotate(
@@ -1708,9 +1613,6 @@ def annotate(
         verbose,
     )
     custom_hmm_locs = process_custom_hmms(custom_hmm_loc, custom_hmm_name, logger)
-    custom_hmm_cutoffs_locs = process_custom_hmm_cutoffs(
-        custom_hmm_cutoffs_loc, custom_hmm_name
-    )
     logger.info("Retrieved database locations and descriptions")
 
     # annotate

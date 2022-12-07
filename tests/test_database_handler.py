@@ -4,8 +4,8 @@ from os import path
 from sqlalchemy.orm.exc import NoResultFound
 import json
 
-from mag_annotator.database_setup import KeggDescription, create_description_db
-from mag_annotator.database_handler import DatabaseHandler, print_database_locations, import_config, export_config
+from dram2.database_setup import KeggDescription, create_description_db
+from dram2.database_handler import DatabaseHandler, print_database_locations, import_config, export_config
 import pandas as pd
 import numpy as np
 
