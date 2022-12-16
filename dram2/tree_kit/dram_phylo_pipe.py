@@ -27,15 +27,25 @@ from skbio import read as read_sq
 from Bio import Phylo as phy
 from Bio.Phylo.BaseTree import Clade
 from Bio.Phylo.Newick import Tree
+import importlib
 
-NXR_NAR_TREE = DramTree(
-    name="nxr_nar",
-    pplacer_profile="./data/dram_trees/nxr_nar/nxr_nar.refpkg",
-    target_ids=["K11180", "dsrA", "dsrB", "K11181"],
-    reference_seq=("./data/dram_trees/nxr_nar/" "nxr-nar_seqs_for_tree_aligned.faa"),
-    gene_mapping_path="data/dram_trees/nxr_nar/nxr-nar-tree-mapping.tsv",
-    color_mapping_path="data/dram_trees/nxr_nar/color_map.tsv",
-)
+
+"""
+import os 
+os.system('dram2 annotate --help')
+os.system('ls /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/')
+/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/nxr_nar/nxr-nar-tree-mapping.tsv
+"""
+
+with importlib.resources.path('dram2.tree_kit', 'data') as data_path:
+    NXR_NAR_TREE = DramTree(
+        name="nxr_nar",
+        pplacer_profile=os.path.join(data_path, "nxr_nar", "nxr_nar.refpkg"),
+        target_ids=["K11180", "dsrA", "dsrB", "K11181"],
+        reference_seq=os.path.join(data_path, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"),
+        gene_mapping_path=os.path.join(data_path, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
+        color_mapping_path=os.path.join(data_path, "nxr_nar", "color_map.tsv")
+    )
 TREES = [NXR_NAR_TREE]
 UNPLACE_LABEL = "UNPLACEABLE"
 
@@ -88,7 +98,9 @@ def tree_kit(
                 annotation_ids, gene_fasta, work_dir, tree.target_ids, logger
             )
             logger.info("Placing enigmatic genes")
-            jplace_file = tree.pplacer_place_sequences(trimed_fa, work_dir, threads=cores)
+            jplace_file = tree.pplacer_place_sequences(
+                trimed_fa, work_dir, threads=cores
+            )
             treeph = read_phtree(jplace_file, work_dir, logger)
             edpl = read_edpl(jplace_file, work_dir, logger)
             known_terminals, placed_terminals = color_known_termininals(
@@ -104,8 +116,11 @@ def tree_kit(
                 placed_terminals, tree.name, edpl, max_len_to_label, min_dif_len_ratio
             )
             logger.info("Writing output, to {output_dir}")
-            write_files(tree.name, tree_df, treeph, jplace_file, output_dir, work_dir, keep_temp)
+            write_files(
+                tree.name, tree_df, treeph, jplace_file, output_dir, work_dir, keep_temp
+            )
             logger.info(end_message(tree_df, tree.name))
+
 
 """
 import os
@@ -469,7 +484,7 @@ def write_files(
     jplace_file: str,
     output_dir: str,
     work_dir: str,
-    keep_temp: bool
+    keep_temp: bool,
 ):
     tree_df.to_csv(os.path.join(output_dir, f"{tree_name}_tree_data.tsv"), sep="\t")
     phy.write(
@@ -486,7 +501,6 @@ def write_files(
             work_dir,
             os.path.join(output_dir, f"{tree_name}_working_dir"),
         )
-        
 
 
 def end_message(tree_df: pd.DataFrame, tree_name: str) -> str:

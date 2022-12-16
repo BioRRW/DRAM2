@@ -7,12 +7,15 @@ from numpy import any
 from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
-from dram2.utils.utils import (
-    download_file,
-    run_process,
+from dram2.db_kits.utils import (
     make_mmseqs_db,
     run_hmmscan,
     get_sig_row,
+)
+
+from dram2.utils.utils import (
+    download_file,
+    run_process,
 )
 
 

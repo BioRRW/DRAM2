@@ -19,9 +19,6 @@ from dram2.utils.utils import (
     get_ids_from_annotations_all,
     get_ids_from_annotations_by_row,
 )
-from dram2.db_kits.camper_kit import NAME as CAMPER_NAME
-from dram2.db_kits.fegenie_kit import NAME as FEGENIE_NAME
-from dram2.db_kits.sulfur_kit import NAME as SULPHUR_NAME
 
 # TODO: add RBH information to output
 # TODO: add flag to output table and not xlsx

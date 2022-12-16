@@ -1,26 +1,8 @@
 import re
-from dram2.db_kits.utils import do_blast_style_search, DBKits
+from dram2.db_kits.utils import do_blast_style_search, DBKit
 from functools import partial
 import logging
 import pandas as pd
-
-VERSION = "1.0.0-beta.1"
-NAME = "kegg"
-NAME_FORMAL = "KEGG"
-CITATION = "CAMPER has no citeation and is in beta so you should not be using it."
-SETTINGS = {
-    "search_databases": {
-        "kegg": {
-            "location": None,
-            "name": "KEGG db",
-            "description_db_updated": "Unknown, or Never",
-            "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021).",
-        }
-    }
-}
-# the format is input file: options
-DOWNLOAD_OPTIONS = {"camper_tar_gz": {"version": VERSION}}
-PROCESS_OPTIONS = {"camper_tar_gz": {"version": VERSION}}
 
 
 def get_kegg_description(kegg_hits, header_dict):
@@ -46,29 +28,51 @@ def get_kegg_description(kegg_hits, header_dict):
     )
 
 
-def search(
-    query_db: str,
-    gene_faa: str,
-    tmp_dir: str,
-    logger: logging.Logger,
-    threads: str,
-    verbose: str,
-    db_handler,
-    bit_score_threshold,
-    rbh_bit_score_threshold,
-    **args,
-):
-    logger.info(f"Annotating genes with {NAME_FORMAL}.")
-    hits = do_blast_style_search(
-        query_db,
-        db_handler.config["search_databases"]["kegg"]["location"],
-        tmp_dir,
+class keggKit(DBKit):
+
+    name = "kegg"
+    def __init__(self, args, settings):
+        DBKit.__init__(self,
+            self.name,
+            "KEGG",
+            "Copy this from dram public",
+            "",
+        )
+        self.settings = {
+            "search_databases": {
+                "kegg": {
+                    "location": None,
+                    "name": "KEGG db",
+                    "description_db_updated": "Unknown, or Never",
+                    "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021).",
+                }
+            }
+        }
+
+    def search(
+        self,
+        query_db: str,
+        gene_faa: str,
+        tmp_dir: str,
+        logger: logging.Logger,
+        threads: str,
+        verbose: str,
         db_handler,
-        get_kegg_description,
-        logger,
-        "kegg",
         bit_score_threshold,
         rbh_bit_score_threshold,
-        threads,
-    )
-    return hits
+        **args,
+    ):
+        logger.info(f"Annotating genes with {self.name_formal}.")
+        hits = do_blast_style_search(
+            query_db,
+            db_handler.config["search_databases"]["kegg"]["location"],
+            tmp_dir,
+            db_handler,
+            get_kegg_description,
+            logger,
+            "kegg",
+            bit_score_threshold,
+            rbh_bit_score_threshold,
+            threads,
+        )
+        return hits

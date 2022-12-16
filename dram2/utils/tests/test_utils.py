@@ -7,14 +7,10 @@ import logging
 
 from dram2.utils.utils import (
     run_process,
-    make_mmseqs_db,
     merge_files,
-    multigrep,
     remove_prefix,
     remove_suffix,
     setup_logger,
-    parse_hmmsearch_domtblout,
-    generic_hmmscan_formater
 )
 
 

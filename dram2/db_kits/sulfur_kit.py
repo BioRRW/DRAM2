@@ -8,12 +8,12 @@ from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
 from dram2.utils.utils import (
-    download_file,
     run_process,
-    make_mmseqs_db,
-    run_hmmscan,
+)
+from dram2.db_kits.utils import (
     get_sig_row,
 )
+from dram2.db_kits.utils import run_hmmscan
 
 
 VERSION = "1.0"

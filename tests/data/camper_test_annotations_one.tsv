@@ -1,2 +1,2 @@
-	fasta	CAMPER_hits	CAMPER_rank	CAMPER_bitScore	CAMPER_id	CAMPER_definition	CAMPER_search_type
-20100900_E1D_13_c_000000004265_21	genes	D00017;CarB	B	191.0	D00017	CarB;caffeyl-CoA synthetase 	blast
+qId	camper_hits	camper_rank	camper_bitScore	camper_id	camper_definition	camper_search_type
+20100900_E1D_13_c_000000004265_21	D00017;CarB	B	191	D00017	CarB;caffeyl-CoA synthetase 	blast

@@ -30,7 +30,7 @@ DATABASE_DESCRIPTIONS = ('pfam_hmm', 'dbcan_fam_activities', 'vog_annotations')
 
 
 def get_config_loc():
-    return path.abspath(resource_filename('dram2', 'CONFIG'))
+    return path.abspath(resource_filename(dram2, 'CONFIG'))
 
 
 def clear_dict(val):

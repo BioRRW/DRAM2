@@ -1,13 +1,10 @@
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
-from dram2.utils.utils import (
+from dram2.db_kits.utils import (
     do_blast_style_search,
     get_basic_description,
-    run_process,
     make_mmseqs_db,
-    multigrep,
-    process_reciprocal_best_hits,
 )
 from functools import partial
 import logging

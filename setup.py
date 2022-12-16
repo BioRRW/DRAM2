@@ -19,7 +19,12 @@ setup(
                 " microbial and viral genomes",
     long_description=long_description,
     long_description_content_type='text/markdown',  # Optional (see note above)
-    package_data={'dram2': ['CONFIG', "rule_adjectives/rules.tsv"]},
+    package_data={
+        'dram2.utils': ["CONFIG"],
+        'dram2.rule_adjectives': ["rules.tsv"],
+        'dram2.tree_kit': ["data", "dram_trees"],
+                  },
+    #package_dir={'': ''},
     python_requires='>=3.10',
     install_requires=['scikit-bio', 'pandas', 'altair', 'sqlalchemy', 'networkx', 'openpyxl', 'numpy', 'click', 'pytest', 'biopython'],
     entry_points={

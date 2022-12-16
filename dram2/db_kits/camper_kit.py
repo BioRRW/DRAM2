@@ -1,6 +1,7 @@
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
+from dram2.db_kits.fegenie_kit import process
 from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
     make_mmseqs_db,
@@ -8,10 +9,22 @@ from dram2.db_kits.utils import (
     get_best_hits,
     BOUTFMT6_COLUMNS,
     DBKit,
+    get_sig_row,
+    Fasta,
 )
+
+from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
+
+VERSION = "1.0.0-beta.1"
+CITATION: str = "CAMPER has no citeation and is in beta so you should not be using it."
+FA_DB_KEY = "camper_fa_db"
+FA_DB_CUTOFFS_KEY = "camper_fa_db_cutoffs"
+HMM_KEY = "camper_hmm"
+HMM_CUTOFFS_KEY = "camper_hmm_cutoffs"
+DISTILLATE_KEY = "camper_distillate"
 
 
 def rank_per_row(row):
@@ -116,7 +129,6 @@ def blast_search(
     db_name,
     logger,
     threads=10,
-    verbose=False,
 ):
     """A convenience function to do a blast style forward best hits search"""
     # Get kegg hits
@@ -131,7 +143,6 @@ def blast_search(
         db_name,
         bit_score_threshold,
         threads,
-        verbose=verbose,
     )
     return blast_search_formater(hits_path, db_name, info_db, logger)
 
@@ -139,88 +150,35 @@ def blast_search(
 # in the future the database will get the same input as was given in the data
 class CamperKit(DBKit):
 
-    def __init__(self):
-        DBKit.__init__(self,
-            "camper",
-            "CAMPER",
-            "CAMPER has no citeation and is in beta so you should not be using it.",
-            "1.0.0-beta.1",
-        )
-        self.settings = {
-            "search_databases": {
-                "camper_hmm": {
-                    "location": None,
-                    "citation": self.citation,
-                    "name": "CAMPER HMM db",
-                },
-                "camper_fa_db": {
-                    "location": None,
-                    "citation": self.citation,
-                    "name": "CAMPER FASTA db",
-                },
-            },
-            "database_descriptions": {
-                "camper_hmm_cutoffs": {
-                    "location": None,
-                    "citation": self.citation,
-                    "name": "CAMPER HMM cutoffs",
-                },
-                "camper_fa_db_cutoffs": {
-                    "location": None,
-                    "citation": self.citation,
-                    "name": "CAMPER FASTA cutoffs",
-                },
-            },
-            "dram_sheets": {
-                "camper_distillate": {
-                    "location": None,
-                    "citation": self.citation,
-                    "name": "CAMPER Distillate form",
-                }
-            },
-        }
+    name = "camper"
+    formal_name: str = "CAMPER"
+    version: str = VERSION
+    citation: str = CITATION
 
-    def search(
-        self,
-        query_db: str,
-        gene_faa: str,
-        tmp_dir: str,
-        logger: logging.Logger,
-        threads: str,
-        verbose: str,
-        db_handler,
-        **args,
-    ):
-        logger.info(f"Annotating genes with {self.name_formal}.")
-        camper_fa_db: str = db_handler.config["search_databases"]["camper_fa_db"][
-            "location"
-        ]
-        camper_hmm: str = db_handler.config["search_databases"]["camper_hmm"][
-            "location"
-        ]
-        camper_fa_db_cutoffs: str = db_handler.config["database_descriptions"][
-            "camper_fa_db_cutoffs"
-        ]["location"]
-        camper_hmm_cutoffs: str = db_handler.config["database_descriptions"][
-            "camper_hmm_cutoffs"
-        ]["location"]
-        fasta = blast_search(
-            query_db=query_db,
+    def search(self, fasta: Fasta):
+        self.logger.info(f"Annotating genes with {self.formal_name}.")
+
+        camper_fa_db: str = self.config[FA_DB_KEY]["location"]
+        camper_fa_db_cutoffs: str = self.config[FA_DB_CUTOFFS_KEY]["location"]
+        camper_hmm: str = self.config[HMM_KEY]["location"]
+        camper_hmm_cutoffs: str = self.config[HMM_CUTOFFS_KEY]["location"]
+
+        blast = blast_search(
+            query_db=fasta.mmsdb,
             target_db=camper_fa_db,
-            working_dir=tmp_dir,
-            info_db_path=camper_fa_db_cutoffs,
+            working_dir=self.working_dir,
+            info_db_path=Path(camper_fa_db_cutoffs),
             db_name=self.name,
-            logger=logger,
-            threads=threads,
-            verbose=verbose,
+            logger=self.logger,
+            threads=self.threads,
         )
         hmm = run_hmmscan(
-            genes_faa=gene_faa,
+            genes_faa=fasta.faa,
             db_loc=camper_hmm,
             db_name=self.name,
-            threads=threads,
-            output_loc=tmp_dir,
-            logger=logger,
+            threads=self.threads,
+            output_loc=self.working_dir,
+            logger=self.logger,
             formater=partial(
                 hmmscan_formater,
                 db_name=self.name,
@@ -228,9 +186,10 @@ class CamperKit(DBKit):
                 top_hit=True,
             ),
         )
-        full = pd.concat([fasta, hmm])
+        full = pd.concat([blast, hmm])
         if len(full) < 1:
             return pd.DataFrame()
+
         return full.groupby(full.index).apply(
             lambda x: (
                 x.sort_values(
@@ -241,7 +200,32 @@ class CamperKit(DBKit):
             )
         )
 
-    def download(self, temporary, logger, version=VERSION, verbose=True):
+    def check_setup(self):
+        for i in [
+            "camper_fa_db",
+            "camper_hmm",
+            "camper_hmm_cutoffs",
+            "camper_fa_db_cutoffs",
+            "camper_distillate",
+        ]:
+            if self.config.get(i) is None:
+                self.setup_camper()
+                return
+            if not Path(self.config.get(i).get("location")).exists():
+                self.setup_camper()
+                return
+        self.logger.info("CAMPER looks ready to use!")
+
+    def setup_camper(self):
+        if self.db_path is None:
+            raise ValueError(f"CAMPER needs an output location to setup the db")
+        tarfile = self.download(self.working_dir, self.logger)
+        # tarfile = "./CAMPER-1.0.0-beta.1.tar.gz"
+        self.config = self.pre_process(tarfile, self.db_path, self.logger, self.threads)
+        # raise ValueError("I have not made this yet")
+
+    @classmethod
+    def download(cls, temporary, logger, version=None):
         """
         Retrieve CAMPER release tar.gz
 
@@ -253,26 +237,42 @@ class CamperKit(DBKit):
         :param verbose: TODO replace with logging setting
         :returns: Path to tar
         """
+        raise NotImplementedError(
+            "Your request depends on a feature that has not yet been implimented.\n",
+            "More specify, CAMPER is not public at time of writing so cant be Downloaded",
+        )
+        if version is None:
+            version = cls.version
         camper_database = path.join(temporary, f"CAMPER_{version}.tar.gz")
         # Note the 'v' in the name, GitHub wants it in the tag then it just takes it out. This could be a problem
         download_file(
             f"https://github.com/WrightonLabCSU/CAMPER/archive/refs/tags/v{version}.tar.gz",
             logger,
             camper_database,
-            verbose=verbose,
         )
         return camper_database
 
-    def process(
-        self,
+    @classmethod
+    def get_descriptions(self, annotation):
+        return pd.DataFrame()
+
+    @classmethod
+    def get_ids(self):
+        pass
+
+    @classmethod
+    def pre_process(
+        cls,
         camper_tar_gz,
         output_dir,
         logger,
-        version=VERSION,
-        threads=1,
-        verbose=False,
+        threads,
+        version=None,
     ) -> dict:
-        name = f"CAMPER_{version}"
+        # Check if all the locations are in config
+        # if not call setup
+        if version is None:
+            version = cls.version
         temp_dir = path.dirname(camper_tar_gz)
         tar_paths = {
             "camper_fa_db": path.join(f"CAMPER-{version}", "CAMPER_blast.faa"),
@@ -288,8 +288,9 @@ class CamperKit(DBKit):
             ),
         }
 
+        output_dir = Path(output_dir).as_posix()
         final_paths = {
-            "camper_fa_db": path.join(output_dir, "CAMPER_blast.faa"),
+            "camper_fa_db": path.join(output_dir, "CAMPER_blast.mmsdb"),
             "camper_hmm": path.join(output_dir, "CAMPER.hmm"),
             "camper_fa_db_cutoffs": path.join(output_dir, "CAMPER_blast_scores.tsv"),
             "camper_distillate": path.join(output_dir, "CAMPER_distillate.tsv"),
@@ -315,9 +316,8 @@ class CamperKit(DBKit):
             final_paths["camper_fa_db"],
             logger,
             threads=threads,
-            verbose=verbose,
         )
         run_process(
-            ["hmmpress", "-f", final_paths["camper_hmm"]], logger, verbose=verbose
+            ["hmmpress", "-f", final_paths["camper_hmm"]], logger
         )  # all are pressed just in case
         return final_paths

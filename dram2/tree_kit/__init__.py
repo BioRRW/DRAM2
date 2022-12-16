@@ -98,4 +98,18 @@ import click
     help="Don't place uncertain genes, place all of them",
 )
 def phylo_tree(**args):
-    tree_kit(**args)
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    elif not force:
+        raise ValueError(
+            "The output_dir already exists! try using the -f flag to overwrite"
+        )
+    # Get a logger
+    if log_file_path is None:
+        log_file_path = path.join(output_dir, "Annotation.log")
+    logger = logging.getLogger("annotation_log")
+    setup_logger(logger, log_file_path)
+    logger.info(f"The log file is created at {log_file_path}")
+
+    try: 
+        tree_kit(**args)

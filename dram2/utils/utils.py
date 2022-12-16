@@ -7,6 +7,32 @@ from urllib.error import HTTPError
 import pandas as pd
 import logging
 from typing import Callable
+from os import path, getenv
+from typing import NamedTuple
+from pathlib import Path
+
+
+import json
+
+def load_config(alt_location:Path, logger: logging.Logger):
+    """If all_loc is none the """
+    if alt_location is not None:
+        location = alt_location
+    elif (envioment_location := Path(getenv('DRAM_CONFIG_LOCATION'))) is not None:
+        location = envioment_location
+    elif (user_location := (Path.home() / '.config' / 'dram2bio'/ 'config')).exists(): 
+        location = user_location
+    elif (global_location := Path("/etc", "dram2bio", "config")).exists(): 
+        location = global_location
+    else:
+        logger.info(f"No config found any config that is created will go to {user_location}")
+        config = {}
+        config['config_location'] = user_location
+        return config
+    logger.info(f"Loading config from: {location}")
+    config = json.loads(open(location).read())
+    config['config_location'] = location
+    return config
 
 
 
@@ -113,43 +139,6 @@ def run_process(
         return results.stdout
 
 
-def get_basic_description(hits, header_dict, db_name="viral"):
-    """Get viral gene full descriptions based on headers (text before first space)"""
-    hit_list = list()
-    description = list()
-    for hit in hits["%s_hit" % db_name]:
-        header = header_dict[hit]
-        hit_list.append(hit)
-        description.append(header)
-    new_df = pd.DataFrame(
-        [hit_list, description],
-        index=["%s_id" % db_name, "%s_hit" % db_name],
-        columns=hits.index,
-    )
-    return pd.concat(
-        [new_df.transpose(), hits.drop("%s_hit" % db_name, axis=1)], axis=1, sort=False
-    )
-
-
-def multigrep(search_terms, search_against, logger, split_char="\n", output="."):
-    # TODO: multiprocess this over the list of search terms
-    """Search a list of exact substrings against a database, takes name of mmseqs db index with _h to search against"""
-    hits_file = path.join(output, "hits.txt")
-    with open(hits_file, "w") as f:
-        f.write("%s\n" % "\n".join(search_terms))
-    results = run_process(
-        ["grep", "-a", "-F", "-f", hits_file, search_against],
-        logger,
-        capture_stdout=True,
-        verbose=False,
-    )
-    processed_results = [
-        i.strip() for i in results.strip().split(split_char) if len(i) > 0
-    ]
-    # remove(hits_file)
-    return {i.split()[0]: i for i in processed_results if i != ""}
-
-
 def merge_files(files_to_merge, outfile, has_header=False):
     """It's in the name, if has_header assumes all files have the same header"""
     with open(outfile, "w") as outfile_handle:
@@ -186,66 +175,4 @@ def get_ordered_uniques(seq):
     return [x for x in seq if not (x in seen or seen_add(x) or pd.isna(x))]
 
 
-def get_sig_row(row, evalue_lim: float = 1e-15):
-    """Check if hmm match is significant, based on dbCAN described parameters"""
-    tstart, tend, tlen, evalue = row[
-        ["target_start", "target_end", "target_length", "full_evalue"]
-    ].values
-    perc_cov = (tend - tstart) / tlen
-    if perc_cov >= 0.35 and evalue <= evalue_lim:
-        return True
-    else:
-        return False
 
-
-# TODO decide if we need use_hmmer_thresholds:bool=False
-def generic_hmmscan_formater(
-    hits: pd.DataFrame, db_name: str, hmm_info_path: str = None, top_hit: bool = True
-):
-    if hmm_info_path is None:
-        hmm_info = None
-        hits_sig = hits[hits.apply(get_sig_row, axis=1)]
-    else:
-        hmm_info = pd.read_csv(hmm_info_path, sep="\t", index_col=0)
-        hits_sig = sig_scores(hits, hmm_info)
-    if len(hits_sig) == 0:
-        # if nothing significant then return nothing, don't get descriptions
-        return pd.DataFrame()
-    if top_hit:
-        # Get the best hits
-        hits_sig = hits_sig.sort_values("full_evalue").drop_duplicates(
-            subset=["query_id"]
-        )
-    hits_df = hits_sig[["target_id", "query_id"]]
-    hits_df.set_index("query_id", inplace=True, drop=True)
-    hits_df.rename_axis(None, inplace=True)
-    hits_df.columns = [f"{db_name}_id"]
-    if hmm_info is not None:
-        hits_df = hits_df.merge(
-            hmm_info[["definition"]],
-            how="left",
-            left_on=f"{db_name}_id",
-            right_index=True,
-        )
-        hits_df.rename(columns={"definition": f"{db_name}_hits"}, inplace=True)
-    return hits_df
-
-
-def sig_scores(hits: pd.DataFrame, score_db: pd.DataFrame) -> pd.DataFrame:
-    is_sig = list()
-    for i, frame in hits.groupby("target_id"):
-        row = score_db.loc[i]
-        if row["score_type"] == "domain":
-            score = frame.domain_score
-        elif row["score_type"] == "full":
-            score = frame.full_score
-        elif row["score_type"] == "-":
-            continue
-        else:
-            raise ValueError(row["score_type"])
-        frame = frame.loc[score.astype(float) > float(row.threshold)]
-        is_sig.append(frame)
-    if len(is_sig) > 0:
-        return pd.concat(is_sig)
-    else:
-        return pd.DataFrame()
