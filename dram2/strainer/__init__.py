@@ -88,7 +88,7 @@ def get_genes_from_identifiers(
     return annotation_genes_to_keep
 
 
-def pull_sequences(
+def strainer(
     input_annotations,
     input_fasta,
     output_fasta,

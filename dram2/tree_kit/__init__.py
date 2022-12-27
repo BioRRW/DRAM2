@@ -7,6 +7,9 @@ from dram2.tree_kit.dram_phylo_pipe import (
 )
 
 import click
+import logging
+from pathlib import Path
+import os
 
 
 @click.command("phylo_tree")
@@ -97,7 +100,20 @@ import click
     default="./",
     help="Don't place uncertain genes, place all of them",
 )
-def phylo_tree(**args):
+def phylo_tree(
+    log_file_path: Path,
+    dram_annotations: str = str(None),
+    gene_fasta: str = str(None),
+    dram_directory: str = str(None),
+    output_dir: str = "./",
+    annotate_all: bool = False,
+    keep_temp: bool = False,
+    cores: int = 10,
+    logg_path: str = "phylo_tree.log",
+    force: bool = False,
+    max_len_to_label: float = MAX_LEN_TO_LABEL_DFLT,
+    min_dif_len_ratio: float = MIN_DIF_LEN_RATIO_DFLT,
+):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     elif not force:
@@ -105,11 +121,12 @@ def phylo_tree(**args):
             "The output_dir already exists! try using the -f flag to overwrite"
         )
     # Get a logger
-    if log_file_path is None:
-        log_file_path = path.join(output_dir, "Annotation.log")
-    logger = logging.getLogger("annotation_log")
-    setup_logger(logger, log_file_path)
-    logger.info(f"The log file is created at {log_file_path}")
+    # if log_file_path is None:
+    #     log_file_path = os.path.join(output_dir, "Annotation.log")
+    # logger = logging.getLogger("annotation_log")
+    # setup_logger(logger, log_file_path)
+    # logger.info(f"The log file is created at {log_file_path}")
 
-    try: 
-        tree_kit(**args)
+    # try: 
+        # pass
+        # tree_kit(**args)

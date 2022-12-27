@@ -1,6 +1,8 @@
 """Store global variables, in this modual by default"""
 
 """defaults for prodigal"""
+from pathlib import Path
+
 PRODIGAL_MODE_DFT = "meta"
 PRODIGAL_MODE_CHOICES = ["train", "meta", "single"]
 PRODIGAL_TRANS_TABLE_CHOICES = [str(i) for i in range(1, 26)]
