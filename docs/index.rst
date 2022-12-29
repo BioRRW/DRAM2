@@ -52,3 +52,6 @@ DRAM2 docs I will add more here soon
   phylo_trees/how_use
   phylo_trees/examples
   phylo_trees/FAQ
+
+.. automodule:: dram2.call_genes
+    :members:
