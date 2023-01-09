@@ -1,3 +1,7 @@
+"""
+Summarise AMG DATA
+==================
+"""
 import click
 
 __version__ = '2.0.0'

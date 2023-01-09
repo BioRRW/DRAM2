@@ -1,4 +1,7 @@
 """
+Annotate Called Genes with DRAM
+==================
+
 Main control point for the annotation process
 
 TODO
@@ -13,7 +16,7 @@ TODO
 # TODO: add ability to handle [] in file names
 # TODO: Add ability to build dbs on first run
 # TODO: Set a default ouput dir on first run
-# TODO: Set the woring dir seperate from output
+# TODO: Set the working dir seperate from output
 """
 import logging
 from pathlib import Path
@@ -27,7 +30,8 @@ import dram2.db_kits as db_kits
 from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, Fasta, make_mmseqs_db
 from dram2.utils.utils import load_config
 from dram2.call_genes import get_fasta_name
-# from dram2.utils.globals import 
+from typing import Sequence, Optional
+# from dram2.utils.globals import
 
 
 
@@ -53,13 +57,10 @@ DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 
 __version__ = "2.0.0"
 
-from dram2.utils.utils import (
-    remove_suffix,
-)
 
 
 
-def get_gene_fasta_names(fasta_locs, working_dir: Path):
+def get_gene_fasta_names(fasta_locs:list[Path], working_dir: Path) -> Fasta:
     fasta_names = [get_fasta_name(i) for i in fasta_locs]
     # make temporary directory
     if len(fasta_names) != len(set(fasta_names)):
@@ -85,6 +86,7 @@ def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads):
     fasta.mmsdb = mmsdb
     return fasta
 
+def log_file_path
 
 def annotate(
     ctx,
@@ -94,13 +96,13 @@ def annotate(
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     past_annotations_path: str = str(None),
-    use_db: list = (),
+    use_db: Sequence = (),
     db_path: Path = None,
-    custom_fasta_db_name: list = (),
-    custom_fasta_db_loc: list = (),
-    custom_hmm_db_loc: list = (),
-    custom_hmm_db_name: list = (),
-    custom_hmm_db_cutoffs_loc: list = (),
+    custom_fasta_db_name: Sequence = (),
+    custom_fasta_db_loc: Sequence = (),
+    custom_hmm_db_loc: Sequence = (),
+    custom_hmm_db_name: Sequence = (),
+    custom_hmm_db_cutoffs_loc: Sequence = (),
     kofam_use_dbcan2_thresholds: bool = False,
     # rename_genes: bool = True,
     keep_tmp: bool = DEFAULT_KEEP_TMP,
@@ -109,20 +111,21 @@ def annotate(
     dry: bool = False,
     force: bool = False,
     extra=None,
-    config: dict = None,
+    config: Optional(dict) = None,
     write_config: bool = False,
 ):
+    cores:int = ctx.obj.cores
+    timestamp_id:str = datetime.now().strftime('%Y%m%d%H%M%S')
+    project_config:dict = ctx.obj.get_project_config()
 
-    # if dry:
-    #     logger.info(
-    #         "If this was not a dry run, DRAM would have annotated {len(fastas)} assembly and {len(gene_faa_path)} gene files. all files are listed bellow"
-    #     )
-    #     logger(f"Assemblies: {fasta_paths[]}")
-    #     return
-
+    saved_faa_paths = load_faa_paths(project_config)
+    gene_faa_paths
 
     # get assembly locations
-    fastas = get_gene_fasta_names(gene_faa_paths,  working_dir)
+    fastas = []
+    fastas += get_gene_fasta_names(gene_faa_paths,  working_dir)
+    fastas += load_saved_fastas()
+
     # make mmseqs_dbs
     fastas = [make_mmseqs_db_for_fasta(fasta, logger, threads) for fasta in fastas]
     fastas += ctx.obj["fastas"]
@@ -272,7 +275,6 @@ def annotate(
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
 )
-
 @click.option(
     "--bit_score_threshold",
     type=int,
@@ -330,33 +332,30 @@ def annotate(
 def annotate_wraper(
     ctx: list,
     gene_faa_path: list[Path],
-    logger: logging.Logger,
-    # genes_called: bool = DEFAULT_GENES_CALLED,
-    output_dir: Path,
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     # log_file_path: str = str(None),
     past_annotations_path: str = str(None),
-    use_db: list = (),
-    custom_fasta_db_name: list = (),
-    custom_fasta_db_loc: list = (),
-    custom_hmm_db_loc: list = (),
-    custom_hmm_db_name: list = (),
-    custom_hmm_db_cutoffs_loc: list = (),
+    use_db: Sequence = (),
+    custom_fasta_db_name: Sequence = (),
+    custom_fasta_db_loc: Sequence = (),
+    custom_hmm_db_loc: Sequence = (),
+    custom_hmm_db_name: Sequence = (),
+    custom_hmm_db_cutoffs_loc: Sequence = (),
     kofam_use_dbcan2_thresholds: bool = False,
     rename_genes: bool = True,
-    keep_tmp: bool = True,
     threads: int = DEFAULT_THREADS,
     make_new_faa: bool = bool(None),
     dry: bool = False,
     force: bool = False,
-    config_path: Path = None,
-    db_path: Path = None,
+    # db_path: Path = None,
     extra=None,
-    study_set: list = (),
+    study_set: Sequence= (),
 ):
     try:
-        config = load_config(config_path, logger)
+        logger:logging.Logger = ctx.obj.get_logger()
+        output_dir:Path = ctx.obj.get_output_dir()
+        keep_tmp:bool = ctx.obj.keep_tmp
         annotate(
             ctx,
             gene_faa_path,
@@ -378,7 +377,7 @@ def annotate_wraper(
             dry=dry,
             config=config,
             force=force,
-            db_path=db_path,
+            # db_path=db_path,
             extra=extra,
         )
 

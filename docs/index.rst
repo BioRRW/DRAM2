@@ -9,6 +9,7 @@ Welcome to the DRAM2 Docs!
 
 DRAM2 docs I will add more here soon
 
+
 .. toctree::
   :caption: Getting Started
   :name: getting_started
@@ -19,7 +20,7 @@ DRAM2 docs I will add more here soon
   getting_started/configure_dram2
   getting_started/most_basic_comands
   getting_started/example_use_case
-  
+
 .. toctree::
   :caption: Raw Annotatator
   :name: raw_annotation
@@ -53,5 +54,23 @@ DRAM2 docs I will add more here soon
   phylo_trees/examples
   phylo_trees/FAQ
 
-.. automodule:: dram2.call_genes
-    :members:
+.. toctree::
+  :caption: Developer Documentaition
+  :name: dev
+  :hidden:
+  :maxdepth: 1
+
+  dev/amg_summary
+  dev/annotate
+  dev/call_genes
+  dev/db_builder
+  dev/db_kits
+  dev/distill
+  dev/genbank
+  dev/merger
+  dev/rna
+  dev/rule_adjectives
+  dev/strainer
+  dev/trash
+  dev/tree_kit
+  dev/utils

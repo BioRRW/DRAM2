@@ -1,15 +1,18 @@
 """General utils for database objects including the template class"""
 import re
 from typing import NamedTuple
-import logging
 from abc import ABC, abstractmethod
 from os import path, stat
 from typing import Callable, Union
-import pandas as pd
-from dram2.utils.utils import run_process
+from typing import Optional
 from functools import partial
 from pathlib import Path
 from dataclasses import dataclass
+import logging
+
+import pandas as pd
+
+from dram2.utils.utils import run_process
 
 HMMSCAN_ALL_COLUMNS = [
     "query_id",
@@ -80,13 +83,14 @@ BOUTFMT6_COLUMNS = [
 
 @dataclass
 class Fasta:
-    name: str
-    origin: Path
-    tmp_dir: Path
-    faa: Path
-    fna: Path
-    gff: Path
-    mmsdb: Path
+    name: Optional[str]
+    origin: Optional[Path]
+    tmp_dir: Optional[Path]
+    faa: Optional[Path]
+    fna: Optional[Path]
+    gff: Optional[Path]
+    mmsdb: Optional[Path]
+
 
 
 def run_mmseqs_profile_search(
@@ -636,7 +640,7 @@ class DBKit(ABC):
         self.force: bool = force
         self.extra: dict = extra
         self.db_path = self.setup_db_path(db_path)
-    
+
     @staticmethod
     def setup_db_path(db_path:Path):
         if db_path is None:
@@ -651,18 +655,23 @@ class DBKit(ABC):
     @abstractmethod
     def check_setup(self):
         """
-        This will be used to check if the database is setup. Unless you overwrite the constructor this functon will be called during annotation after the values have been stored. So you can use this to check user arguments even read in cusom arguments. 
+        This will be used to check if the database is setup. Unless you overwrite the constructor this functon will be called during annotation after the values have been stored. So you can use this to check user arguments even read in cusom arguments.
         """
         pass
-    
+
     def check_on_fly_setup(self):
-        match (self.config.get('default_db_dir'), self.db_path):
-            case (None, _):
-                self.config['default_db_dir'] = self.dram_db_loc
-            case (_, None):
-                self.dram_db_loc = self.config['default_db_dir'] 
-            case (None, None):
-                raise ValueError("Without a dram_db_directory defided, database can't be built on the fly")
+        '''
+        TODO:
+        - This should be a match but I don't feel like updating today
+        -
+
+        '''
+        if self.config.get('default_db_dir') is None:
+            self.config['default_db_dir'] = self.dram_db_loc
+        if self.db_path is None:
+            self.dram_db_loc = self.config['default_db_dir']
+        if self.db_path is None and self.config.get('default_db_dir') is None:
+            raise ValueError("Without a dram_db_directory defided, database can't be built on the fly")
 
 
     @abstractmethod

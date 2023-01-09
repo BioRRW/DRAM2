@@ -17,6 +17,7 @@ dependencies:
   - networkx
   - ruby
   - parallel
+  - pyyaml
   - click
   - graphviz
   - python-graphviz
