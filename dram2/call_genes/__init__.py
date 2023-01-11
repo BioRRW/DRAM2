@@ -96,12 +96,12 @@ def call_genes(
         if force:
             clean_called_genes(project_config)
         if project_config.get("genes_called") is not None:
-            old_names = [j for i in project_config["genes_called"].values() for j in i['names']]
+            old_names = [j[0] for i in project_config["genes_called"].values() for j in i['fastas']]
         else:
             old_names = []
         fastas_named: list[Fasta] = get_fasta_names_dirs(fasta_paths, working_dir, cores, old_names, logger)
         with Pool(cores) as p:
-            fastas: list[Optional[Fasta]] = p.map(
+            fastas_called: list[Optional[Fasta]] = p.map(
                 partial(
                    filter_and_call_genes,
                    logger=logger,
@@ -111,18 +111,17 @@ def call_genes(
                    trans_table=prodigal_trans_tables,
                 ),
                 fastas_named)
-        fastas_called: list[Fasta]  = [ i for i in fastas_named if i is not None]
-        gene_run = {"genes_called": {
+        fastas: list[Fasta]  = [ i for i in fastas_called if i is not None]
+        new_config = {"genes_called": {
             timestamp_id: {
                 "min_contig_size": min_contig_size,
                 "prodigal_mode": prodigal_mode,
                 "prodigal_trans_tables": prodigal_trans_tables,
                 "annotated": False,
                 "working_dir": working_dir.absolute().as_posix(),
-                "output": [i.tmp_dir.absolute().as_posix() for i in fastas_called],
-                "names": [i.name for i in fastas_called],
+                "fastas": [i.export() for i in fastas],
         }}}
-        project_config.update(gene_run)
+        project_config.update(new_config)
         ctx.obj.set_project_config(project_config)
 
     except Exception as e:
@@ -137,8 +136,7 @@ def clean_called_genes(project_config:dict):
     if project_config.get("genes_called") is None:
         return
     for j in project_config["genes_called"].values():
-        for i in j['output']:
-            rmtree(Path(i))
+        rmtree(Path(j['working_dir']))
     del(project_config['genes_called'])
 
 
@@ -272,7 +270,7 @@ def get_fasta_name(fasta_loc:Path):
 def mkdir(i: str, working_dir:Path):
     (working_dir / i).mkdir(exist_ok=False, parents=True)
 
-def get_fasta_names_dirs(fasta_paths: list[Path], working_dir: Path, cores: int, old_fasta_names: Optional[list[str]], logger: logging.Logger) -> Fasta:
+def get_fasta_names_dirs(fasta_paths: list[Path], working_dir: Path, cores: int, old_fasta_names: Optional[list[str]], logger: logging.Logger) -> list[Fasta]:
     """
     :param fasta_paths: A list of fasta files probly each representing a BIN from a MAG.
     :param working_dir:

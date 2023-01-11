@@ -115,24 +115,15 @@ class DramContext(object):
         logger.info(f"The log file is created at {self.log_file_path}")
         return logger
 
-    def get_config(self):
-        self.dram_config_path = get_config_path(self.custom_config_file)
-        with open(config_path, 'r')as conf:
-            self.config = yaml.safe_load(conf)
-        return self.config()
-
-    def get_config(self):
+    def get_dram_config(self):
         self.dram_config_path = get_config_path(self.custom_config_file)
         with open(self.dram_config_path, 'r')as conf:
             config = yaml.safe_load(conf)
         return config
 
-    def set_config(self, config:dict, ):
-        self.dram_config_path = get_config_path(self.custom_config_file)
-        with open(self.dram_config_path, 'r')as conf:
-            config = yaml.safe_load(conf)
-        with open(project_config_path, 'w') as pcf:
-            yaml.safe_dump(self.project_config, pcf)
+    def set_dram_config(self, config:dict,custom_path:Optional[Path] = None, type: Optional[str]=None):
+        pass
+
 
 def get_config_path(custom_path:Optional[Path] = None) -> Path:
     if custom_path is not None and custom_path.exists:
@@ -144,8 +135,19 @@ def get_config_path(custom_path:Optional[Path] = None) -> Path:
     serched_paths = ', '.join({i for i in [custom_path, USER_CONFIG, GLOBAL_CONFIG] if i is not None})
     raise ValueError(f"There is not config file found, DRAM looked at the falowing paths {serched_paths}")
 
-def get_new_config_path(custom_path:Optional[Path] = None) -> Path:
-    path
+def get_new_config_path(custom_path: Optional[Path] = None, conf_type: bool = False) -> Path:
+    """
+    If the user gives a path put it there, else if the conf_type is global then put it in the global position if it is local or none then put it in local/user.
+
+    It can be eddited when python3.10 is more Common into a match statment
+    """
+    if custom_path is not None:
+        return custom_path
+    if conf_type == 'global':
+        return GLOBAL_CONFIG
+    else:
+        return USER_CONFIG
+
 @click.group(chain=True)
 @click.option("--verbose/--quiet", default=False)
 @click.option(
@@ -176,8 +178,7 @@ def get_new_config_path(custom_path:Optional[Path] = None) -> Path:
     help="Keep all temporary files",
 )
 @click.option(
-    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory"
-)  # , required=True)
+    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory", required=True)
 @click.option("-c", "--cores", type=int, default=10, help="number of processors to use")
 @click.pass_context
 def dram2(

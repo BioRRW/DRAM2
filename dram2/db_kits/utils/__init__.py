@@ -80,6 +80,11 @@ BOUTFMT6_COLUMNS = [
     "bitScore",
 ]
 
+def export_posible_path(path:Optional[Path]) -> Optional[str]:
+    return None if path is None else path.absolute().as_posix()
+
+def import_posible_path(path:Optional[str]) -> Optional[Path]:
+    return None if path is None else Path(path).absolute()
 
 @dataclass
 class Fasta:
@@ -90,6 +95,29 @@ class Fasta:
     fna: Optional[Path]
     gff: Optional[Path]
     mmsdb: Optional[Path]
+
+    def export(self):
+        return (
+            self.name,
+            export_posible_path(self.origin),
+            export_posible_path(self.tmp_dir),
+            export_posible_path(self.faa),
+            export_posible_path(self.fna),
+            export_posible_path(self.gff),
+            export_posible_path(self.mmsdb))
+
+    @classmethod
+    def import_srings(cls, name:str, origin:str, tmp_dir:str, faa:str, fna:str, gff:str, mmsdb:str):
+        ob = cls(
+            name,
+            import_posible_path(origin),
+            import_posible_path(tmp_dir),
+            import_posible_path(faa),
+            import_posible_path(fna),
+            import_posible_path(gff),
+            import_posible_path(mmsdb)
+        )
+        return ob
 
 
 

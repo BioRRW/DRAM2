@@ -17,10 +17,17 @@ TODO
 # TODO: Add ability to build dbs on first run
 # TODO: Set a default ouput dir on first run
 # TODO: Set the working dir seperate from output
+
+
+import os
+os.system("dram2 -o test annotate")
 """
+from multiprocessing import Pool
+from functools import partial
+from itertools import chain
+
 import logging
 from pathlib import Path
-from os import path
 from shutil import rmtree
 import pandas as pd
 from pkg_resources import resource_filename
@@ -28,9 +35,9 @@ import importlib
 import pkgutil
 import dram2.db_kits as db_kits
 from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, Fasta, make_mmseqs_db
-from dram2.utils.utils import load_config
-from dram2.call_genes import get_fasta_name
+from dram2.call_genes import clean_called_genes
 from typing import Sequence, Optional
+from datetime import datetime
 # from dram2.utils.globals import
 
 
@@ -58,27 +65,24 @@ DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 __version__ = "2.0.0"
 
 
-
-
-def get_gene_fasta_names(fasta_locs:list[Path], working_dir: Path) -> Fasta:
-    fasta_names = [get_fasta_name(i) for i in fasta_locs]
-    # make temporary directory
+def check_fasta_nams(fastas:list[Fasta]):
+    fasta_names = [i.name for i in fastas]
     if len(fasta_names) != len(set(fasta_names)):
         raise ValueError(
             "Genome file names must be unique. At least one name appears twice in this search."
         )
+
+
+def path_to_gene_fastas(fasta_loc:Path, working_dir:Path) -> Fasta:
+    # make temporary directory
     # make tmp_dirs
-    tmp_dirs = [working_dir / i for i in fasta_names]
-    for i in tmp_dirs:
-        i.mkdir(exist_ok=True)
-
-    return [
-        Fasta(i, j, k, j, None, None, None)
-        for i, j, k in zip(fasta_names, fasta_locs, tmp_dirs)
-    ]
+    fasta_name = fasta_loc.stem
+    return Fasta(fasta_name, fasta_loc, working_dir, fasta_loc, None, None, None)
 
 
-def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads):
+def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads) -> Fasta:
+    if fasta.tmp_dir is None:
+        raise ValueError("Some how a fasta was passed to the function that makes mmseqs databases which did not have an associated temporary directory in which to put that mmseqs-db. Pleas kindly file a bug report on GitHub. This indicates that the developer probably made a mistake")
     mmsdb = fasta.tmp_dir / "gene.mmsdb"
     make_mmseqs_db(
         fasta.faa, mmsdb.as_posix(), logger, create_index=True, threads=threads
@@ -86,18 +90,19 @@ def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads):
     fasta.mmsdb = mmsdb
     return fasta
 
-def log_file_path
+def log_file_path():
+    pass
 
 def annotate(
     ctx,
-    gene_faa_paths: list[Path],
+    gene_fasta_paths: list[Path],
     logger: logging.Logger,
     output_dir: Path,
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     past_annotations_path: str = str(None),
     use_db: Sequence = (),
-    db_path: Path = None,
+    db_path: Optional[Path] = None,
     custom_fasta_db_name: Sequence = (),
     custom_fasta_db_loc: Sequence = (),
     custom_hmm_db_loc: Sequence = (),
@@ -111,30 +116,30 @@ def annotate(
     dry: bool = False,
     force: bool = False,
     extra=None,
-    config: Optional(dict) = None,
+    config: Optional[dict] = None,
     write_config: bool = False,
 ):
     cores:int = ctx.obj.cores
     timestamp_id:str = datetime.now().strftime('%Y%m%d%H%M%S')
+    working_dir = output_dir / timestamp_id
     project_config:dict = ctx.obj.get_project_config()
-
-    saved_faa_paths = load_faa_paths(project_config)
-    gene_faa_paths
-
     # get assembly locations
-    fastas = []
-    fastas += get_gene_fasta_names(gene_faa_paths,  working_dir)
-    fastas += load_saved_fastas()
-
+    fastas:list[Fasta] = []
+    fastas += [path_to_gene_fastas(i, working_dir) for i in gene_fasta_paths]
+    genes_runs:Optional[dict] = project_config.get('genes_called')
+    annotation_runs:Optional[dict] = project_config.get('annotations')
+    if genes_runs is not  None:
+        fastas += [Fasta.import_srings(*j) for i in genes_runs.values() for j in i.get('fastas')]
+    if annotation_runs is not  None:
+        fastas += [Fasta.import_srings(*i) for i in annotation_runs['latest']['fastas']]
     # make mmseqs_dbs
-    fastas = [make_mmseqs_db_for_fasta(fasta, logger, threads) for fasta in fastas]
-    fastas += ctx.obj["fastas"]
+    with Pool(cores) as p:
+        fastas = p.map(partial(make_mmseqs_db_for_fasta, logger=logger, threads=1), fastas)
 
     db_args = {
         "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
-        # "fasta_paths": fasta_paths,
+        # "fasta_paths": gene_fasta_paths,
         "output_dir": output_dir,
-        "working_dir": working_dir,
         "bit_score_threshold": bit_score_threshold,
         "rbh_bit_score_threshold": rbh_bit_score_threshold,
         "past_annotations_path": past_annotations_path,
@@ -151,7 +156,7 @@ def annotate(
 
     # update the config
     if write_config:
-        config.update({j: k for i in database for j, k in i.config.items()})
+        config.update({j:k for i in database for j, k in i.config.items()})
 
     # Add all the database that you are going to
     database += [
@@ -171,10 +176,37 @@ def annotate(
             custom_hmm_db_name, custom_hmm_db_loc, custom_hmm_db_cutoffs_loc
         )
     ]
+    if len(database) < 1:
+        logger.warning('No databases were selected. There is nothing for DRAM to do but save progress and exit. Note that data will not be combined')
+        annotations = pd.DataFrame(index=[fa.name for fa in fastas])
+    else:
+        # combine those annotations
+        annotations = pd.concat([j.search(i) for i in fastas for j in database])
 
-    # combine those annotations
-    annotations = pd.concat([j.search(i) for i in fastas for j in database])
-    annotations.to_csv(output_dir / "annotations.tsv", sep="\t")
+    annotation_output = output_dir / "annotations.tsv"
+    annotations.to_csv(annotation_output, sep="\t")
+
+    new_config = {"annotations": {
+        'latest':{
+             "used_dbs": [db.name for db in database],
+             "working_dir": working_dir.absolute().as_posix(),
+             'annotation_file': annotation_output.as_posix(),
+             "fastas": [i.export() for i in fastas],
+        }
+        , timestamp_id: {
+             "used_dbs": [db.name for db in database],
+             "working_dir": working_dir.absolute().as_posix(),
+             'annotation_file': annotation_output.absolute().as_posix(),
+             "fastas": [i.export() for i in fastas],
+        }}}
+    if genes_runs is not None:
+        for i in genes_runs.values():
+            if 'fastas' in i:
+                del(i['fastas'])
+            i['annotated'] = True
+    project_config.update(new_config)
+    ctx.obj.set_project_config(project_config)
+    return
     # clean up
     if not keep_tmp:
         logger.info(f"Cleaning up temporary directory: {working_dir}")
@@ -259,7 +291,7 @@ def annotate(
 
 @click.command("annotate")
 @click.argument(
-    "fasta_paths",
+    "gene_fasta_paths",
     type=click.Path(exists=True, path_type=Path),
     nargs=-1,
 )
@@ -331,7 +363,7 @@ def annotate(
 #= "~/.dram/config.yaml"
 def annotate_wraper(
     ctx: list,
-    gene_faa_path: list[Path],
+    gene_fasta_paths: list[Path],
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     # log_file_path: str = str(None),
@@ -358,7 +390,7 @@ def annotate_wraper(
         keep_tmp:bool = ctx.obj.keep_tmp
         annotate(
             ctx,
-            gene_faa_path,
+            gene_fasta_paths,
             logger=logger,
             output_dir=output_dir,
             bit_score_threshold=bit_score_threshold,
@@ -375,7 +407,6 @@ def annotate_wraper(
             threads=threads,
             make_new_faa=make_new_faa,
             dry=dry,
-            config=config,
             force=force,
             # db_path=db_path,
             extra=extra,

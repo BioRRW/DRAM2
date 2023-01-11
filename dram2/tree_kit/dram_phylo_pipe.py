@@ -13,6 +13,7 @@ TODO switch to FastTree
 # from pyvis.network import Network
 # import networkx as nx
 import os
+from importlib.resources import files
 from collections import namedtuple
 from functools import partial
 import logging
@@ -27,25 +28,24 @@ from skbio import read as read_sq
 from Bio import Phylo as phy
 from Bio.Phylo.BaseTree import Clade
 from Bio.Phylo.Newick import Tree
-import importlib
 
 
 """
-import os 
+import os
 os.system('dram2 annotate --help')
 os.system('ls /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/')
 /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/nxr_nar/nxr-nar-tree-mapping.tsv
 """
 
-with importlib.resources.path('dram2.tree_kit', 'data') as data_path:
-    NXR_NAR_TREE = DramTree(
-        name="nxr_nar",
-        pplacer_profile=os.path.join(data_path, "nxr_nar", "nxr_nar.refpkg"),
-        target_ids=["K11180", "dsrA", "dsrB", "K11181"],
-        reference_seq=os.path.join(data_path, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"),
-        gene_mapping_path=os.path.join(data_path, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
-        color_mapping_path=os.path.join(data_path, "nxr_nar", "color_map.tsv")
-    )
+data_path = files('dram2.tree_kit').joinpath('data')
+NXR_NAR_TREE = DramTree(
+    name="nxr_nar",
+    pplacer_profile=os.path.join(data_path, "nxr_nar", "nxr_nar.refpkg"),
+    target_ids=["K11180", "dsrA", "dsrB", "K11181"],
+    reference_seq=os.path.join(data_path, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"),
+    gene_mapping_path=os.path.join(data_path, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
+    color_mapping_path=os.path.join(data_path, "nxr_nar", "color_map.tsv")
+)
 TREES = [NXR_NAR_TREE]
 UNPLACE_LABEL = "UNPLACEABLE"
 
@@ -405,8 +405,8 @@ def pull_labes_from_tree():
 
 
 """
-Notes: 
-   the to_networkx comand works but it can get complicated this may be needed later 
+Notes:
+   the to_networkx comand works but it can get complicated this may be needed later
        for example phy.to_networkx(phy.read("color_tree_branch.xml", "newick"))
    This makes a tree that is totaly unreadable
        phy.draw_ascii(treeph)
