@@ -9,6 +9,7 @@ Welcome to the DRAM2 Docs!
 
 DRAM2 docs I will add more here soon
 
+.. drawio-image:: example.drawio
 
 .. toctree::
   :caption: Getting Started

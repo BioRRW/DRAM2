@@ -2,21 +2,21 @@
 Annotate Called Genes with DRAM
 ==================
 
-Main control point for the annotation process
+Main control point for the annotation process. You don't automatically call genes with this any more
 
 TODO
  - make the annotated fasta its own function
  -  Fix the header verbosity to be a seperate option in the annotated fasta
- _ PRODIGAL IS MONO THREADED fix that obviously
-# TODO Distillate sheets is part of the config, drop it
-# TODO: add ability to take into account multiple best hits as in old_code.py
-# TODO: add silent mode
-# TODO: add abx resistance genes
-# TODO: in annotated gene faa checkout out ko id for actual kegg gene id
-# TODO: add ability to handle [] in file names
-# TODO: Add ability to build dbs on first run
-# TODO: Set a default ouput dir on first run
-# TODO: Set the working dir seperate from output
+ - Distillate sheets is part of the config, drop it. The sheets should be updated with the dram version so they do not get out of sink with the code.
+ - add ability to take into account multiple best hits as in old_code.py
+ - add silent mode
+ - add abx resistance genes
+ - in annotated gene faa checkout out ko id for actual kegg gene id
+ - add ability to handle [] in file names
+ - Add ability to build dbs on first run
+ - Set a default ouput dir on first run
+ - Set the working dir seperate from output
+ - Set the working dir seperate from output
 
 
 import os
@@ -98,6 +98,7 @@ def annotate(
     gene_fasta_paths: list[Path],
     logger: logging.Logger,
     output_dir: Path,
+    config: dict,
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     past_annotations_path: str = str(None),
@@ -116,7 +117,6 @@ def annotate(
     dry: bool = False,
     force: bool = False,
     extra=None,
-    config: Optional[dict] = None,
     write_config: bool = False,
 ):
     cores:int = ctx.obj.cores
@@ -135,6 +135,7 @@ def annotate(
     # make mmseqs_dbs
     with Pool(cores) as p:
         fastas = p.map(partial(make_mmseqs_db_for_fasta, logger=logger, threads=1), fastas)
+
 
     db_args = {
         "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
@@ -178,10 +179,17 @@ def annotate(
     ]
     if len(database) < 1:
         logger.warning('No databases were selected. There is nothing for DRAM to do but save progress and exit. Note that data will not be combined')
-        annotations = pd.DataFrame(index=[fa.name for fa in fastas])
+        new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
     else:
         # combine those annotations
-        annotations = pd.concat([j.search(i) for i in fastas for j in database])
+        new_annotations= pd.concat([j.search(i) for i in fastas for j in database])
+
+    if project_config.get('annotations') is not None:
+        past_annotations =  pd.read_csv(project_config['annotations']['latest']['annotation_file'], sep='\t', index_col=0)
+        annotations = merge_past_annotations(new_annotations, past_annotations)
+    else:
+        annotations = new_annotations
+
 
     annotation_output = output_dir / "annotations.tsv"
     annotations.to_csv(annotation_output, sep="\t")
@@ -287,6 +295,35 @@ def annotate(
     #     merge_files(faa_locs, path.join(output_dir, "genes.faa"))
 
 
+def merge_past_annotations(new_annotations:pd.DataFrame, past_annotations:pd.DataFrame) -> pd.DataFrame:
+        if set(past_annotations.columns).issubset(set(all_annotations.columns)):
+            logger.warning(
+                "You have passed an annotations file that containes"
+                " columns matching the new annotations. You most"
+                " likely are annotating with the same database again."
+                " The falowing columns will be replaced in the new"
+                " annotations file:\n%s"
+                % set(past_annotations.columns).intersection(
+                    set(all_annotations.columns)
+                )
+            )
+        past_annotations = past_annotations[
+            list(set(past_annotations.columns) - set(all_annotations.columns))
+        ]
+        all_annotations.index = all_annotations.index.str.removeprefix("genes_")
+        # Note we use the old annotations fasts
+        all_annotations = pd.merge(
+            all_annotations,
+            past_annotations,
+            how="outer",
+            left_index=True,
+            right_index=True,
+        )
+        if len(all_annotations) != len(past_annotations):
+            logger.critical(
+                "The old and new annotations filles did not merge correctly! Check the new"
+                " annotations file for errors. Did you use the corect genes.faa for your annotations?"
+            )
 
 
 @click.command("annotate")
