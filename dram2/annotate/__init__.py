@@ -16,15 +16,16 @@ TODO
  - Add ability to build dbs on first run
  - Set a default ouput dir on first run
  - Set the working dir seperate from output
- - Set the working dir seperate from output
 
 
 import os
-os.system("dram2 -o test annotate")
+os.system("pytest ./tests")
 """
 from multiprocessing import Pool
 from functools import partial
 from itertools import chain
+from dram2.utils import __version__
+from dram2.utils.context import DramContext, DEFAULT_KEEP_TMP
 
 import logging
 from pathlib import Path
@@ -38,9 +39,8 @@ from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, Fasta, make_mmseqs_db
 from dram2.call_genes import clean_called_genes
 from typing import Sequence, Optional
 from datetime import datetime
+
 # from dram2.utils.globals import
-
-
 
 
 from pkg_resources import resource_filename
@@ -51,11 +51,14 @@ DEFAULT_RBH_BIT_SCORE_THRESHOLD: float = 350
 DEFAULT_THREADS: int = 10
 DEFAULT_GENES_CALLED: bool = False
 DEFAULT_KEEP_TMP: bool = False
+FORCE_DEFAULT: bool = False
 DBSETS = []
 import click
 
+
 def get_config_loc():
     return Path(resource_filename("dram2.utils", "CONFIG"))
+
 
 for i in pkgutil.iter_modules(db_kits.__path__, db_kits.__name__ + "."):
     importlib.import_module(i.name)
@@ -65,44 +68,105 @@ DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 __version__ = "2.0.0"
 
 
-def check_fasta_nams(fastas:list[Fasta]):
+def check_fasta_nams(fastas: list[Fasta]):
     fasta_names = [i.name for i in fastas]
     if len(fasta_names) != len(set(fasta_names)):
         raise ValueError(
-            "Genome file names must be unique. At least one name appears twice in this search."
+            "Genome file names must be unique. At least one name appears twice "
+            "in this search."
         )
 
 
-def path_to_gene_fastas(fasta_loc:Path, working_dir:Path) -> Fasta:
+def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
     # make temporary directory
     # make tmp_dirs
     fasta_name = fasta_loc.stem
-    return Fasta(fasta_name, fasta_loc, working_dir, fasta_loc, None, None, None)
+    fasta_working_dir = working_dir / fasta_name
+    fasta_working_dir.mkdir(parents=True, exist_ok=True)
+    return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
 
 
 def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads) -> Fasta:
     if fasta.tmp_dir is None:
-        raise ValueError("Some how a fasta was passed to the function that makes mmseqs databases which did not have an associated temporary directory in which to put that mmseqs-db. Pleas kindly file a bug report on GitHub. This indicates that the developer probably made a mistake")
+        raise ValueError(
+            "Some how a fasta was passed to the function that makes mmseqs "
+            "databases which did not have an associated temporary directory in "
+            "which to put that mmseqs-db. Pleas kindly file a bug report on "
+            "GitHub. This indicates that the developer probably made a mistake"
+        )
+    if fasta.faa is None:
+        raise ValueError(
+            "Some how a fasta was passed to the function that makes mmseqs "
+            "databases which did not have an associated faa directory in which "
+            "to put that mmseqs-db. Pleas kindly file a bug report on GitHub. "
+            "This indicates that the developer probably made a mistake"
+        )
     mmsdb = fasta.tmp_dir / "gene.mmsdb"
     make_mmseqs_db(
-        fasta.faa, mmsdb.as_posix(), logger, create_index=True, threads=threads
+        fasta.faa.absolute().as_posix(),
+        mmsdb.as_posix(),
+        logger,
+        create_index=True,
+        threads=threads,
     )
     fasta.mmsdb = mmsdb
     return fasta
 
+
 def log_file_path():
     pass
 
-def annotate(
-    ctx,
+
+def _get_all_fastas(
     gene_fasta_paths: list[Path],
+    genes_runs: Optional[dict],
+    annotation_run: Optional[dict],
+    working_dir: Path,
+    output_dir: Path,
+    use_db: Sequence[str],
+    logger: logging.Logger,
+    force: bool,
+):
+    fastas: list[Fasta] = []
+    fastas += [path_to_gene_fastas(i, working_dir) for i in gene_fasta_paths]
+    if genes_runs is not None:
+        fastas += [
+            Fasta.import_strings(output_dir, *j)
+            for i in genes_runs.values()
+            if i.get("fastas") is not None
+            for j in i.get("fastas")
+        ]
+    if annotation_run is not None:
+        db_inter = set(annotation_run["database_used"]).intersection(set(use_db))
+        if len(db_inter) > 0:
+            if force:
+                logger.warning(
+                    f"You are re-annotating genes with database they were already annotated with: {db_inter}. The past annotations with these databases be replaced."
+                )
+            else:
+                raise ValueError(
+                    f"You are trying re-annotating genes with database they were already annotated with: {db_inter}. You need to use the force flag '-f' in order to do this."
+                )
+        # test_me
+        fastas += [
+            Fasta.import_strings(output_dir, *i) for i in annotation_run["fastas"]
+        ]
+    return fastas
+
+
+def annotate(
+    gene_fasta_paths: list[Path],
+    dram_config: dict,
     logger: logging.Logger,
     output_dir: Path,
-    config: dict,
+    working_dir: Path,
+    cores: int,
+    keep_tmp: bool = DEFAULT_KEEP_TMP,
+    project_config: Optional[dict] = None,
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     past_annotations_path: str = str(None),
-    use_db: Sequence = (),
+    use_db: Sequence[str] = (),
     db_path: Optional[Path] = None,
     custom_fasta_db_name: Sequence = (),
     custom_fasta_db_loc: Sequence = (),
@@ -111,57 +175,74 @@ def annotate(
     custom_hmm_db_cutoffs_loc: Sequence = (),
     kofam_use_dbcan2_thresholds: bool = False,
     # rename_genes: bool = True,
-    keep_tmp: bool = DEFAULT_KEEP_TMP,
     threads: int = DEFAULT_THREADS,
     make_new_faa: bool = bool(None),
-    dry: bool = False,
     force: bool = False,
     extra=None,
     write_config: bool = False,
-):
-    cores:int = ctx.obj.cores
-    timestamp_id:str = datetime.now().strftime('%Y%m%d%H%M%S')
-    working_dir = output_dir / timestamp_id
-    project_config:dict = ctx.obj.get_project_config()
+) -> dict:
     # get assembly locations
-    fastas:list[Fasta] = []
-    fastas += [path_to_gene_fastas(i, working_dir) for i in gene_fasta_paths]
-    genes_runs:Optional[dict] = project_config.get('genes_called')
-    annotation_runs:Optional[dict] = project_config.get('annotations')
-    if genes_runs is not  None:
-        fastas += [Fasta.import_srings(*j) for i in genes_runs.values() for j in i.get('fastas')]
-    if annotation_runs is not  None:
-        fastas += [Fasta.import_srings(*i) for i in annotation_runs['latest']['fastas']]
     # make mmseqs_dbs
-    with Pool(cores) as p:
-        fastas = p.map(partial(make_mmseqs_db_for_fasta, logger=logger, threads=1), fastas)
-
+    if project_config is None:
+        project_config = {}
+    # make a seperate testable function for these two
+    genes_runs: Optional[dict] = project_config.get("genes_called")
+    annotation_run: Optional[dict] = (
+        None
+        if project_config.get("annotations") is None
+        else project_config["annotations"].get("latest")
+    )
+    fastas = _get_all_fastas(
+        gene_fasta_paths,
+        genes_runs,
+        annotation_run,
+        working_dir,
+        output_dir,
+        use_db,
+        logger,
+        force,
+    )
+    if len(fastas) < 1:
+        raise ValueError(
+            "No FASTAs were passed to the annotator DRAM has nothing to do."
+        )
+    if cores < len(fastas):
+        cores_for_sub_process = cores
+        cores_for_maping = 1
+    else:
+        cores_for_sub_process = 1
+        cores_for_maping = cores
+    with Pool(cores_for_maping) as p:
+        fastas = p.map(
+            partial(
+                make_mmseqs_db_for_fasta, logger=logger, threads=cores_for_sub_process
+            ),
+            fastas,
+        )
 
     db_args = {
-        "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
+        "logger": logger,
         # "fasta_paths": gene_fasta_paths,
         "output_dir": output_dir,
         "bit_score_threshold": bit_score_threshold,
         "rbh_bit_score_threshold": rbh_bit_score_threshold,
-        "past_annotations_path": past_annotations_path,
+        "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
         "threads": threads,
-        "logger": logger,
-        "make_new_faa": make_new_faa,
-        "dry": dry,
-        "db_path": db_path,
         "force": force,
         "extra": extra,
+        "db_path": db_path,  # where to store dbs on the fly
     }
 
-    database = [i(config, db_args) for i in DB_KITS if i.name in use_db]
+    # initsalize all databases
+    database = [i(dram_config, db_args) for i in DB_KITS if i.name in use_db]
 
     # update the config
     if write_config:
-        config.update({j:k for i in database for j, k in i.config.items()})
+        dram_config.update({j: k for i in database for j, k in i.config.items()})
 
     # Add all the database that you are going to
     database += [
-        FastaKit(i, j, config, db_args)
+        FastaKit(i, j, dram_config, db_args)
         for i, j in zip(custom_fasta_db_name, custom_fasta_db_loc)
     ]
     db_len_dif = len(custom_hmm_db_name) - len(custom_hmm_db_cutoffs_loc)
@@ -172,158 +253,100 @@ def annotate(
 
     custom_hmm_db_cutoffs_loc = list(custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
     database += [
-        HmmKit(i, j, k, config, db_args)
+        HmmKit(i, j, k, dram_config, db_args)
         for i, j, k in zip(
             custom_hmm_db_name, custom_hmm_db_loc, custom_hmm_db_cutoffs_loc
         )
     ]
     if len(database) < 1:
-        logger.warning('No databases were selected. There is nothing for DRAM to do but save progress and exit. Note that data will not be combined')
+        logger.warning(
+            "No databases were selected. There is nothing for DRAM to do but save progress and exit. Note that data will not be combined"
+        )
         new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
     else:
         # combine those annotations
-        new_annotations= pd.concat([j.search(i) for i in fastas for j in database])
+        new_annotations = pd.concat([j.search(i) for i in fastas for j in database])
 
-    if project_config.get('annotations') is not None:
-        past_annotations =  pd.read_csv(project_config['annotations']['latest']['annotation_file'], sep='\t', index_col=0)
-        annotations = merge_past_annotations(new_annotations, past_annotations)
+    if project_config.get("annotations") is not None:
+        past_annotations = pd.read_csv(
+            output_dir / project_config["annotations"]["latest"]["annotation_file"],
+            sep="\t",
+            index_col=0,
+        )
+        annotations = merge_past_annotations(
+            new_annotations, past_annotations, logger, force
+        )
     else:
         annotations = new_annotations
 
+    annotation_tsv = output_dir / "annotations.tsv"
+    annotations.to_csv(annotation_tsv, sep="\t")
 
-    annotation_output = output_dir / "annotations.tsv"
-    annotations.to_csv(annotation_output, sep="\t")
-
-    new_config = {"annotations": {
-        'latest':{
-             "used_dbs": [db.name for db in database],
-             "working_dir": working_dir.absolute().as_posix(),
-             'annotation_file': annotation_output.as_posix(),
-             "fastas": [i.export() for i in fastas],
+    new_project_config = {
+        "annotations": {
+            "latest": {
+                "version": __version__,
+                "used_dbs": [db.name for db in database],
+                "working_dir": working_dir.relative_to(output_dir).as_posix(),
+                "annotation_file": annotation_tsv.relative_to(output_dir).as_posix(),
+                "database_used": [i.name for i in database],
+                "fastas": [i.export(output_dir) for i in fastas],
+            },
+            "timestamp_id": {
+                "version": __version__,
+                "used_dbs": [db.name for db in database],
+                "working_dir": working_dir.relative_to(output_dir).as_posix(),
+                "database_used": [i.name for i in database],
+                "annotation_file": annotation_tsv.relative_to(output_dir).as_posix(),
+                "fastas": [i.export(output_dir) for i in fastas],
+            },
         }
-        , timestamp_id: {
-             "used_dbs": [db.name for db in database],
-             "working_dir": working_dir.absolute().as_posix(),
-             'annotation_file': annotation_output.absolute().as_posix(),
-             "fastas": [i.export() for i in fastas],
-        }}}
+    }
     if genes_runs is not None:
         for i in genes_runs.values():
-            if 'fastas' in i:
-                del(i['fastas'])
-            i['annotated'] = True
-    project_config.update(new_config)
-    ctx.obj.set_project_config(project_config)
-    return
-    # clean up
-    if not keep_tmp:
-        logger.info(f"Cleaning up temporary directory: {working_dir}")
-        rmtree(working_dir)
-
-    # # logger.info('Annotation started')
-    # fasta_names = get_fasta_names()
-
-    # if len(use_db + custom_fasta_loc + custom_hmm_loc) < 1:
-    #     raise ValueError(
-    #         "For some reason there are no database selected to"
-    #         " annotate against. This is most likely a result of"
-    #         " bad arguments."
-    #     )
-
-    # # get database locations
-    # db_handler = DatabaseHandler(logger)
-
-    # tmp_dir = path.join(output_dir, "working_dir")
-    # mkdir(tmp_dir)
-
-    # # annotate
-    # annotation_locs = list()
-    # faa_locs = list()
-    # # TODO IO is so slow!!! We need to use more memory and make less files
-
-    # # check if we are making a new faa
-    # if make_new_faa is None:
-    #     # We only make a new faa if the user asks or
-    #     # we are not apending to a past annotatons
-    #     make_new_faa = past_annotations_path is None
-
-    # annotation_locs: list = [
-    #     partial_annotate_one_fasta(fasta_loc) for fasta_loc in fasta_locs
-    # ]
-    # # merge
-    # annotation_frames: list = [
-    #     pd.read_csv(i, sep="\t", index_col=0) for i in annotation_locs
-    # ]
-    # all_annotations = pd.concat(
-    #     annotation_frames,
-    #     sort=False,
-    # )
-    # all_annotations = all_annotations.sort_values("fasta")
-    # if past_annotations_path is not None:
-    #     all_annotations.drop("fasta", axis=1, inplace=True)
-    #     past_annotations = pd.read_csv(past_annotations_path, sep="\t", index_col=0)
-    #     if set(past_annotations.columns).issubset(set(all_annotations.columns)):
-    #         logger.warning(
-    #             "You have passed an annotations file that containes"
-    #             " columns matching the new annotations. You most"
-    #             " likely are annotating with the same database again."
-    #             " The falowing columns will be replaced in the new"
-    #             " annotations file:\n%s"
-    #             % set(past_annotations.columns).intersection(
-    #                 set(all_annotations.columns)
-    #             )
-    #         )
-    #     past_annotations = past_annotations[
-    #         list(set(past_annotations.columns) - set(all_annotations.columns))
-    #     ]
-    #     all_annotations.index = all_annotations.index.str.removeprefix("genes_")
-    #     # Note we use the old annotations fasts
-    #     all_annotations = pd.merge(
-    #         all_annotations,
-    #         past_annotations,
-    #         how="outer",
-    #         left_index=True,
-    #         right_index=True,
-    #     )
-    #     if len(all_annotations) != len(past_annotations):
-    #         logger.critical(
-    #             "The old and new annotations filles did not merge correctly! Check the new"
-    #             " annotations file for errors. Did you use the corect genes.faa for your annotations?"
-    #         )
-    # all_annotations.to_csv(path.join(output_dir, "annotations.tsv"), sep="\t")
-    # if len(faa_locs) > 0:
-    #     merge_files(faa_locs, path.join(output_dir, "genes.faa"))
+            if "fastas" in i:
+                del i["fastas"]
+            i["annotated"] = True
+    project_config.update(new_project_config)
+    return project_config
 
 
-def merge_past_annotations(new_annotations:pd.DataFrame, past_annotations:pd.DataFrame) -> pd.DataFrame:
-        if set(past_annotations.columns).issubset(set(all_annotations.columns)):
-            logger.warning(
-                "You have passed an annotations file that containes"
-                " columns matching the new annotations. You most"
-                " likely are annotating with the same database again."
-                " The falowing columns will be replaced in the new"
-                " annotations file:\n%s"
-                % set(past_annotations.columns).intersection(
-                    set(all_annotations.columns)
-                )
+def merge_past_annotations(
+    new_annotations: pd.DataFrame,
+    past_annotations: pd.DataFrame,
+    logger: logging.Logger,
+    force: bool,
+) -> pd.DataFrame:
+    colliding_columns = set(past_annotations.columns).intersection(
+        set(new_annotations.columns)
+    )
+    if len(colliding_columns) > 0:
+        if not force:
+            raise ValueError(
+                "There is a column name collisions in the old and new annotations file, you need to use the force flag to overwrite this data"
             )
-        past_annotations = past_annotations[
-            list(set(past_annotations.columns) - set(all_annotations.columns))
-        ]
-        all_annotations.index = all_annotations.index.str.removeprefix("genes_")
-        # Note we use the old annotations fasts
-        all_annotations = pd.merge(
-            all_annotations,
-            past_annotations,
-            how="outer",
-            left_index=True,
-            right_index=True,
+    colliding_genes = set(new_annotations.index).intersection(
+        set(past_annotations.index)
+    )
+    past_annotations_merge = past_annotations.loc[list(colliding_genes)].drop(
+        list(colliding_columns), axis=1
+    )
+    past_annotations_appened = past_annotations.drop(list(colliding_genes))
+
+    all_annotations = pd.merge(
+        new_annotations,
+        past_annotations_merge,
+        how="outer",
+        left_index=True,
+        right_index=True,
+    )
+    if len(all_annotations) != max(len(past_annotations_merge), len(new_annotations)):
+        logger.critical(
+            "The old and new annotations files may not have merge correctly! Check the new"
+            " annotations file for errors. Did you use the correct genes.faa for your annotations?"
         )
-        if len(all_annotations) != len(past_annotations):
-            logger.critical(
-                "The old and new annotations filles did not merge correctly! Check the new"
-                " annotations file for errors. Did you use the corect genes.faa for your annotations?"
-            )
+    all_annotations = pd.concat([all_annotations, past_annotations_appened])
+    return all_annotations
 
 
 @click.command("annotate")
@@ -397,9 +420,9 @@ def merge_past_annotations(new_annotations:pd.DataFrame, past_annotations:pd.Dat
     " based on other arguments.",
 )
 @click.pass_context
-#= "~/.dram/config.yaml"
+# = "~/.dram/config.yaml"
 def annotate_wraper(
-    ctx: list,
+    ctx: object,
     gene_fasta_paths: list[Path],
     bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
     rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
@@ -419,17 +442,27 @@ def annotate_wraper(
     force: bool = False,
     # db_path: Path = None,
     extra=None,
-    study_set: Sequence= (),
+    study_set: Sequence = (),
 ):
+    context: DramContext = ctx.obj
+    logger: logging.Logger = context.get_logger()
+    output_dir: Path = context.get_output_dir()
+    keep_tmp: bool = context.keep_tmp
+    cores: int = context.cores
+    project_config: dict = context.get_project_config()
+    dram_config = {}  # FIX
     try:
-        logger:logging.Logger = ctx.obj.get_logger()
-        output_dir:Path = ctx.obj.get_output_dir()
-        keep_tmp:bool = ctx.obj.keep_tmp
-        annotate(
-            ctx,
-            gene_fasta_paths,
+        timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
+        working_dir = output_dir / f"dram_tmp_annotation_{timestamp_id}"
+        project_config = annotate(
+            gene_fasta_paths=gene_fasta_paths,
+            dram_config=dram_config,
+            project_config=project_config,
             logger=logger,
             output_dir=output_dir,
+            working_dir=working_dir,
+            keep_tmp=keep_tmp,
+            cores=cores,
             bit_score_threshold=bit_score_threshold,
             rbh_bit_score_threshold=rbh_bit_score_threshold,
             past_annotations_path=past_annotations_path,
@@ -439,15 +472,14 @@ def annotate_wraper(
             custom_hmm_db_loc=custom_hmm_db_loc,
             custom_hmm_db_name=custom_hmm_db_name,
             custom_hmm_db_cutoffs_loc=custom_hmm_db_cutoffs_loc,
-            keep_tmp=keep_tmp,
             kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
             threads=threads,
             make_new_faa=make_new_faa,
-            dry=dry,
             force=force,
             # db_path=db_path,
             extra=extra,
         )
+        context.set_project_config(project_config)
 
     except Exception as e:
         logger.error(e)

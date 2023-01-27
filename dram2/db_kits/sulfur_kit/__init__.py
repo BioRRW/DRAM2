@@ -7,17 +7,17 @@ from numpy import any
 from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
-from dram2.utils.utils import (
-    run_process,
-)
+from dram2.utils.utils import run_process
 from dram2.db_kits.utils import (
     get_sig_row,
+    DBKit
 )
 from dram2.db_kits.utils import run_hmmscan
 
 
 VERSION = "1.0"
-NAME = "Sulfur"
+NAME = "sulfur"
+NAME_FORMAL = "Sulfur"
 
 CITATION = "Li W, O'Neill KR, Haft DH, DiCuccio M, Chetvernin V, Badretdin A, Coulouris G, Chitsaz F, Derbyshire MK, Durkin AS, Gonzales NR, Gwadz M, Lanczycki CJ, Song JS, Thanki N, Wang J, Yamashita RA, Yang M, Zheng C, Marchler-Bauer A, Thibaud-Nissen F. RefSeq: expanding the Prokaryotic Genome Annotation Pipeline reach with protein family model curation. Nucleic Acids Res. 2021 Jan 8;49(D1):D1020-D1028. doi: 10.1093/nar/gkaa1105. PMID: 33270901; PMCID: PMC7779008."
 DOWNLOAD_OPTIONS = {"sulfur_hmm": {"version": VERSION}}
@@ -128,3 +128,23 @@ def search(
         formater=partial(hmmscan_formater, logger=logger, db_name=NAME, top_hit=True),
         logger=logger,
     )
+
+
+class SulfurKit(DBKit):
+    name = NAME
+    formal_name: str = NAME_FORMAL
+    version: str = ""
+    citation: str = CITATION
+
+    def check_setup(self):
+        pass
+
+    def search(self):
+        pass
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

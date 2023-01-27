@@ -1,6 +1,9 @@
 """
+Test the calling of genes by dram2
 
+TODO:
 
+- test the coverage
 
 """
 
@@ -13,14 +16,15 @@ from filecmp import cmp
 from click.testing import CliRunner
 from shutil import copy
 from pathlib import Path
-from dram2.utils.tests.test_utils import logger
 
 import pandas as pd
 import numpy as np
 from skbio.io import read as read_sequence
 
 from dram2.call_genes import run_prodigal, filter_fasta
-from dram2.utils.command_line import dram2, PROJECT_CONFIG_YAML_NAME
+from dram2.utils.command_line import dram2
+from dram2.utils.context import PROJECT_CONFIG_YAML_NAME
+
 # from dram2.annotate import (
 #     filter_fasta,
 #     get_gene_data,
@@ -39,28 +43,40 @@ from dram2.utils.command_line import dram2, PROJECT_CONFIG_YAML_NAME
 
 
 @pytest.fixture()
+def logger(tmpdir):
+    logger = logging.getLogger("test_log")
+    setup_logger(logger)
+    return logger
+
+
+@pytest.fixture()
 def prodigal_dir(fasta_loc, tmpdir, logger):
     prodigal_output = tmpdir.mkdir("prodigal_output")
     gff, fna, faa = run_prodigal(Path(fasta_loc), Path(prodigal_output), logger)
     return gff, fna, faa
 
+
 @pytest.fixture()
 def fasta_loc():
     return os.path.join("tests", "data", "NC_001422.fasta")
+
 
 @pytest.fixture()
 def faa_loc():
     return os.path.join("tests", "data", "NC_001422.faa")
 
+
 @pytest.fixture()
 def runner():
     return CliRunner()
 
-def test_no_output(runner):
-    result = runner.invoke(dram2, 'call')
 
+def test_no_output(runner):
+    result = runner.invoke(dram2, "call")
     assert result.exit_code != 0
-    assert "Error: Missing option \'-o\'" in result.output
+    with pytest.raises(ValueError, match=r"You need to set an output directory*"):
+        raise result.exception
+
 
 def test_filter_fasta(fasta_loc, tmpdir):
     filt_fasta = Path(tmpdir) / "filtered_fasta.fasta"
@@ -79,15 +95,13 @@ def test_filter_fasta(fasta_loc, tmpdir):
     assert os.path.isfile(filt_fasta)
 
 
-
 def test_call_genes_cmd(runner, fasta_loc, tmp_path):
-    result_first = runner.invoke(dram2, ['-o', tmp_path, 'call', fasta_loc])
-    result_colide = runner.invoke(dram2, ['-o', tmp_path, 'call', fasta_loc])
-    result_force = runner.invoke(dram2, ['-o', tmp_path, 'call', '-f', fasta_loc])
+    result_first = runner.invoke(dram2, ["-o", tmp_path, "call", fasta_loc])
+    result_colide = runner.invoke(dram2, ["-o", tmp_path, "call", fasta_loc])
+    result_force = runner.invoke(dram2, ["-o", tmp_path, "call", "-f", fasta_loc])
     assert result_first.exit_code == 0
     assert result_colide.exit_code != 0
     assert result_force.exit_code == 0
     # assert result.output == 'Hello Peter!\n'
     out_ex = Path(tmp_path, PROJECT_CONFIG_YAML_NAME)
     assert out_ex.exists()
-

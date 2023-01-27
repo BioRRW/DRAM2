@@ -4,6 +4,13 @@ from functools import partial
 import logging
 import pandas as pd
 
+CITATION = (
+    " M. Kanehisa, M. Furumichi, Y. Sato, M. Ishiguro-Watanabe, and"
+    ' M. Tanabe, "Kegg: integrating viruses and cellular organisms'
+    '," Nucleic acids research, vol. 49, no. D1, pp. D545–D551, 20'
+    "21."
+)
+
 
 def get_kegg_description(kegg_hits, header_dict):
     """Gets the KEGG IDs, and full KEGG hits from list of KEGG IDs for output in annotations"""
@@ -28,51 +35,67 @@ def get_kegg_description(kegg_hits, header_dict):
     )
 
 
+SETTINGS = {
+    "search_databases": {
+        "kegg": {
+            "location": None,
+            "name": "KEGG db",
+            "description_db_updated": "Unknown, or Never",
+            "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021).",
+        }
+    }
+}
+
+
 class keggKit(DBKit):
 
     name = "kegg"
-    def __init__(self, args, settings):
-        DBKit.__init__(self,
-            self.name,
-            "KEGG",
-            "Copy this from dram public",
-            "",
-        )
-        self.settings = {
-            "search_databases": {
-                "kegg": {
-                    "location": None,
-                    "name": "KEGG db",
-                    "description_db_updated": "Unknown, or Never",
-                    "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021).",
-                }
-            }
-        }
+    formal_name = "Kegg"
+    citation: str = CITATION
 
-    def search(
-        self,
-        query_db: str,
-        gene_faa: str,
-        tmp_dir: str,
-        logger: logging.Logger,
-        threads: str,
-        verbose: str,
-        db_handler,
-        bit_score_threshold,
-        rbh_bit_score_threshold,
-        **args,
-    ):
-        logger.info(f"Annotating genes with {self.name_formal}.")
-        hits = do_blast_style_search(
-            query_db,
-            db_handler.config["search_databases"]["kegg"]["location"],
-            tmp_dir,
-            db_handler,
-            get_kegg_description,
-            logger,
-            "kegg",
-            bit_score_threshold,
-            rbh_bit_score_threshold,
-            threads,
-        )
-        return hits
+    def __init__(self, args, settings):
+        pass
+        # DBKit.__init__(
+        #     self,
+        #     self.name,
+        #     "KEGG",
+        #     "Copy this from dram public",
+        #     "",
+        # )
+
+    def search( self,):
+        pass
+        # logger.info(f"Annotating genes with {self.name_formal}.")
+        # query_db: str,
+        # gene_faa: str,
+        # tmp_dir: str,
+        # logger: logging.Logger,
+        # threads: str,
+        # verbose: str,
+        # db_handler,
+        # bit_score_threshold,
+        # rbh_bit_score_threshold,
+        # **args,
+        # hits = do_blast_style_search(
+        #     query_db,
+        #     db_handler.config["search_databases"]["kegg"]["location"],
+        #     tmp_dir,
+        #     db_handler,
+        #     get_kegg_description,
+        #     logger,
+        #     "kegg",
+        #     bit_score_threshold,
+        #     rbh_bit_score_threshold,
+        #     threads,
+        # )
+        # return hits
+    def check_setup(self):
+        pass
+
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

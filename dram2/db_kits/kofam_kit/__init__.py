@@ -18,6 +18,11 @@ from functools import partial
 import logging
 import pandas as pd
 
+KOFAM_CITATION = ("T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
+                  ", S. Goto, and H. Ogata, \"Kofamkoala: Kegg ortholog assignme"
+                  "nt based on profile hmm and adaptive score threshold,\" Bioin"
+                  "formatics, vol. 36, no. 7, pp. 2251–2252, 2020."
+                  )
 
 def kofam_hmmscan_formater(
     hits: pd.DataFrame,
@@ -47,3 +52,6 @@ def kofam_hmmscan_formater(
                 "; ".join([hmm_info.loc[i, "definition"] for i in frame.target_id]),
             ]
     return pd.DataFrame(kegg_dict, index=["ko_id", "kegg_hit"]).transpose()
+
+class KOfamKit(DBKit):
+    pass

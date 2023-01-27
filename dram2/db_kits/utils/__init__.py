@@ -1,4 +1,4 @@
-"""General utils for database objects including the template class"""
+"General utils for database objects including the template class"
 import re
 from typing import NamedTuple
 from abc import ABC, abstractmethod
@@ -80,11 +80,32 @@ BOUTFMT6_COLUMNS = [
     "bitScore",
 ]
 
-def export_posible_path(path:Optional[Path]) -> Optional[str]:
-    return None if path is None else path.absolute().as_posix()
+FILE_LOCATION_TAG = "location"
+DRAM_DATAFOLDER_TAG = "dram_data_folder"
+DBKIT_TAG = "db_kits"
 
-def import_posible_path(path:Optional[str]) -> Optional[Path]:
-    return None if path is None else Path(path).absolute()
+
+def export_posible_path(
+    path: Optional[Path], relative_path: Optional[Path] = None
+) -> Optional[str]:
+    if path is None:
+        return None
+    out_path = path.absolute()
+    if relative_path is not None and relative_path in out_path.parents:
+        out_path = out_path.relative_to(relative_path)
+    return out_path.as_posix()
+
+
+def import_posible_path(
+    path: Optional[str], relative_path: Optional[Path] = None
+) -> Optional[Path]:
+    if path is None:
+        return None
+    out_path = Path(path)
+    if relative_path is None:
+        return out_path.absolute()
+    return (relative_path / out_path).absolute()
+
 
 @dataclass
 class Fasta:
@@ -96,29 +117,39 @@ class Fasta:
     gff: Optional[Path]
     mmsdb: Optional[Path]
 
-    def export(self):
+    def export(self, output_dir):
         return (
             self.name,
             export_posible_path(self.origin),
-            export_posible_path(self.tmp_dir),
-            export_posible_path(self.faa),
-            export_posible_path(self.fna),
-            export_posible_path(self.gff),
-            export_posible_path(self.mmsdb))
+            export_posible_path(self.tmp_dir, output_dir),
+            export_posible_path(self.faa, output_dir),
+            export_posible_path(self.fna, output_dir),
+            export_posible_path(self.gff, output_dir),
+            export_posible_path(self.mmsdb, output_dir),
+        )
 
     @classmethod
-    def import_srings(cls, name:str, origin:str, tmp_dir:str, faa:str, fna:str, gff:str, mmsdb:str):
+    def import_strings(
+        cls,
+        relative_path: Path,
+        name: str,
+        origin: str,
+        tmp_dir: str,
+        faa: str,
+        fna: str,
+        gff: str,
+        mmsdb: str,
+    ):
         ob = cls(
             name,
             import_posible_path(origin),
-            import_posible_path(tmp_dir),
-            import_posible_path(faa),
-            import_posible_path(fna),
-            import_posible_path(gff),
-            import_posible_path(mmsdb)
+            import_posible_path(tmp_dir, relative_path),
+            import_posible_path(faa, relative_path),
+            import_posible_path(fna, relative_path),
+            import_posible_path(gff, relative_path),
+            import_posible_path(mmsdb, relative_path),
         )
         return ob
-
 
 
 def run_mmseqs_profile_search(
@@ -359,7 +390,7 @@ def make_mmseqs_db(
     create_index=True,
     threads=10,
 ):
-    """Takes a fasta file and makes a mmseqs2 database for use in blast searching and hmm searching with mmseqs2, """
+    """Takes a fasta file and makes a mmseqs2 database for use in blast searching and hmm searching with mmseqs2,"""
     run_process(
         ["mmseqs", "createdb", fasta_loc, output_loc],
         logger,
@@ -414,7 +445,7 @@ def get_best_hits(
     query_db: Union[str, Path],
     target_db: Union[str, Path],
     logger,
-    output_dir: Union[str, Path]=".",
+    output_dir: Union[str, Path] = ".",
     query_prefix="query",
     target_prefix="target",
     bit_score_threshold=60,
@@ -428,7 +459,19 @@ def get_best_hits(
     query_target_db = path.join(
         output_dir, "%s_%s.mmsdb" % (query_prefix, target_prefix)
     )
-    run_process( [ "mmseqs", "search", str(query_db), str(target_db), str(query_target_db), str(tmp_dir), "--threads", str(threads), ], logger,)
+    run_process(
+        [
+            "mmseqs",
+            "search",
+            str(query_db),
+            str(target_db),
+            str(query_target_db),
+            str(tmp_dir),
+            "--threads",
+            str(threads),
+        ],
+        logger,
+    )
     # filter query to target db to only best hit
     query_target_db_top = path.join(
         output_dir, "%s_%s.tophit.mmsdb" % (query_prefix, target_prefix)
@@ -503,8 +546,6 @@ def process_custom_hmm_db_cutoffs(
             " The rest of the custom hmms will use standard cutoffs and have no descriptions."
         )
     return {custom_hmm_db_name[i]: j for i, j in enumerate(custom_hmm_db_cutoffs_loc)}
-
-
 
 
 def get_basic_description(hits, header_dict, db_name):
@@ -589,6 +630,7 @@ def sig_scores(hits: pd.DataFrame, score_db: pd.DataFrame) -> pd.DataFrame:
     else:
         return pd.DataFrame()
 
+
 class DBKit(ABC):
     """
     DBKit Abstract Class
@@ -609,34 +651,112 @@ class DBKit(ABC):
     kofam_use_dbcan2_thresholds: bool
     threads: int
     make_new_faa: bool
-    dry: bool
     force: bool
     extra: dict
     config: dict = {}
     selectable: bool = True
     dram_db_loc: Path
+    run_set_up = False  # impliment later the ability to setup on the fly
 
     def set_universals(
         self, name: str, formal_name: str, config: dict, citation: str, db_version: str
     ):
         self.name: str = name
-        self.config: dict= config
+        self.config: dict = config
         self.is_dbkit: bool = True
+        self.dram_data_folder: Optional[Path] = None
         self.formal_name: str = formal_name
         self.db_version: str = db_version
         self.citation: str = citation
 
     def __init__(self, config: dict, args: dict):
-        self.config = config
+        if (
+            config.get(DBKIT_TAG) is not None
+            and config[DBKIT_TAG].get(self.name) is not None
+        ):
+            self.config = config[DBKIT_TAG][self.name]
+        else:
+            self.config = {}
+        self.dram_data_folder: Optional[Path] = config.get(DRAM_DATAFOLDER_TAG)
+        if (
+            self.dram_data_folder is not None
+            and not self.dram_data_folder.is_absolute()
+        ):
+            raise ValueError(
+                "The data folder path is not none and is not a absolute path. "
+                "That should not be posible if it was corectly loaded. Are you "
+                "doing your own development?"
+            )
         self.set_args(**args)
-        self.check_setup()
+        self.load_dram_config()
 
     @classmethod
     def download(cls):
         pass
 
+    def get_config_path(self, required_file: str) -> Path:
+        """
+        Paths in the config can be complicated. here is a funcion that will get
+        you the absolute path, the relitve path or whatever. This should be more
+        fomalized and the config
+
+        should actualy be maniged in its own structure. With a data file class
+        that can use this function.
+
+
+        """
+        if ( self.config.get(required_file) is None or self.config[required_file].get(FILE_LOCATION_TAG) is None):
+            if not self.run_set_up:
+                raise ValueError(
+                    f"The path for {required_file} is required by"
+                    f" the Database {self.formal_name} but it has"
+                    f" not been configured or was missconfigured"
+                    f" in this config provided. the config should includ it"
+                    f" like this:\n"
+                    f"{DBKIT_TAG}: \n"
+                    f"    {self.name}:\n"
+                    f"      {required_file}: \n"
+                    f"        {FILE_LOCATION_TAG}:"
+                )
+            else:
+                self.logger.warning(
+                    f"It looks like {required_file} was not setup, DRAM  will now atemp to run setup for {self.formal_name} in order to creat it"
+                )
+                self.setup()  # it can be asuumed that this will update the config also
+        required_path = Path(self.config[required_file]["location"])
+        if not required_path.is_absolute() and self.dram_data_folder is not None:
+            required_path = self.dram_data_folder / required_path
+        elif not required_path.is_absolute() and self.dram_data_folder is None:
+            raise ValueError(
+                "All paths must be absolute or the DRAM data path can't be "
+                "none, but this is not the case for this config and the path "
+                f"{required_path}."
+            )
+        if not required_path.exists():
+            if not self.run_set_up:
+                raise FileNotFoundError(
+                    f"The file {required_file} is not at the path"
+                    f" {required_path}. Most likely you moved the DRAM"
+                    f" data but forgot to update the config file to"
+                    f" point to it. The easy fix is to set the"
+                    f" {DRAM_DATAFOLDER_TAG} variable in the config"
+                    f" like:\n"
+                    f" {DRAM_DATAFOLDER_TAG}: the/path/to/my/file"
+                    f" If you are useing full paths and not the"
+                    f" {DRAM_DATAFOLDER_TAG} you may want to revue the"
+                    f" Configure Dram section of the documentation to"
+                    f" make shure your config will work with dram."
+                    f" remembere that the config must be a vailid yaml"
+                    f" file to work. Also you can alwase use"
+                    f" db_bulder to remake your databases and the"
+                    f" config file if you don't feel up to editing it"
+                    f" yourself."
+                )
+        return required_path
+
     @classmethod
-    def pre_process(cls):
+    @abstractmethod
+    def setup(self):
         pass
 
     def set_args(
@@ -646,14 +766,12 @@ class DBKit(ABC):
         output_dir: Path,
         bit_score_threshold: int,
         rbh_bit_score_threshold: int,
-        past_annotations_path: str,
         kofam_use_dbcan2_thresholds: bool,
         threads: int,
-        make_new_faa: bool,
-        dry: bool,
         force: bool,
         extra: dict,
-        db_path: Path
+        db_path: Path,
+        # "fasta_paths": gene_fasta_paths,
     ):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
         self.logger: logging.Logger = logger
@@ -661,16 +779,13 @@ class DBKit(ABC):
         self.output_dir: Path = output_dir
         self.bit_score_threshold: int = bit_score_threshold
         self.rbh_bit_score_threshold: int = rbh_bit_score_threshold
-        self.past_annotations_path: str = past_annotations_path
         self.threads: int = threads
-        self.make_new_faa: bool = make_new_faa
-        self.dry: bool = dry
         self.force: bool = force
         self.extra: dict = extra
         self.db_path = self.setup_db_path(db_path)
 
     @staticmethod
-    def setup_db_path(db_path:Path):
+    def setup_db_path(db_path: Path):
         if db_path is None:
             return db_path
         db_path = Path(db_path)
@@ -679,28 +794,32 @@ class DBKit(ABC):
         else:
             db_path.mkdir(parents=True)
 
-
-    @abstractmethod
-    def check_setup(self):
-        """
-        This will be used to check if the database is setup. Unless you overwrite the constructor this functon will be called during annotation after the values have been stored. So you can use this to check user arguments even read in cusom arguments.
-        """
-        pass
-
     def check_on_fly_setup(self):
-        '''
+        """
         TODO:
         - This should be a match but I don't feel like updating today
         -
 
-        '''
-        if self.config.get('default_db_dir') is None:
-            self.config['default_db_dir'] = self.dram_db_loc
+        """
+        if self.config.get("default_db_dir") is None:
+            self.config["default_db_dir"] = self.dram_db_loc
         if self.db_path is None:
-            self.dram_db_loc = self.config['default_db_dir']
-        if self.db_path is None and self.config.get('default_db_dir') is None:
-            raise ValueError("Without a dram_db_directory defided, database can't be built on the fly")
+            self.dram_db_loc = self.config["default_db_dir"]
+        if self.db_path is None and self.config.get("default_db_dir") is None:
+            raise ValueError(
+                "Without a dram_db_directory defided, database can't be built on the fly"
+            )
 
+    @abstractmethod
+    def load_dram_config(self):
+        """
+         This will be used to check if the database is setup and load vaiables
+         or file path from the dram config. Unless you
+        overwrite the constructor this functon will be called during
+        annotation after the values have been stored. So you can use this to
+        check user arguments even read in cusom arguments.
+        """
+        pass
 
     @abstractmethod
     def search(self):
@@ -734,8 +853,7 @@ class FastaKit(DBKit):
     def pre_process(self):
 
         temp_dir = self.working_dir / f"{self.name}_fasta_db"
-        if not temp_dir.exists():
-            temp_dir.mkdir()
+        temp_dir.mkdir(exist_ok=True, parents=True)
         self.mmsdb_target = temp_dir / f"{self.name}.mmsdb"
         make_mmseqs_db(
             self.fasta_loc,
@@ -744,7 +862,7 @@ class FastaKit(DBKit):
             threads=self.threads,
         )
 
-    def check_setup(self):
+    def load_dram_config(self):
         pass
 
     def search(self, query_ob: Fasta) -> pd.DataFrame:
@@ -762,7 +880,11 @@ class FastaKit(DBKit):
 
     def get_descriptions(self, annotatons):
         header_dict = multigrep(
-            hits[f"{db_name}_hit"], f"{target_db}_h", self.logger, "\x00", self.working_dir
+            hits[f"{self.db_name}_hit"],
+            f"{self.target_db}_h",
+            self.logger,
+            "\x00",
+            self.working_dir,
         )
         hits = get_basic_description(annotatons, header_dict, self.name)
         return hits
@@ -770,7 +892,6 @@ class FastaKit(DBKit):
     @classmethod
     def get_ids(cls, annotatons, name):
         pass
-
 
 
 class HmmKit(DBKit):
@@ -790,7 +911,7 @@ class HmmKit(DBKit):
         self.fasta_loc: Path = loc
         self.process()
 
-    def check_setup(self):
+    def load_dram_config(self):
         pass
 
     def process(self):

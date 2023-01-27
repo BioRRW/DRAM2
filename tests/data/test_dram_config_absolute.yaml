@@ -1,0 +1,80 @@
+dram_data_folder: /look/at/me/I/am/absolute
+db_kits:
+    kegg:
+      mmsdb:
+        location: "kegg.20221012.mmsdb"
+      description_db:
+        location: "kegg.sqlite"
+    methyl:
+      mmsdb:
+        location: methyl.mmsdb
+    sulfur_hmm:
+      location: sulfur_hmm.hmm
+    kofam:
+       kofam_hmm:
+         location: kofam_profiles.hmm
+       kofam_ko_list:
+         location: kofam_ko_list.tsv
+    uniref:
+      mmsdb:
+        None
+      description_db:
+        location: uniref.sqlite
+    pfam:
+      mmsdb:
+        location: pfam.mmspro
+      description_db:
+        location: pfam.sqlite
+    dbcan:
+       hmm_db:
+         location: dbCAN-HMMdb-V11.txt
+       dbcan_fam_activities:
+         description_db_updated: 06/16/2022, 11:59:50
+         upload_date: 07292021
+       dbcan_subfam_ec:
+         upload_date: 07292021
+    viral:
+      mmsdb:
+        refseq_viral.20220927.mmsdb
+      description_db:
+        viral.sqlite
+    vogdb:
+      hmm:
+        location: vog_latest_hmms.txt
+      description_db:
+        location: "06/16/2022, 12:00:51"
+    peptidase:
+      mmsdb:
+        peptidases.20220927.mmsdb
+      description_db:
+        peptidase.sqlite
+    fegenie:
+      fegenie_cutoffs:
+        location: fegenie_iron_cut_offs.txt
+      fegenie_hmm:
+        location: fegenie_iron_oxidation_reduction.hmm
+    camper:
+      camper_distillate:
+        location: CAMPER_distillate.tsv
+      camper_fa_db:
+        location: CAMPER_blast.faa
+      camper_fa_db_cutoffs:
+        location: CAMPER_blast_scores.tsv
+      camper_hmm:
+        location: CAMPER.hmm
+      camper_hmm_cutoffs:
+        location: CAMPER_hmm_scores.tsv
+dram_sheets:
+    genome_summary_form:
+      location: None
+    module_step_form:
+      location: None
+    etc_module_database:
+      location: None
+    function_heatmap_form:
+      location: None
+    amg_database:
+      location: None
+dram_version: "2.0.rc-1"
+log_file_path: "db_builder.log"
+

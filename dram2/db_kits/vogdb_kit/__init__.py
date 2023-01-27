@@ -1,4 +1,3 @@
-
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
@@ -10,13 +9,23 @@ from dram2.db_kits.utils import (
     get_best_hits,
     BOUTFMT6_COLUMNS,
     DBKit,
-    get_sig_row, Fasta,
+    get_sig_row,
+    Fasta,
 )
 
 from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
+
+VOGDB_CITATION = (
+    "J. Thannesberger, H.-J. Hellinger, I. Klymiuk, M.-T. Kastner"
+    ", F. J. Rieder, M. Schneider, S. Fister, T. Lion, K. Kosulin"
+    ', J. Laengle et al., "Viruses comprise an extensive pool of'
+    " mobile genetic elements in eukaryote cell cultures and huma"
+    'n clinical samples," The FASEB Journal, vol. 31, no. 5, pp.'
+    " 1987–2000, 2017."
+)
 
 
 def vogdb_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
@@ -49,3 +58,22 @@ def vogdb_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     hits_df.rename_axis(None, inplace=True)
     hits_df.rename(columns={"target_id": f"{db_name}_id"}, inplace=True)
     return hits_df
+
+
+class VogDB(DBKit):
+    name = "vogdb"
+    formal_name: str = "VogDB"
+    citation: str = VOGDB_CITATION
+
+    def check_setup(self):
+        pass
+
+    def search(self):
+        pass
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

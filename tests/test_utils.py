@@ -4,6 +4,7 @@ import os
 import json
 import pandas as pd
 import logging
+from pathlib import Path
 
 from dram2.utils.utils import (
     run_process,
@@ -11,6 +12,12 @@ from dram2.utils.utils import (
     remove_prefix,
     remove_suffix,
     setup_logger,
+)
+from dram2.db_kits.utils import (
+    make_mmseqs_db,
+    generic_hmmscan_formater,
+    parse_hmmsearch_domtblout,
+    multigrep,
 )
 
 
@@ -33,10 +40,10 @@ def mmseqs_db_dir(tmpdir):
 
 
 @pytest.fixture()
-def test_make_mmseqs_db(mmseqs_db_dir):
+def test_make_mmseqs_db(mmseqs_db_dir, logger):
     faa_path = os.path.join("tests", "data", "NC_001422.faa")
     output_file = str(mmseqs_db_dir.join("mmseqs_db.mmsdb"))
-    make_mmseqs_db(faa_path, output_file, True, 1)
+    make_mmseqs_db(faa_path, output_file, logger, True, 1)
     assert os.path.isfile(output_file)
 
 
@@ -113,7 +120,7 @@ def test_generic_hmmscan_formater_custom_cuts():
     hits = parse_hmmsearch_domtblout(input_b6)
     output_rcvd = generic_hmmscan_formater(
         hits,
-        hmm_info_path=os.path.join("tests", "data", "hmm_thresholds.txt"),
+        hmm_info_path=Path("tests", "data", "hmm_thresholds.txt"),
         db_name="test",
         top_hit=True,
     )

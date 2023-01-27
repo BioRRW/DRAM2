@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import graphviz
+from typing import Optional
 from dram2.rule_adjectives.annotations import (
     Annotations,
     SULFUR_ID,
@@ -301,7 +302,7 @@ class RuleParser:
             if self.G[node].get("type") != "steps" or True:
                 self._add_to_dot(i)
 
-    def plot_rule(self, output_folder, adjectives: list = None, show_steps=False):
+    def plot_rule(self, output_folder, adjectives: Optional[list] = None, show_steps=False):
         self.dot = graphviz.Digraph(strict=True)
         self.show_steps = show_steps
         if adjectives is None:

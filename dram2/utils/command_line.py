@@ -17,11 +17,11 @@ TODO:
 """
 #! /bin/python3
 import click
-import logging
-import yaml
 from typing import Optional
 
 from pathlib import Path
+
+from dram2.utils.context import DramContext, DEFAULT_KEEP_TMP
 
 from dram2.annotate import annotate_wraper, list_databases
 from dram2.call_genes import call_genes
@@ -37,125 +37,39 @@ from dram2.amg_summary import amg_summary
 
 from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 
-PROJECT_CONFIG_YAML_NAME = 'project_config.yaml'
-DEFAULT_KEEP_TMP = False
-USER_CONFIG = (Path.home() /  'dram_config.yaml')
-GLOBAL_CONFIG= (Path("/etc") /'dram_config.yaml')
 
-class DramContext(object):
-
-    working_dir:Optional[Path]
-    dram_config_path:Path
-
-    def __init__(
-        self,
-        cores: int,
-        db_path: Path,
-        config_file: Path,
-        log_file_path: Path,
-        output_dir: Path,
-        # force: bool,
-        keep_tmp: bool,
-        verbose,
-    ):
-        self.cores: int = cores
-        self.db_path: Path = db_path
-        self.custom_config_file: Path = config_file
-        self.log_file_path: Path = log_file_path
-        self.output_dir: Path = output_dir
-        # self.force: bool = force
-        self.verbose = verbose
-        self.keep_tmp:bool = keep_tmp
-        self.project_config:Optional[dict] = None
-        # Make a working_dir that may be deleted
-        # self.working_dir.mkdir(exist_ok=True)
-
-    def get_working_dir(self):
-        output_dir = self.get_output_dir()
-        self.working_dir = output_dir / "working_dir"
-        self.working_dir.mkdir(exist_ok=True)
-        return self.working_dir
-
-    def get_output_dir(self) -> Path:
-        if self.output_dir is None:
-            raise ValueError("You need to set an output directory or you can't use dram use dram2 --help and revues the docs.")
-        if not self.output_dir.exists():
-            self.output_dir.mkdir()
-        # elif not self.force:
-        #     raise ValueError(
-        #         "The output_dir already exists! try using the -f flag to overwrite"
-        #         )
-        return self.output_dir
-
-    def get_project_config(self) -> dict:
-        output_dir = self.get_output_dir()
-        project_config_path = output_dir / PROJECT_CONFIG_YAML_NAME
-        self.project_config = {}
-        if project_config_path.exists():
-            with open(project_config_path, 'r') as pcf:
-                saved_config = yaml.safe_load(pcf)
-                if saved_config is not None:
-                    self.project_config.update(saved_config)
-        return self.project_config
-
-    def set_project_config(self, project_config:dict, write_config:bool=True):
-        output_dir = self.get_output_dir()
-        project_config_path= output_dir / PROJECT_CONFIG_YAML_NAME
-        self.project_config = project_config
-        if write_config:
-            with open(project_config_path, 'w') as pcf:
-                yaml.safe_dump(self.project_config, pcf)
-
-    def get_logger(self):
-        logger = logging.getLogger("dram2_log")
-        output_dir = self.get_output_dir()
-        if self.log_file_path is None:
-            log_file_path = output_dir / "dram2.log"
-        # setup_logger(logger, self.log_file_path)
-        logger.info(f"The log file is created at {self.log_file_path}")
-        return logger
-
-    def get_dram_config(self):
-        self.dram_config_path = get_config_path(self.custom_config_file)
-        with open(self.dram_config_path, 'r')as conf:
-            config = yaml.safe_load(conf)
-        return config
-
-    def set_dram_config(self, config:dict,custom_path:Optional[Path] = None, type: Optional[str]=None):
-        pass
-
-
-def get_config_path(custom_path:Optional[Path] = None) -> Path:
-    if custom_path is not None and custom_path.exists:
-        return custom_path
-    if USER_CONFIG.exists():
-        return USER_CONFIG
-    if GLOBAL_CONFIG.exists():
-        return GLOBAL_CONFIG
-    serched_paths = ', '.join({i for i in [custom_path, USER_CONFIG, GLOBAL_CONFIG] if i is not None})
-    raise ValueError(f"There is not config file found, DRAM looked at the falowing paths {serched_paths}")
-
-def get_new_config_path(custom_path: Optional[Path] = None, conf_type: bool = False) -> Path:
-    """
-    If the user gives a path put it there, else if the conf_type is global then put it in the global position if it is local or none then put it in local/user.
-
-    It can be eddited when python3.10 is more Common into a match statment
-    """
-    if custom_path is not None:
-        return custom_path
-    if conf_type == 'global':
-        return GLOBAL_CONFIG
-    else:
-        return USER_CONFIG
-
-@click.group(chain=True)
+@click.group(
+    chain=True,
+    help=(
+        "\b\n"  # this \b tells click to respect your formating till \n\n
+        "____________  ___  ___  ___\n"
+        "|  _  \\ ___ \\/ _ \\ |  \\/  |\n"
+        "| | | | |_/ / /_\\ \\| .  . |\n"
+        "| | | |    /|  _  || |\\/| |\n"
+        "| |/ /| |\\ \\| | | || |  | |\n"
+        "|___/ \\_| \\_\\_| |_/\\_|  |_/\n\n"
+        "Welcome to DRAM2, the premiere metabolic annotator and analyzer. "
+        "Bellow you will find a set of commands that you can use to annualize "
+        "your MAGS V-mags or other genome collections. If you are new why not "
+        "start with the pre defined study commands which will take you from "
+        "raw data to defined distillate in a mater of seconds. \n\nThere are "
+        "many advanced options to choose from so pleas look over the DRAM2 "
+        "documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com"
+    ),
+)
 @click.option("--verbose/--quiet", default=False)
 @click.option(
     "-d",
     "--db_path",
     type=click.Path(path_type=Path),
     default=None,
-    help="Specify a directory Path for any databases that you need, but have not setup to live. If you don't specify this path and request a databases that has not yet been bilt this will fail. Dram will not use files that are in this database if they are not also specified in the config file you pass.",
+    help=(
+        "Specify a directory Path for any databases that you need, but have "
+        "not setup to live. If you don't specify this path and request a "
+        "databases that has not yet been built this will fail. Dram will not "
+        "use files that are in this database if they are not also specified in "
+        "the config file you pass."
+    ),
 )
 @click.option(
     "--config_file",
@@ -178,7 +92,8 @@ def get_new_config_path(custom_path: Optional[Path] = None, conf_type: bool = Fa
     help="Keep all temporary files",
 )
 @click.option(
-    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory", required=True)
+    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory"
+)
 @click.option("-c", "--cores", type=int, default=10, help="number of processors to use")
 @click.pass_context
 def dram2(
@@ -189,7 +104,7 @@ def dram2(
     log_file_path: Optional[Path] = None,
     output_dir: Optional[Path] = None,
     # force: bool = DEFAULT_FORCE,
-    keep_tmp:bool= DEFAULT_KEEP_TMP,
+    keep_tmp: bool = DEFAULT_KEEP_TMP,
     verbose=None,
 ):
     ctx.obj = DramContext(
@@ -200,7 +115,7 @@ def dram2(
         output_dir=output_dir,
         # force=force,
         verbose=verbose,
-        keep_tmp=keep_tmp
+        keep_tmp=keep_tmp,
     )
 
 

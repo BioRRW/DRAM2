@@ -7,11 +7,7 @@ from numpy import any
 from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
-from dram2.db_kits.utils import (
-    make_mmseqs_db,
-    run_hmmscan,
-    get_sig_row,
-)
+from dram2.db_kits.utils import make_mmseqs_db, run_hmmscan, get_sig_row, DBKit
 
 from dram2.utils.utils import (
     download_file,
@@ -169,7 +165,7 @@ def search(
     gene_faa: str,
     tmp_dir: str,
     logger: logging.Logger,
-    threads: str,
+    threads: int,
     verbose: str,
     db_handler,
     **args,
@@ -191,3 +187,23 @@ def search(
         ),
         logger=logger,
     )
+
+
+class FeGenieKit(DBKit):
+    name = NAME
+    formal_name: str = NAME_FORMAL
+    version: str = VERSION
+    citation: str = CITATION
+
+    def check_setup(self):
+        pass
+
+    def search(self):
+        pass
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

@@ -1,4 +1,5 @@
 from os import path, stat
+from typing import Optional
 import tarfile
 from shutil import move, rmtree
 from dram2.db_kits.fegenie_kit import process
@@ -11,7 +12,11 @@ from dram2.db_kits.utils import (
     DBKit,
     get_sig_row,
     Fasta,
+    FILE_LOCATION_TAG,
+    DRAM_DATAFOLDER_TAG,
+    DBKIT_TAG,
 )
+
 
 from pathlib import Path
 from functools import partial
@@ -78,7 +83,6 @@ def bitScore_per_row(row):
         raise ValueError("The score_type must be 'domain', 'full', or 'j")
 
 
-# TODO decide if we need use_hmmer_thresholds:bool=False
 def hmmscan_formater(
     hits: pd.DataFrame, db_name: str, hmm_info_path: str, top_hit: bool = True
 ):
@@ -154,27 +158,37 @@ class CamperKit(DBKit):
     formal_name: str = "CAMPER"
     version: str = VERSION
     citation: str = CITATION
+    camper_fa_db: Path
+    camper_fa_db_cutoffs: Path
+    camper_hmm: Path
+    camper_hmm_cutoffs: Path
+    camper_distillate: Path
 
     def search(self, fasta: Fasta):
         self.logger.info(f"Annotating genes with {self.formal_name}.")
-
-        camper_fa_db: str = self.config[FA_DB_KEY]["location"]
-        camper_fa_db_cutoffs: str = self.config[FA_DB_CUTOFFS_KEY]["location"]
-        camper_hmm: str = self.config[HMM_KEY]["location"]
-        camper_hmm_cutoffs: str = self.config[HMM_CUTOFFS_KEY]["location"]
-
+        if (
+            self.camper_fa_db is None
+            or self.camper_fa_db_cutoffs is None
+            or self.camper_hmm is None
+            or self.camper_hmm_cutoffs is None
+        ):
+            raise ValueError(
+                "You must first load a valid config befor you can search with "
+                f"{self.name_formal}."
+            )
+        breakpoint()
         blast = blast_search(
             query_db=fasta.mmsdb,
-            target_db=camper_fa_db,
+            target_db=self.camper_fa_db,
             working_dir=self.working_dir,
-            info_db_path=Path(camper_fa_db_cutoffs),
+            info_db_path=Path(self.camper_fa_db_cutoffs),
             db_name=self.name,
             logger=self.logger,
             threads=self.threads,
         )
         hmm = run_hmmscan(
             genes_faa=fasta.faa,
-            db_loc=camper_hmm,
+            db_loc=self.camper_hmm,
             db_name=self.name,
             threads=self.threads,
             output_loc=self.working_dir,
@@ -182,7 +196,7 @@ class CamperKit(DBKit):
             formater=partial(
                 hmmscan_formater,
                 db_name=self.name,
-                hmm_info_path=camper_hmm_cutoffs,
+                hmm_info_path=self.camper_hmm_cutoffs,
                 top_hit=True,
             ),
         )
@@ -200,23 +214,15 @@ class CamperKit(DBKit):
             )
         )
 
-    def check_setup(self):
-        for i in [
-            "camper_fa_db",
-            "camper_hmm",
-            "camper_hmm_cutoffs",
-            "camper_fa_db_cutoffs",
-            "camper_distillate",
-        ]:
-            if self.config.get(i) is None:
-                self.setup_camper()
-                return
-            if not Path(self.config.get(i).get("location")).exists():
-                self.setup_camper()
-                return
+    def load_dram_config(self):
+        self.camper_fa_db = self.get_config_path("camper_fa_db")
+        self.camper_hmm = self.get_config_path("camper_hmm")
+        self.camper_fa_db_cutoffs = self.get_config_path("camper_hmm_cutoffs")
+        self.camper_hmm_cutoffs = self.get_config_path("camper_fa_db_cutoffs")
+        self.camper_distillate = self.get_config_path("camper_distillate")
         self.logger.info("CAMPER looks ready to use!")
 
-    def setup_camper(self):
+    def setup(self):
         if self.db_path is None:
             raise ValueError(f"CAMPER needs an output location to setup the db")
         tarfile = self.download(self.working_dir, self.logger)
@@ -261,7 +267,7 @@ class CamperKit(DBKit):
         pass
 
     @classmethod
-    def pre_process(
+    def setup(
         cls,
         camper_tar_gz,
         output_dir,

@@ -30,6 +30,7 @@ os.system("dram2 -o test call ./tests/data/NC_001422.fasta # fail")
 os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
 """
 
+
 @click.command("call")
 @click.argument(
     "fasta_paths",
@@ -40,7 +41,7 @@ os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
     "-f",
     "--force",
     is_flag=True,
-    help= "Remove all called genes and information about them, you will only get the current set of genes from the command"
+    help="Remove all called genes and information about them, you will only get the current set of genes from the command",
 )
 @click.option(
     "--prodigal_mode",
@@ -61,7 +62,7 @@ def call_genes(
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
     prodigal_mode=DEFAULT_PRODIGAL_MODE,
     prodigal_trans_tables=DEFAULT_TRANS_TABLE,
-    force:bool = False,
+    force: bool = False,
 ):
     """
     Call Genes and organize files
@@ -84,43 +85,53 @@ def call_genes(
     :param prodigal_trans_tables: The number of trans_tables to use for prodigal see the prodigal docs
     :raises ValueError:
     """
-    logger:logging.Logger = ctx.obj.get_logger()
-    output_dir:Path = ctx.obj.get_output_dir()
-    keep_tmp:bool = ctx.obj.keep_tmp
-    cores:int = ctx.obj.cores
-    timestamp_id:str = datetime.now().strftime('%Y%m%d%H%M%S')
+    logger: logging.Logger = ctx.obj.get_logger()
+    output_dir: Path = ctx.obj.get_output_dir()
+    keep_tmp: bool = ctx.obj.keep_tmp
+    cores: int = ctx.obj.cores
+    timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
     working_dir = output_dir / timestamp_id
-    project_config:dict = ctx.obj.get_project_config()
+    project_config: dict = ctx.obj.get_project_config()
     # get assembly locations
     try:
         if force:
-            clean_called_genes(project_config)
+            clean_called_genes(output_dir, project_config)
         if project_config.get("genes_called") is not None:
-            old_names = [j[0] for i in project_config["genes_called"].values() for j in i['fastas']]
+            old_names = [
+                j[0]
+                for i in project_config["genes_called"].values()
+                for j in i["fastas"]
+            ]
         else:
             old_names = []
-        fastas_named: list[Fasta] = get_fasta_names_dirs(fasta_paths, working_dir, cores, old_names, logger)
+        fastas_named: list[Fasta] = get_fasta_names_dirs(
+            fasta_paths, working_dir, cores, old_names, logger
+        )
         with Pool(cores) as p:
             fastas_called: list[Optional[Fasta]] = p.map(
                 partial(
-                   filter_and_call_genes,
-                   logger=logger,
-                   min_contig_size=min_contig_size,
-                   keep_tmp=keep_tmp,
-                   prodigal_mode=prodigal_mode,
-                   trans_table=prodigal_trans_tables,
+                    filter_and_call_genes,
+                    logger=logger,
+                    min_contig_size=min_contig_size,
+                    keep_tmp=keep_tmp,
+                    prodigal_mode=prodigal_mode,
+                    trans_table=prodigal_trans_tables,
                 ),
-                fastas_named)
-        fastas: list[Fasta]  = [ i for i in fastas_called if i is not None]
-        new_config = {"genes_called": {
-            timestamp_id: {
-                "min_contig_size": min_contig_size,
-                "prodigal_mode": prodigal_mode,
-                "prodigal_trans_tables": prodigal_trans_tables,
-                "annotated": False,
-                "working_dir": working_dir.absolute().as_posix(),
-                "fastas": [i.export() for i in fastas],
-        }}}
+                fastas_named,
+            )
+        fastas: list[Fasta] = [i for i in fastas_called if i is not None]
+        new_config = {
+            "genes_called": {
+                timestamp_id: {
+                    "min_contig_size": min_contig_size,
+                    "prodigal_mode": prodigal_mode,
+                    "prodigal_trans_tables": prodigal_trans_tables,
+                    "annotated": False,
+                    "working_dir": working_dir.relative_to(output_dir).as_posix(),
+                    "fastas": [i.export(output_dir) for i in fastas],
+                }
+            }
+        }
         project_config.update(new_config)
         ctx.obj.set_project_config(project_config)
 
@@ -132,12 +143,13 @@ def call_genes(
     if len(fastas) < 1:
         raise ValueError("No genes found, DRAM2 will not be able to proceed")
 
-def clean_called_genes(project_config:dict):
+
+def clean_called_genes(output_dir: Path, project_config: dict):
     if project_config.get("genes_called") is None:
         return
     for j in project_config["genes_called"].values():
-        rmtree(Path(j['working_dir']))
-    del(project_config['genes_called'])
+        rmtree(output_dir / Path(j["working_dir"]))
+    del project_config["genes_called"]
 
 
 def filter_fasta(fasta_loc: Path, min_len, output_loc) -> Optional[list]:
@@ -163,6 +175,7 @@ def filter_fasta(fasta_loc: Path, min_len, output_loc) -> Optional[list]:
     else:
         write_sequence(kept_seqs, format="fasta", into=output_loc.absolute().as_posix())
 
+
 def filter_and_call_genes(
     fasta: Fasta,
     logger: logging.Logger,
@@ -181,13 +194,11 @@ def filter_and_call_genes(
     :returns: A Fasta object
     """
     # filter input fasta
-    filtered_fasta:Path = fasta.tmp_dir / "filtered_fasta.fa"
+    filtered_fasta: Path = fasta.tmp_dir / "filtered_fasta.fa"
     filter_fasta(fasta.origin, min_contig_size, filtered_fasta)
 
     if filtered_fasta.stat().st_size == 0:
-        logger.warning(
-            f"No sequences in {fasta.name} were longer than min_contig_size"
-        )
+        logger.warning(f"No sequences in {fasta.name} were longer than min_contig_size")
         return None
     # predict ORFs with prodigal
     # TODO: handle when prodigal returns no genes
@@ -204,6 +215,7 @@ def filter_and_call_genes(
     if not keep_tmp:
         filtered_fasta.unlink()
     return Fasta(fasta.name, fasta.origin, fasta.tmp_dir, faa, fna, gff, None)
+
 
 def run_prodigal(
     filtered_fasta: Path,
@@ -257,20 +269,29 @@ def run_prodigal(
     )
     return faa, fna, gff
 
-def get_fasta_name(fasta_loc:Path):
+
+def get_fasta_name(fasta_loc: Path):
     """
     :param fasta_loc: A path to a fasta file or fasta.gz file
     :returns: The name of the fasta file as a string
     """
-    if fasta_loc.suffix == 'gz':
+    if fasta_loc.suffix == "gz":
         return Path(fasta_loc.stem).stem
     else:
         return fasta_loc.stem
 
-def mkdir(i: str, working_dir:Path):
+
+def mkdir(i: str, working_dir: Path):
     (working_dir / i).mkdir(exist_ok=False, parents=True)
 
-def get_fasta_names_dirs(fasta_paths: list[Path], working_dir: Path, cores: int, old_fasta_names: Optional[list[str]], logger: logging.Logger) -> list[Fasta]:
+
+def get_fasta_names_dirs(
+    fasta_paths: list[Path],
+    working_dir: Path,
+    cores: int,
+    old_fasta_names: Optional[list[str]],
+    logger: logging.Logger,
+) -> list[Fasta]:
     """
     :param fasta_paths: A list of fasta files probly each representing a BIN from a MAG.
     :param working_dir:
@@ -283,7 +304,11 @@ def get_fasta_names_dirs(fasta_paths: list[Path], working_dir: Path, cores: int,
         all_fasta_names = fasta_names
         if old_fasta_names is not None:
             all_fasta_names += old_fasta_names
-        duplicated = [item for item, count in collections.Counter(all_fasta_names).items() if count > 1]
+        duplicated = [
+            item
+            for item, count in collections.Counter(all_fasta_names).items()
+            if count > 1
+        ]
         if len(duplicated) > 0:
             logger.debug(f"duplicated names: {','.join(duplicated)}")
             raise ValueError(
@@ -296,5 +321,3 @@ def get_fasta_names_dirs(fasta_paths: list[Path], working_dir: Path, cores: int,
         Fasta(i, j, (working_dir / i), None, None, None, None)
         for i, j in zip(fasta_names, fasta_paths)
     ]
-
-

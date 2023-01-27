@@ -1,5 +1,5 @@
-
 from os import path, stat
+import re
 import tarfile
 from shutil import move, rmtree
 from dram2.db_kits.fegenie_kit import process
@@ -10,13 +10,22 @@ from dram2.db_kits.utils import (
     get_best_hits,
     BOUTFMT6_COLUMNS,
     DBKit,
-    get_sig_row, Fasta,
+    get_sig_row,
+    Fasta,
 )
 
 from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
+
+VERSION = '11'
+DATE = '08062022'
+CITATION = ("Y. Yin, X. Mao, J. Yang, X. Chen, F. Mao, and Y. Xu, \"dbcan"
+                  ": a web resource for automated carbohydrate-active enzyme an"
+                  "notation,\" Nucleic acids research, vol. 40, no. W1, pp. W44"
+                  "5–W451, 2012."
+                  )
 
 def find_best_dbcan_hit(genome: str, group: pd.DataFrame):
     group["perc_cov"] = group.apply(
@@ -26,6 +35,8 @@ def find_best_dbcan_hit(genome: str, group: pd.DataFrame):
     group.columns
     group.sort_values("full_evalue", inplace=True)
     return group.iloc[0]["target_id"]
+
+
 def dbcan_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     """
     format the ouput of the dbcan database.
@@ -53,9 +64,10 @@ def dbcan_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     def description_pull(x: str):
         id_list = ([re.findall("^[A-Z]*[0-9]*", str(x))[0] for x in x.split("; ")],)
         id_list = [y for x in id_list for y in x if len(x) > 0]
-        description_list = db_handler.get_descriptions(
-            id_list, "dbcan_description"
-        ).values()
+        raise ValueError("You need to impliment descriptions")
+        # description_list = db_handler.get_descriptions(
+        #     id_list, "dbcan_description"
+        # ).values()
         description_str = "; ".join(description_list)
         return description_str
 
@@ -72,3 +84,25 @@ def dbcan_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     hits_df.rename_axis(None, inplace=True)
     hits_df.columns
     return hits_df
+
+
+class dbCANKit(DBKit):
+
+    name = "dbcan"
+    formal_name: str = "dbCAN"
+    version: str = VERSION
+    citation: str = CITATION
+    date: str = DATE
+
+    def check_setup(self):
+        pass
+
+    def search(self):
+        pass
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

@@ -9,7 +9,8 @@ Welcome to the DRAM2 Docs!
 
 DRAM2 docs I will add more here soon
 
-.. drawio-image:: example.drawio
+.. drawio-image:: figs/dram2_iceberg.drawio
+   :format: png
 
 .. toctree::
   :caption: Getting Started

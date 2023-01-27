@@ -1,6 +1,5 @@
 {
   "kegg": {
-    "location": "/home/projects-wrighton-2/DRAM/development_flynn/public_DRAM/sep_12_22_dram1.4_rc_setup_test/testoutput/DRAM1_4_pycallgraph_3/kegg.20221012.mmsdb",
     "name": "KEGG db",
     "description_db_updated": "Unknown, or Never",
     "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021)."
@@ -85,10 +84,10 @@
   "module_step_form": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/module_step_form.20220610.tsv",
   "etc_module_database": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/etc_mdoule_database.20220609.tsv",
   "function_heatmap_form": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/function_heatmap_form.20220609.tsv",
-  "amg_database": "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/amg_database.20220609.tsv"
+  "amg_database":
+  "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/amg_database.20220609.tsv",
   "dram_version": "1.4.0",
   "description_db": "/home/projects-wrighton-2/DRAM/development_flynn/public_DRAM/sep_12_22_dram1.4_rc_setup_test/testoutput/DRAM1_4_pycallgraph_3/description_db.sqlite",
-  "setup_info": {
   "kofam_hmm": {
     "name": "KOfam db",
     "citation": "",

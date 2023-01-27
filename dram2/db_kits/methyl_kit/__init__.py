@@ -5,6 +5,7 @@ from dram2.db_kits.utils import (
     do_blast_style_search,
     get_basic_description,
     make_mmseqs_db,
+    DBKit
 )
 from functools import partial
 import logging
@@ -82,3 +83,21 @@ def search(
         verbose,
     )
     return hits
+
+class methyl_kit(DBKit):
+    name = NAME
+    formal_name = NAME_FORMAL
+    citation: str = CITATION
+
+    def check_setup(self):
+        pass
+
+    def search(self):
+        pass
+
+    def get_descriptions(self):
+        pass
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass
