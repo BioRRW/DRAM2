@@ -173,10 +173,9 @@ class CamperKit(DBKit):
             or self.camper_hmm_cutoffs is None
         ):
             raise ValueError(
-                "You must first load a valid config befor you can search with "
+                "You must first load a valid config before you can search with "
                 f"{self.name_formal}."
             )
-        breakpoint()
         blast = blast_search(
             query_db=fasta.mmsdb,
             target_db=self.camper_fa_db,

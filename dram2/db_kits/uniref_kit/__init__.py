@@ -2,8 +2,7 @@ from os import path, stat
 import re
 import tarfile
 from shutil import move, rmtree
-from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process
+# from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
     make_mmseqs_db,
     run_hmmscan,
@@ -19,11 +18,27 @@ from functools import partial
 import logging
 import pandas as pd
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
 UNIREF_CITATION = ("Y. Wang, Q. Wang, H. Huang, W. Huang, Y. Chen, P. B. McGarv"
                   "ey, C. H. Wu, C. N. Arighi, and U. Consortium, \"A crowdsour"
                   "cing open platform for literature curation in uniprot,\" PLo"
                   "S Biology, vol. 19, no. 12, p. e3001464, 2021."
                    )
+
+class UniRefDescription(BASE):
+    __tablename__ =  "uniref_description"
+    id = Column(String(40), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(1000))
+
+    @property
+    def serialize(self):
+        return {
+            'kegg_id': self.id,
+            'kegg_description': self.description,
+        }
 
 def get_uniref_description(uniref_hits, header_dict):
     """Gets UniRef ID's, taxonomy and full string from list of UniRef IDs for output in annotations"""

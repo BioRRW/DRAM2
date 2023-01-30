@@ -847,10 +847,10 @@ class FastaKit(DBKit):
         self.set_args(**args)
         self.config: dict = config
         self.fasta_loc: Path = loc
-        self.pre_process()
+        self.setup()
         # if none is passed from argparse then set to tuple of len 0
 
-    def pre_process(self):
+    def setup(self):
 
         temp_dir = self.working_dir / f"{self.name}_fasta_db"
         temp_dir.mkdir(exist_ok=True, parents=True)
@@ -906,15 +906,14 @@ class HmmKit(DBKit):
         self.hmm_loc: Path = loc
         self.descriptions: Path = descriptions
         self.set_args(**args)
-        self.process()
         self.config: dict = config
         self.fasta_loc: Path = loc
-        self.process()
+        self.setup()
 
     def load_dram_config(self):
         pass
 
-    def process(self):
+    def setup(self):
         self.logger.info(f"Pre processing custom hmm database {self.name}")
         run_process(
             ["hmmpress", "-f", self.hmm_loc], self.logger
@@ -922,6 +921,8 @@ class HmmKit(DBKit):
 
     def search(self, query_ob: Fasta):
         self.logger.info(f"Annotating custom hmm database {self.name}")
+        if query_ob.faa is None:
+            raise ValueError("Fasta without associated faa error.")
         annotatons = run_hmmscan(
             genes_faa=query_ob.faa.as_posix(),
             db_loc=self.hmm_loc.as_posix(),

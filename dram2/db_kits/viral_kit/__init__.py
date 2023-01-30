@@ -1,5 +1,7 @@
 
 from dram2.db_kits.utils import DBKit
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 VIRAL_REFSEQ_CITATION = ("J. R. Brister, D. Ako-Adjei, Y. Bao, and O. Blinkova, "
                          "\"Ncbi viral genomes resource,\" Nucleic acids researc"
@@ -10,6 +12,18 @@ VIRAL_REFSEQ_CITATION = ("J. R. Brister, D. Ako-Adjei, Y. Bao, and O. Blinkova, 
                          ". D545–D551, 2021."
                  )
 
+class ViralDescription(BASE):
+    __tablename__ = 'viral_description'
+    id = Column(String(14), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(1000))
+
+    @property
+    def serialize(self):
+        return {
+            'viral_id': self.id,
+            'viral_description': self.description,
+        }
 class RefSeqViral(DBKit):
     name = 'viral'
     formal_name: str = 'RefSeq-Viral'

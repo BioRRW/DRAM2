@@ -18,6 +18,10 @@ from functools import partial
 import logging
 import pandas as pd
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
+
 KOFAM_CITATION = ("T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
                   ", S. Goto, and H. Ogata, \"Kofamkoala: Kegg ortholog assignme"
                   "nt based on profile hmm and adaptive score threshold,\" Bioin"

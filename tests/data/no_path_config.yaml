@@ -28,11 +28,12 @@ db_kits:
     dbcan:
        hmm_db:
          location: dbCAN-HMMdb-V11.txt
-       dbcan_fam_activities:
-         description_db_updated: 06/16/2022, 11:59:50
-         upload_date: 07292021
-       dbcan_subfam_ec:
-         upload_date: 07292021
+           # dbcan_fam_activities:
+           #   upload_date: 07292021
+           # dbcan_subfam_ec:
+           #   upload_date: 07292021
+         description_db:
+           location: dbcan.sqlite
     viral:
       mmsdb:
         refseq_viral.20220927.mmsdb

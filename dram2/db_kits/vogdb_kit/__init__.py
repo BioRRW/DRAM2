@@ -18,6 +18,9 @@ from functools import partial
 import logging
 import pandas as pd
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
 VOGDB_CITATION = (
     "J. Thannesberger, H.-J. Hellinger, I. Klymiuk, M.-T. Kastner"
     ", F. J. Rieder, M. Schneider, S. Fister, T. Lion, K. Kosulin"
@@ -27,6 +30,19 @@ VOGDB_CITATION = (
     " 1987–2000, 2017."
 )
 
+class VOGDBDescription(BASE):
+    __tablename__ = 'vogdb_description'
+
+    id = Column(String(10), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(1000))
+
+    @property
+    def serialize(self):
+        return {
+            'vogdb_id': self.id,
+            'vogdb_description': self.description,
+        }
 
 def vogdb_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     hits_sig = hits[hits.apply(get_sig_row, axis=1)]

@@ -18,6 +18,11 @@ from functools import partial
 import logging
 import pandas as pd
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
+
+
 CITATION = ("J. Mistry, S. Chuguransky, L. Williams, M. Qureshi, G. A. Sal"
                  "azar, E. L. Sonnhammer, S. C. Tosatto, L. Paladin, S. Raj, L."
                  " J. Richardson et al., \"Pfam: The protein families database "
@@ -25,6 +30,19 @@ CITATION = ("J. Mistry, S. Chuguransky, L. Williams, M. Qureshi, G. A. Sal"
                  "D419, 2021."
                  )
 
+class PfamDescription(BASE):
+    __tablename__ = 'pfam_description'
+
+    id = Column(String(12), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(1000))
+
+    @property
+    def serialize(self):
+        return {
+            'pfam_id': self.id,
+            'pfam_description': self.description,
+        }
 
 class PfamKit(DBKit):
     name = "pfam"

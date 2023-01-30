@@ -19,6 +19,10 @@ from functools import partial
 import logging
 import pandas as pd
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
+
 CITATION = ("N. D. Rawlings, A. J. Barrett, P. D. Thomas, X. Huang, A"
                       ". Bateman, and R. D. Finn, \"The merops database of prot"
                       "eolytic enzymes, their substrates and inhibitors in 2017"
@@ -26,6 +30,20 @@ CITATION = ("N. D. Rawlings, A. J. Barrett, P. D. Thomas, X. Huang, A"
                       "e,\" Nucleic acids research, vol. 46, no. D1, pp. D624–D"
                       "632, 2018."
                       )
+
+class PeptidaseDescription(BASE):
+    __tablename__ ='peptidase_description'
+
+    id = Column(String(10), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(1000))
+
+    @property
+    def serialize(self):
+        return {
+            'peptidase_id': self.id,
+            'peptidase_description': self.description,
+        }
 
 def get_peptidase_description(peptidase_hits, header_dict):
     peptidase_list: list[str] = list()

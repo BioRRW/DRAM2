@@ -11,6 +11,24 @@ CITATION = (
     "21."
 )
 
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
+class KeggDescription(BASE):
+    __tablename__ = 'kegg_description'
+
+    id = Column(String(20), primary_key=True, nullable=False, index=True)
+
+    description = Column(String(100000))
+
+    @property
+    def serialize(self):
+        return {
+            'kegg_id': self.id,
+            'kegg_description': self.description,
+        }
+
+
 
 def get_kegg_description(kegg_hits, header_dict):
     """Gets the KEGG IDs, and full KEGG hits from list of KEGG IDs for output in annotations"""
