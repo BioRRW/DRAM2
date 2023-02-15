@@ -39,6 +39,8 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 
 from datetime import datetime
 
+DEFAULT_VERBOSE = 3 # maps to logging levels
+
 
 @click.group(
     chain=True,
@@ -91,7 +93,7 @@ from datetime import datetime
     "-v",
     "--verbose",
     count=True,
-    default=3,
+    default=DEFAULT_VERBOSE,
     help=(
         "Verbosity of the logging output, the number of 'v's maps to the default"
         " logging level of pythons logging modual. the default is -vvv. The "
