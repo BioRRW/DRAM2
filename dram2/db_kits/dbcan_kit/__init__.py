@@ -11,8 +11,8 @@ from dram2.db_kits.utils import (
     BOUTFMT6_COLUMNS,
     DBKit,
     get_sig_row,
-    Fasta,
 )
+from dram2.utils.utils import Fasta
 
 from pathlib import Path
 from functools import partial
@@ -35,7 +35,7 @@ CITATION = (
 
 
 class DbcanDescription(BASE):
-    __tablename__ = 'dbcan_description'
+    __tablename__ = "dbcan_description"
 
     id = Column(String(30), primary_key=True, nullable=False, index=True)
 
@@ -45,10 +45,11 @@ class DbcanDescription(BASE):
     @property
     def serialize(self):
         return {
-            'dbcan_id': self.id,
-            'dbcan_description': self.description,
-            'dbcan_subfam_ec': self.ec,
+            "dbcan_id": self.id,
+            "dbcan_description": self.description,
+            "dbcan_subfam_ec": self.ec,
         }
+
 
 def find_best_dbcan_hit(genome: str, group: pd.DataFrame):
     group["perc_cov"] = group.apply(
@@ -58,6 +59,7 @@ def find_best_dbcan_hit(genome: str, group: pd.DataFrame):
     group.columns
     group.sort_values("full_evalue", inplace=True)
     return group.iloc[0]["target_id"]
+
 
 def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
     def line_reader(line):
@@ -81,9 +83,7 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
         dbcan_subfam_ec, sep="\t", names=["id", "id2", "ec"], comment="#"
     )[["id", "ec"]].drop_duplicates()
     ec_data = (
-        pd.concat(
-            [ec_data["id"], ec_data["ec"].str.split("|", expand=True)], axis=1
-        )
+        pd.concat([ec_data["id"], ec_data["ec"].str.split("|", expand=True)], axis=1)
         .melt(id_vars="id", value_name="ec")
         .dropna(subset=["ec"])[["id", "ec"]]
         .groupby("id")
@@ -94,17 +94,18 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
     return [i.to_dict() for _, i in data.iterrows()]
 
 
-
-def dbcan_hmmscan_formater(hits: pd.DataFrame, db_name: str, sql_descriptions: Optional[SQLDescriptions]):
+def dbcan_hmmscan_formater(
+    hits: pd.DataFrame, db_name: str, sql_descriptions: Optional[SQLDescriptions]
+):
     """
     format the ouput of the dbcan database.
 
     Note these changes
-    introduce new column for best hit from cazy database this will be the best 
+    introduce new column for best hit from cazy database this will be the best
     hit above the already established threshold (0.35 coverage, e-18 evalue) -
     then for the distillate pull info from the best hit only
 
-    introduce new column for corresponding EC number information from sub 
+    introduce new column for corresponding EC number information from sub
     families (EC numbers are subfamily ECs)
 
     Make sure that ids and descriptions are separate (descriptions these are family based)
@@ -145,6 +146,7 @@ def dbcan_hmmscan_formater(hits: pd.DataFrame, db_name: str, sql_descriptions: O
     hits_df.columns
     return hits_df
 
+
 class dbCANKit(DBKit):
 
     name = "dbcan"
@@ -155,34 +157,46 @@ class dbCANKit(DBKit):
     hmm_db: Path
     description_db: SQLDescriptions
 
+    def setup(
+    ) -> dict:
+        pass
+
     def load_dram_config(self):
-        self.hmm_db = self.get_config_path("hmm_db")
+        self.hmm_db = self.get_config_path("hmmdb")
         # self.dbcan_subfam_ec = self.get_config_path("dbcan_subfam_ec")
         # self.dbcan_fam_activities = self.get_config_path("dbcan_fam_activities")
+        self.description_db = SQLDescriptions(
+            self.get_config_path("description_db"),
+            self.logger,
+            DbcanDescription,
+            self.name,
+        )
         self.logger.info("{self.formal_name} looks ready to use!")
-        self.description_db = SQLDescriptions(self.get_config_path("description_db"), self.logger, DbcanDescription, self.name)
 
-    def search(self, fasta: Fasta):
-        
+    def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+
         if fasta.faa is None:
-            raise ValueError(f"Fasta with out called genes faa was passed to the search function for {self.formal_name}")
-        self.logger.info("Getting hits from dbCAN")
-        pd.annotations= run_hmmscan(
-                genes_faa=fasta.faa.absolute().as_posix(),
-                db_loc=self.hmm_db.absolute().as_posix(),
-                db_name=self.name,
-                output_loc=self.working_dir.absolute().as_posix(),
-                threads=self.threads,
-                logger=self.logger,
-                formater=partial(
-                    dbcan_hmmscan_formater, 
-                    db_name=self.name, 
-                    sql_descriptions = self.description_db, 
+            raise ValueError(
+                f"Fasta with out called genes faa was passed to the search function for {self.formal_name}"
             )
+        self.logger.info("Getting hits from dbCAN")
+        pd.annotations = run_hmmscan(
+            genes_faa=fasta.faa.absolute().as_posix(),
+            db_loc=self.hmm_db.absolute().as_posix(),
+            db_name=self.name,
+            output_loc=self.working_dir.absolute().as_posix(),
+            threads=self.threads,
+            logger=self.logger,
+            formater=partial(
+                dbcan_hmmscan_formater,
+                db_name=self.name,
+                sql_descriptions=self.description_db,
+            ),
         )
 
-    def get_descriptions(self):
-        pass
+    def get_descriptions(self, hits):
+        "fix"
+        return hits
 
     @classmethod
     def get_ids(cls, annotatons):

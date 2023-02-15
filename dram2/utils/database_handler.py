@@ -14,8 +14,7 @@ import pandas as pd
 
 from dram2.utils import __version__ as current_dram_version
 from dram2.utils.sqlalchemy_classes import TABLE_NAME_TO_CLASS_DICT, create_description_db
-from dram2.utils.utils import divide_chunks, setup_logger
-
+from dram2.utils.utils import divide_chunks
 SEARCH_DATABASES = {'kegg', 'kofam_hmm', 'kofam_ko_list', 'uniref', 'pfam', 'dbcan', 'viral', 'peptidase', 'vogdb'
                     'camper', 'fegenie', 'sulphur', }
 DRAM_SHEETS = ('genome_summary_form', 'module_step_form', 'etc_module_database', 'function_heatmap_form',

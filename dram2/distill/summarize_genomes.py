@@ -15,7 +15,6 @@ from datetime import datetime
 from dram2.utils.database_handler import DatabaseHandler
 from dram2.utils.utils import (
     get_ordered_uniques,
-    setup_logger,
     get_ids_from_annotations_all,
     get_ids_from_annotations_by_row,
 )
@@ -866,6 +865,7 @@ def make_strings_no_repeats(genome_taxa_dict):
 
 def summarize_genomes(
     input_file,
+    logger: logging.Logger,
     trna_path=None,
     rrna_path=None,
     output_dir=".",
@@ -879,8 +879,6 @@ def summarize_genomes(
     mkdir(output_dir)
     if log_file_path is None:
         log_file_path = path.join(output_dir, "Distillation.log")
-    logger = logging.getLogger("distillation_log")
-    setup_logger(logger, log_file_path)
     logger.info(f"The log file is created at {log_file_path}")
 
     # read in data

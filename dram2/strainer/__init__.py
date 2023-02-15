@@ -6,7 +6,6 @@ import warnings
 import logging
 
 from dram2.distill.summarize_vgfs import filter_to_amgs
-from dram2.utils.utils import setup_logger
 from dram2.utils.database_handler import DatabaseHandler
 
 # TODO: filter by taxonomic level, completeness, contamination
@@ -228,6 +227,7 @@ def find_neighborhoods(
 def get_gene_neighborhoods(
     input_file,
     output_dir,
+    logger: logging.Logger,
     genes=None,
     identifiers=None,
     categories=None,
@@ -256,9 +256,6 @@ def get_gene_neighborhoods(
         )
 
     mkdir(output_dir)
-
-    # setup logging
-    setup_logger(os.path.join(output_dir, LOGGER))
 
     neighborhood_all_annotations = find_neighborhoods(
         annotations, genes_from_ids, distance_bp, distance_genes

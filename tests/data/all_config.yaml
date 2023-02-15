@@ -1,16 +1,18 @@
-dram_data_folder: ./
+dram_data_folder: /home/Database/DRAM/sep_12_22_dram1.4.0_full_db/
 db_kits:
     kegg:
       mmsdb:
         location: "kegg.20221012.mmsdb"
       description_db:
-        location: "kegg.sqlite"
+        location: "/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/kegg.sqlite"
     methyl:
       mmsdb:
-        location: methylotrophy.faa
+        location: /home/Database/DRAM/methyl/methylotrophy.mmsdb
+      distillate:
+        location: /home/Database/DRAM/methyl/methylotrophy_distillate.tsv
     sulfur:
       hmmdb:
-        location: sulfur_hmm.hmm
+        location: sulfur.hmm
     kofam:
        hmmdb:
          location: kofam_profiles.hmm
@@ -18,19 +20,19 @@ db_kits:
          location: kofam_ko_list.tsv
     uniref:
       mmsdb:
-        location: uniref90.20220928.mmsdb
+        location: uniref90.20220928.mmsdb 
       description_db:
-        location: uniref.sqlite
+        location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/uniref.sqlite
     pfam:
       mmsdb:
         location: pfam.mmspro
       description_db:
-        location: pfam.sqlite
+        location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/pfam.sqlite
     dbcan:
        hmmdb:
          location: dbCAN-HMMdb-V11.txt
        description_db:
-         location: dbcan.sqlite
+         location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/dbcan.sqlite
            # dbcan_fam_activities:
            #   upload_date: 07292021
            # dbcan_subfam_ec:
@@ -39,7 +41,7 @@ db_kits:
       mmsdb:
         location: refseq_viral.20220927.mmsdb
       description_db:
-        location: viral.sqlite
+        location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/viral.sqlite
     vogdb:
       hmmdb:
         location: vog_latest_hmms.txt
@@ -49,7 +51,7 @@ db_kits:
       mmsdb:
         location: peptidases.20220927.mmsdb
       description_db:
-        location: peptidase.sqlite
+        location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/peptidase.sqlite
     fegenie:
       cutoffs:
         location: fegenie_iron_cut_offs.txt

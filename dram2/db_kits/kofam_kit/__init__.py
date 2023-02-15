@@ -1,4 +1,3 @@
-
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
@@ -6,27 +5,32 @@ from dram2.db_kits.fegenie_kit import process
 from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
     make_mmseqs_db,
+    sig_scores,
     run_hmmscan,
     get_best_hits,
     BOUTFMT6_COLUMNS,
     DBKit,
-    get_sig_row, Fasta,
+    get_sig_row,
 )
+from dram2.utils.utils import Fasta
 
 from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
+from typing import Optional
 
 from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 
-KOFAM_CITATION = ("T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
-                  ", S. Goto, and H. Ogata, \"Kofamkoala: Kegg ortholog assignme"
-                  "nt based on profile hmm and adaptive score threshold,\" Bioin"
-                  "formatics, vol. 36, no. 7, pp. 2251–2252, 2020."
-                  )
+KOFAM_CITATION = (
+    "T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
+    ', S. Goto, and H. Ogata, "Kofamkoala: Kegg ortholog assignme'
+    'nt based on profile hmm and adaptive score threshold," Bioin'
+    "formatics, vol. 36, no. 7, pp. 2251–2252, 2020."
+)
+
 
 def kofam_hmmscan_formater(
     hits: pd.DataFrame,
@@ -57,5 +61,39 @@ def kofam_hmmscan_formater(
             ]
     return pd.DataFrame(kegg_dict, index=["ko_id", "kegg_hit"]).transpose()
 
+
 class KOfamKit(DBKit):
-    pass
+    name = "kofam"
+    name_formal = "KOfam"
+
+    def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        return run_hmmscan(
+            genes_faa=fasta.faa.as_posix(),
+            db_loc=self.hmm.as_posix(),
+            db_name=self.name,
+            output_loc=self.working_dir.as_posix(),  # check_impliments
+            threads=self.threads,  # check_impliments
+            logger=self.logger,
+            formater=partial(
+                kofam_hmmscan_formater,
+                hmm_info_path=self.kofam_ko_list,
+                top_hit=True,
+                use_dbcan2_thresholds=self.kofam_use_dbcan2_thresholds,
+            ),
+        )
+
+    def setup(self):
+        pass
+
+    def load_dram_config(self):
+        self.hmm: Path = self.get_config_path("hmmdb")
+        self.kofam_ko_list: Path= self.get_config_path("kofam_ko_list")
+        self.logger.info("{self.formal_name} looks ready to use!")
+
+    def get_descriptions(self, hits):
+        "fix"
+        return hits
+
+    @classmethod
+    def get_ids(cls, annotatons):
+        pass

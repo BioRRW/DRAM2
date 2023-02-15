@@ -11,11 +11,11 @@ from dram2.db_kits.utils import (
     BOUTFMT6_COLUMNS,
     DBKit,
     get_sig_row,
-    Fasta,
     FILE_LOCATION_TAG,
     DRAM_DATAFOLDER_TAG,
     DBKIT_TAG,
 )
+from dram2.utils.utils import Fasta
 
 
 from pathlib import Path
@@ -57,7 +57,7 @@ def blast_search_formater(hits_path, db_name, info_db, logger):
     rank_col = f"{db_name}_rank"
     hits[rank_col] = hits.apply(rank_per_row, axis=1)
     hits.dropna(subset=[rank_col], inplace=True)
-    logger.info("Getting descriptions of hits from %s" % db_name)
+    logger.debug("Getting descriptions of hits from %s" % db_name)
     hits = hits[["tId", rank_col, "bitScore", "ID_for_distillate", "definition"]]
     hits.rename(
         columns={
@@ -124,7 +124,6 @@ def get_minimum_bitscore(info_db):
     bit_score_threshold = min(info_db[["A_rank", "B_rank"]].min().values)
     return bit_score_threshold
 
-
 def blast_search(
     query_db,
     target_db,
@@ -132,7 +131,7 @@ def blast_search(
     info_db_path,
     db_name,
     logger,
-    threads=10,
+    threads,
 ):
     """A convenience function to do a blast style forward best hits search"""
     # Get kegg hits
@@ -163,9 +162,12 @@ class CamperKit(DBKit):
     camper_hmm: Path
     camper_hmm_cutoffs: Path
     camper_distillate: Path
+    search_type: str = "hmm_and_blast_style"
 
-    def search(self, fasta: Fasta):
-        self.logger.info(f"Annotating genes with {self.formal_name}.")
+    def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        if fasta.name is None:
+            raise ValueError('A fasta file needs a name')
+        self.logger.debug(f"Annotating {fasta.name} with {self.formal_name}.")
         if (
             self.camper_fa_db is None
             or self.camper_fa_db_cutoffs is None
@@ -174,35 +176,40 @@ class CamperKit(DBKit):
         ):
             raise ValueError(
                 "You must first load a valid config before you can search with "
-                f"{self.name_formal}."
+                f"{self.formal_name}."
             )
+        fasta_temp_dir = self.working_dir / self.name / fasta.name
+        fasta_temp_dir.mkdir(parents=True, exist_ok=False)
         blast = blast_search(
             query_db=fasta.mmsdb,
             target_db=self.camper_fa_db,
-            working_dir=self.working_dir,
+            working_dir=fasta_temp_dir,
             info_db_path=Path(self.camper_fa_db_cutoffs),
             db_name=self.name,
             logger=self.logger,
             threads=self.threads,
         )
         hmm = run_hmmscan(
-            genes_faa=fasta.faa,
-            db_loc=self.camper_hmm,
+            genes_faa=fasta.faa.as_posix(),
+            db_loc=self.camper_hmm.as_posix(),
             db_name=self.name,
             threads=self.threads,
-            output_loc=self.working_dir,
+            output_loc=fasta_temp_dir.as_posix(),
             logger=self.logger,
             formater=partial(
                 hmmscan_formater,
                 db_name=self.name,
-                hmm_info_path=self.camper_hmm_cutoffs,
+                hmm_info_path=self.camper_hmm_cutoffs.as_posix(),
                 top_hit=True,
             ),
         )
+        if not self.keep_tmp:
+            rmtree(fasta_temp_dir)
         full = pd.concat([blast, hmm])
         if len(full) < 1:
             return pd.DataFrame()
 
+        self.check_counter_after_annotation()
         return full.groupby(full.index).apply(
             lambda x: (
                 x.sort_values(
@@ -214,11 +221,11 @@ class CamperKit(DBKit):
         )
 
     def load_dram_config(self):
-        self.camper_fa_db = self.get_config_path("camper_fa_db")
-        self.camper_hmm = self.get_config_path("camper_hmm")
-        self.camper_fa_db_cutoffs = self.get_config_path("camper_hmm_cutoffs")
-        self.camper_hmm_cutoffs = self.get_config_path("camper_fa_db_cutoffs")
-        self.camper_distillate = self.get_config_path("camper_distillate")
+        self.camper_fa_db = self.get_config_path("mmsdb")
+        self.camper_hmm = self.get_config_path("hmmdb")
+        self.camper_fa_db_cutoffs = self.get_config_path("mmsdb_cutoffs")
+        self.camper_hmm_cutoffs = self.get_config_path("hmmdb_cutoffs")
+        self.camper_distillate = self.get_config_path("distillate")
         self.logger.info("CAMPER looks ready to use!")
 
     def setup(self):

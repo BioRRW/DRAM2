@@ -12,7 +12,6 @@ from dram2.utils.database_handler import DatabaseHandler
 from dram2.distill.summarize_genomes import get_ordered_uniques
 from dram2.utils.utils import (
     get_ordered_uniques,
-    setup_logger,
     get_ids_from_annotations_all,
     get_ids_from_annotations_by_row,
 )

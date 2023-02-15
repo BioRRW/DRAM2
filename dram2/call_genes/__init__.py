@@ -11,59 +11,42 @@ from pathlib import Path
 from pkg_resources import resource_filename
 import collections
 from skbio.io import read as read_sequence, write as write_sequence
-from dram2.db_kits.utils import Fasta, run_process
+from dram2.utils.utils import Fasta, run_process, import_posible_path
+from dram2.utils.globals import FASTAS_CONF_TAG
+from dram2.cli.context import DramContext, get_time_stamp_id
 from multiprocessing import Pool
 from functools import partial
 from typing import Optional
-from datetime import datetime
 from shutil import rmtree
-
 
 DEFAULT_MIN_CONTIG_SIZE: int = 2500
 DEFAULT_PRODIGAL_MODE: str = "meta"
 DEFAULT_TRANS_TABLE: str = "11"
-
+DEFAULT_GENES_FILE: str = "genes"
+GENES_RUN_TAG: str = "genes"
 """
 import os
 os.system("dram2 -o test call ./tests/data/NC_001422.fasta # pass")
+os.system("dram2 -o soil call /home/projects-wrighton-2/DRAM/input_datasets/15_soil_genomes/all_data/*fasta")
 os.system("dram2 -o test call ./tests/data/NC_001422.fasta # fail")
 os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
 """
 
 
-@click.command("call")
-@click.argument(
-    "fasta_paths",
-    type=click.Path(exists=True, path_type=Path),
-    nargs=-1,
-)
-@click.option(
-    "-f",
-    "--force",
-    is_flag=True,
-    help="Remove all called genes and information about them, you will only get the current set of genes from the command",
-)
-@click.option(
-    "--prodigal_mode",
-    default=DEFAULT_PRODIGAL_MODE,
-    type=click.Choice(["train", "meta", "single"], case_sensitive=False),
-    help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
-)
-@click.option(
-    "--prodigal_trans_tables",
-    type=click.Choice([str(i) for i in range(1, 26)], case_sensitive=False),
-    default=DEFAULT_TRANS_TABLE,
-    help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
-)
-@click.pass_context
 def call_genes(
-    ctx,
+    output_dir: Path,
     fasta_paths: list[Path],
+    cores: int,
+    logger: logging.Logger,
+    working_dir: Path,
+    project_config: dict,
+    run_id: str,
+    keep_tmp: bool,
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
     prodigal_mode=DEFAULT_PRODIGAL_MODE,
     prodigal_trans_tables=DEFAULT_TRANS_TABLE,
     force: bool = False,
-):
+) -> dict:
     """
     Call Genes and organize files
     ________________________
@@ -85,71 +68,163 @@ def call_genes(
     :param prodigal_trans_tables: The number of trans_tables to use for prodigal see the prodigal docs
     :raises ValueError:
     """
-    logger: logging.Logger = ctx.obj.get_logger()
-    output_dir: Path = ctx.obj.get_output_dir()
-    keep_tmp: bool = ctx.obj.keep_tmp
-    cores: int = ctx.obj.cores
-    timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
-    working_dir = output_dir / timestamp_id
-    project_config: dict = ctx.obj.get_project_config()
     # get assembly locations
-    try:
-        if force:
-            clean_called_genes(output_dir, project_config)
-        if project_config.get("genes_called") is not None:
-            old_names = [
+    if force:
+        logger.info(
+            "The force flag is being used, the old genes directorys will be fully deleted from: {working_dir}"
+        )
+        _ = [rmtree(x) for x in working_dir.glob("**/*") if not x.is_file()]
+        clean_called_genes(output_dir, project_config, logger)
+        old_names = []
+    else:
+        old_names = (
+            []
+            if "genes_called" not in project_config
+            else [
                 j[0]
                 for i in project_config["genes_called"].values()
                 for j in i["fastas"]
             ]
-        else:
-            old_names = []
-        fastas_named: list[Fasta] = get_fasta_names_dirs(
-            fasta_paths, working_dir, cores, old_names, logger
         )
-        with Pool(cores) as p:
-            fastas_called: list[Optional[Fasta]] = p.map(
-                partial(
-                    filter_and_call_genes,
-                    logger=logger,
-                    min_contig_size=min_contig_size,
-                    keep_tmp=keep_tmp,
-                    prodigal_mode=prodigal_mode,
-                    trans_table=prodigal_trans_tables,
-                ),
-                fastas_named,
-            )
-        fastas: list[Fasta] = [i for i in fastas_called if i is not None]
-        new_config = {
-            "genes_called": {
-                timestamp_id: {
-                    "min_contig_size": min_contig_size,
-                    "prodigal_mode": prodigal_mode,
-                    "prodigal_trans_tables": prodigal_trans_tables,
-                    "annotated": False,
-                    "working_dir": working_dir.relative_to(output_dir).as_posix(),
-                    "fastas": [i.export(output_dir) for i in fastas],
-                }
+    logger.info(f"Started calling genes for {len(fasta_paths)} fasta/s.")
+    fastas_named: list[Fasta] = get_fasta_names_dirs(
+        fasta_paths, working_dir, cores, old_names, logger
+    )
+    with Pool(cores) as p:
+        fastas_called: list[Optional[Fasta]] = p.map(
+            partial(
+                filter_and_call_genes,
+                logger=logger,
+                min_contig_size=min_contig_size,
+                keep_tmp=keep_tmp,
+                prodigal_mode=prodigal_mode,
+                trans_table=prodigal_trans_tables,
+            ),
+            fastas_named,
+        )
+    logger.info("gene calling was a success, updating DRAM loggs")
+    fastas: list[Fasta] = [i for i in fastas_called if i is not None]
+    new_config = {
+        "genes_called": {
+            run_id: {
+                "min_contig_size": min_contig_size,
+                "prodigal_mode": prodigal_mode,
+                "prodigal_trans_tables": prodigal_trans_tables,
+                # "annotated": False, # may use in the future
+                "working_dir": working_dir.relative_to(output_dir).as_posix(),
+                FASTAS_CONF_TAG: [i.name for i in fastas],
             }
-        }
+        },
+        FASTAS_CONF_TAG: [i.export(output_dir) for i in fastas],
+    }
+    if len(fastas) < 1:
+        raise ValueError("No genes found, DRAM2 will not be able to proceed")
+    return new_config
+
+
+@click.command("call")
+@click.argument(
+    "fasta_paths",
+    type=click.Path(exists=True, path_type=Path),
+    nargs=-1,
+)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    help="Remove all called genes and information about them, you will only get the current set of genes from the command",
+)
+@click.option(
+    "--prodigal_mode",
+    default=DEFAULT_PRODIGAL_MODE,
+    type=click.Choice(["train", "meta", "single"], case_sensitive=False),
+    help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
+)
+@click.option(
+    "--genes_dir",
+    default=None,
+    type=click.Path(path_type=Optional[Path]),
+    help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
+)
+@click.option(
+    "--prodigal_trans_tables",
+    type=click.Choice([str(i) for i in range(1, 26)], case_sensitive=False),
+    default=DEFAULT_TRANS_TABLE,
+    help="Mode of prodigal to use for gene calling. NOTE: normal or single mode require genomes which are high quality with low contamination and long contigs (average length >3 Kbp).",
+)
+@click.pass_context
+def call_genes_cmd(
+    ctx,
+    fasta_paths: list[Path],
+    genes_dir: Optional[Path],
+    min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
+    prodigal_mode=DEFAULT_PRODIGAL_MODE,
+    prodigal_trans_tables=DEFAULT_TRANS_TABLE,
+    force: bool = False,
+):
+    """
+    Call Genes and Organize Files
+    _____________________________
+
+    As previously mentoned Prodigal is one of many tools that we use in the DRAM pipline. You will notice that this function not only calls prodigal it also performs a number of checks and organizes the files.  These first steps alow us to be confindent we will not fail down the line.
+
+    comandline expample:
+    '''
+    import os
+    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # pass")
+    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # fail")
+    os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
+    '''
+
+    :param ctx: The context passed from click
+    :param fasta_paths: A list of fasta files probably each representing a BIN from a MAG.
+    :param min_contig_size: The minimum contig size for DRAM to consider calling genes on
+    :param prodigal_mode: Mode of prodigal to use
+    :param prodigal_trans_tables: The number of trans_tables to use for prodigal see the prodigal docs
+    :raises ValueError:
+    """
+    context: DramContext = ctx.obj
+    logger = logging.getLogger("dram2_log")
+    context.setup_logger(logger)
+    output_dir: Path = context.get_output_dir()
+    keep_tmp: bool = context.keep_tmp
+    cores: int = context.cores
+    run_id: str = get_time_stamp_id(GENES_RUN_TAG)
+    if genes_dir is None:
+        genes_dir = output_dir / DEFAULT_GENES_FILE
+    project_config: dict = context.get_project_config()
+    # get assembly locations
+    try:
+        new_config = call_genes(
+            output_dir=output_dir,
+            fasta_paths=fasta_paths,
+            cores=cores,
+            logger=logger,
+            run_id=run_id,
+            working_dir=genes_dir,
+            project_config=project_config,
+            keep_tmp=keep_tmp,
+            min_contig_size=min_contig_size,
+            prodigal_mode=prodigal_mode,
+            prodigal_trans_tables=prodigal_trans_tables,
+            force=force,
+        )
+
         project_config.update(new_config)
-        ctx.obj.set_project_config(project_config)
+        context.set_project_config(project_config)
 
     except Exception as e:
         logger.error(e)
         logger.exception("Fatal error in calling genes")
         raise e
 
-    if len(fastas) < 1:
-        raise ValueError("No genes found, DRAM2 will not be able to proceed")
 
-
-def clean_called_genes(output_dir: Path, project_config: dict):
-    if project_config.get("genes_called") is None:
-        return
-    for j in project_config["genes_called"].values():
-        rmtree(output_dir / Path(j["working_dir"]))
-    del project_config["genes_called"]
+def clean_called_genes(output_dir: Path, project_config: dict, logger: logging.Logger):
+    if (genes_called := project_config.get("genes_called")) is not None:
+        for i in genes_called.values():
+            if (genes_path:= import_posible_path(i["working_dir"], output_dir)) is not None:
+                rmtree(genes_path)
+    del genes_called
 
 
 def filter_fasta(fasta_loc: Path, min_len, output_loc) -> Optional[list]:

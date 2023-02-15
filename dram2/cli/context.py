@@ -27,13 +27,14 @@ config.
 import logging
 import yaml
 from typing import Optional
+from datetime import datetime
 
 from pathlib import Path
 
 from dram2.db_kits.utils import DRAM_DATAFOLDER_TAG, FILE_LOCATION_TAG
 
 PROJECT_CONFIG_YAML_NAME = "project_config.yaml"
-USER_CONFIG = Path.home() / "dram_config.yaml"
+USER_CONFIG = Path.home() /  ".config" / "dram_config.yaml"
 GLOBAL_CONFIG = Path("/etc") / "dram_config.yaml"
 DEFAULT_KEEP_TMP = False
 
@@ -68,6 +69,11 @@ def get_new_config_path(
     else:
         return USER_CONFIG
 
+def get_time_stamp_id(prefix:Optional[str]) -> str:
+    timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
+    if prefix is None:
+        return timestamp_id
+    return f"{prefix}_{timestamp_id}"
 
 class DramContext(object):
 
@@ -77,19 +83,18 @@ class DramContext(object):
     def __init__(
         self,
         cores: int,
-        db_path: Path,
-        config_file: Path,
-        log_file_path: Path,
-        output_dir: Path,
-        # force: bool,
+        db_path: Optional[Path],
+        config_file: Optional[Path],
+        log_file_path: Optional[Path],
+        output_dir: Optional[Path],
         keep_tmp: bool,
-        verbose,
+        verbose=int,
     ):
-        self.cores: int = cores
-        self.db_path: Path = db_path
-        self.custom_config_file: Path = config_file
-        self.log_file_path: Path = log_file_path
-        self.output_dir: Path = output_dir
+        self.cores = cores
+        self.db_path = db_path
+        self.custom_config_file = config_file
+        self.log_file_path = log_file_path
+        self.output_dir = output_dir
         # self.force: bool = force
         self.verbose = verbose
         self.keep_tmp: bool = keep_tmp
@@ -97,11 +102,15 @@ class DramContext(object):
         # Make a working_dir that may be deleted
         # self.working_dir.mkdir(exist_ok=True)
 
-    def get_working_dir(self):
-        output_dir = self.get_output_dir()
-        self.working_dir = output_dir / "working_dir"
-        self.working_dir.mkdir(exist_ok=True)
-        return self.working_dir
+    # def get_working_dir(self, Optional[prefix] = None):
+    #     output_dir = self.get_output_dir()
+    #     if prefix is None:
+    #         self.working_dir = output_dir / "working_dir"
+    #     else:
+    #         timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
+    #         self.working_dir = output_dir / f"prefix_{timestamp_id}"
+    #     self.working_dir.mkdir(exist_ok=True)
+    #     return self.working_dir
 
     def get_output_dir(self) -> Path:
         if self.output_dir is None:
@@ -135,16 +144,74 @@ class DramContext(object):
             with open(project_config_path, "w") as pcf:
                 yaml.safe_dump(self.project_config, pcf)
 
-    def get_logger(self):
-        logger = logging.getLogger("dram2_log")
-        output_dir = self.get_output_dir()
-        if self.log_file_path is None:
-            log_file_path = output_dir / "dram2.log"
-        # setup_logger(logger, self.log_file_path)
-        logger.info(f"The log file is created at {self.log_file_path}")
-        return logger
+    def setup_logger(self, logger):
+        """
+        Setup the Logger
+        ________________
 
-    def get_dram_config(self) -> dict:
+        Logging with a dedicated logger is the best way to log in
+        python and that is how we do it. Here we setup that logger
+        and provide it with the necciary context such as the output
+        file, format, and the level of verbosity aka level.
+
+        This is all basicaly pulled strate from the docs.
+        
+        this consumes log_file_path, and verbosity it returns a fully
+        formed logger.
+
+        This function coverts the verbosity integer to the log level the maping is:
+
+            0 = CRITICAL 
+            1 = ERROR 
+            2 = WARNING 
+            3 = INFO 
+            4 = DEBUG 
+            5 >= NOTSET 
+        Note that 5 is the max, logg levels past 5 will get the same result as 5
+
+        Docs: https://docs.python.org/3/library/logging.html
+        
+        """
+
+        # conver verbosity to log levels
+        match self.verbose:
+            case 0:
+                level = logging.CRITICAL # numaric level = 50
+            case 1:
+                level = logging.ERROR # numaric level = 40
+            case 2:
+                level = logging.WARNING # numaric level = 30
+            case 3:
+                level = logging.INFO # numaric level = 20
+            case 4:
+                level = logging.DEBUG # numaric level = 10
+            case 5:
+                level = logging.NOTSET # numaric level = 0
+            case _:
+                level = logging.NOTSET # numaric level = 0
+
+        if self.log_file_path is None:
+            output_dir = self.get_output_dir()
+            log_file_path = output_dir / "dram2.log"
+        else:
+            log_file_path = self.log_file_path
+        formatter = logging.Formatter("%(asctime)s - %(message)s")
+        # create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
+        # create formatter and add it to the handlers
+        ch.setFormatter(formatter)
+        fh = logging.FileHandler(log_file_path)
+        # level less sevire than this level will be ingnored
+        fh.setLevel(level)
+        fh.setFormatter(formatter)
+        # add the handlers to the logger
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+        logger.setLevel(level)
+        logger.info(f"The log file is created at {log_file_path}")
+
+    def get_dram_config(self, logger) -> dict:
         """
         Load the DRAM config file and find the DRAM data folder. Note that this
         dose not fail if there is no data folder specified. It dose not
@@ -159,7 +226,6 @@ class DramContext(object):
             config = yaml.safe_load(conf)
         data_folder = config.get(DRAM_DATAFOLDER_TAG)
         if data_folder is None:
-            logger = self.get_logger()
             logger.warn(
                 "The config passed to DRAM dose not contain the key"
                 f" {DRAM_DATAFOLDER_TAG}. That key would point "

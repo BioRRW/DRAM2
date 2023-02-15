@@ -21,10 +21,10 @@ from typing import Optional
 
 from pathlib import Path
 
-from dram2.utils.context import DramContext, DEFAULT_KEEP_TMP
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, get_time_stamp_id
 
-from dram2.annotate import annotate_wraper, list_databases
-from dram2.call_genes import call_genes
+from dram2.annotate import annotate_cmd, list_databases
+from dram2.call_genes import call_genes_cmd
 from dram2.rule_adjectives import evaluate, rule_plot
 from dram2.tree_kit import phylo_tree
 from dram2.distill import distill
@@ -36,6 +36,8 @@ from dram2.db_builder import db_builder
 from dram2.amg_summary import amg_summary
 
 from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
+
+from datetime import datetime
 
 
 @click.group(
@@ -57,7 +59,6 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
         "documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com"
     ),
 )
-@click.option("--verbose/--quiet", default=False)
 @click.option(
     "-d",
     "--db_path",
@@ -76,14 +77,6 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
     type=click.Path(path_type=Path),
     help="Point to a config file that you would like to use.",
 )
-# @click.option(
-#     "-f",
-#     "--force",
-#     is_flag=True,
-#     show_default=True,
-#     default=DEFAULT_FORCE,
-#     help="Don't place just the ambiguous genes, place all of them",
-# )
 @click.option(
     "--keep_tmp",
     is_flag=True,
@@ -93,6 +86,18 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 )
 @click.option(
     "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory"
+)
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    default=3,
+    help=(
+        "Verbosity of the logging output, the number of 'v's maps to the default"
+        " logging level of pythons logging modual. the default is -vvv. The "
+        "mapping is 0 = CRITICAL ,-v = ERROR, -vv = WARNING, -vvv = INFO, "
+        "-vvvv = DEBUG, -vvvvv... = NOTSET "
+    ),
 )
 @click.option("-c", "--cores", type=int, default=10, help="number of processors to use")
 @click.pass_context
@@ -113,7 +118,6 @@ def dram2(
         config_file=config_file,
         log_file_path=log_file_path,
         output_dir=output_dir,
-        # force=force,
         verbose=verbose,
         keep_tmp=keep_tmp,
     )
@@ -124,8 +128,8 @@ def dram2_logged_entry():
     pass
 
 
-dram2.add_command(call_genes)
-dram2.add_command(annotate_wraper)
+dram2.add_command(call_genes_cmd)
+dram2.add_command(annotate_cmd)
 dram2.add_command(list_databases)
 dram2.add_command(evaluate)
 dram2.add_command(rule_plot)

@@ -3,15 +3,16 @@ import tarfile
 from shutil import move, rmtree
 from dram2.db_kits.utils import (
     do_blast_style_search,
-    get_basic_description,
+    get_basic_descriptions,
     make_mmseqs_db,
-    DBKit
+    DBKit,
+    multigrep,
 )
+from dram2.utils.utils import Fasta
 from functools import partial
 import logging
 import pandas as pd
 
-# get_basic_description('/home/projects-wrighton-2/DRAM/scratch_space_flynn/aug_9_methyl/test_output/dram2/final/working_dir/genes/gene_methyl.minbitscore60.tophit.swapped.mmsdb', db_name='methyl')
 VERSION = "0.1.0"
 NAME = "methyl"
 NAME_FORMAL = "Methyl"
@@ -68,35 +69,37 @@ def search(
     **args,
 ):
     logger.info(f"Annotating genes with {NAME_FORMAL}.")
-    get_custom_description = partial(get_basic_description, db_name=NAME)
-    hits = do_blast_style_search(
-        query_db,
-        db_handler.config["search_databases"]["methyl_fa_db"]["location"],
-        tmp_dir,
-        db_handler,
-        get_custom_description,
-        logger,
-        NAME,
-        bit_score_threshold,
-        rbh_bit_score_threshold,
-        threads,
-        verbose,
-    )
-    return hits
 
-class methyl_kit(DBKit):
+
+class MethylKit(DBKit):
     name = NAME
     formal_name = NAME_FORMAL
     citation: str = CITATION
 
-    def check_setup(self):
+    def setup(self):
+        # somthing like
+        # make_mmseqs_db("/home/Database/DRAM/methyl/methylotrophy.faa", "/home/Database/DRAM/methyl/methylotrophy.mmsdb", logging.getLogger())
         pass
 
-    def search(self):
-        pass
+    def load_dram_config(self):
+        self.mmsdb = self.get_config_path("mmsdb")
 
-    def get_descriptions(self):
-        pass
+    def search(self, fasta: Fasta):
+        get_custom_description = partial(get_basic_descriptions, db_name=NAME)
+        hits = do_blast_style_search(
+            fasta.mmsdb.as_posix(),
+            self.mmsdb.as_posix(),
+            self.working_dir,
+            self.logger,
+            self.name,
+            self.bit_score_threshold,
+            self.rbh_bit_score_threshold,
+            self.threads,
+        )
+        return hits
+
+    def get_descriptions(self, hits):
+        return hits
 
     @classmethod
     def get_ids(cls, annotatons):

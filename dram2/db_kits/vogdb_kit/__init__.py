@@ -10,9 +10,8 @@ from dram2.db_kits.utils import (
     BOUTFMT6_COLUMNS,
     DBKit,
     get_sig_row,
-    Fasta,
 )
-
+from dram2.utils.utils import Fasta
 from pathlib import Path
 from functools import partial
 import logging
@@ -76,19 +75,42 @@ def vogdb_hmmscan_formater(hits: pd.DataFrame, db_name: str, db_handler=None):
     return hits_df
 
 
-class VogDB(DBKit):
+class VogDBKit(DBKit):
     name = "vogdb"
     formal_name: str = "VogDB"
     citation: str = VOGDB_CITATION
 
-    def check_setup(self):
+    def setup(self):
         pass
 
-    def search(self):
-        pass
 
-    def get_descriptions(self):
-        pass
+    def load_dram_config(self):
+        self.hmm = self.get_config_path("hmmdb")
+        self.description_db = SQLDescriptions(
+            self.get_config_path("description_db"),
+            self.logger,
+            VOGDBDescription,
+            self.name,
+        )
+
+    def search(self, fasta: Fasta)-> pd.DataFrame| pd.Series:
+        run_hmmscan(
+            genes_faa=fasta.faa.as_posix(),
+            db_loc=self.hmm.as_posix(),
+            db_name=self.name,
+            threads=self.threads,
+            output_loc=self.working_dir.as_posix(),
+            formater=partial(
+                vogdb_hmmscan_formater,
+                db_name=self.name,
+                db_handler=self.description_db,
+            ),
+            logger=self.logger,
+        )
+
+    def get_descriptions(self, hits):
+        "fix"
+        return hits
 
     @classmethod
     def get_ids(cls, annotatons):

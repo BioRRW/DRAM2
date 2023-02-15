@@ -1,6 +1,6 @@
 import re
 from dram2.db_kits.utils import do_blast_style_search, DBKit
-from functools import partial
+from dram2.utils.utils import Fasta
 import logging
 import pandas as pd
 
@@ -14,8 +14,9 @@ CITATION = (
 from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
+
 class KeggDescription(BASE):
-    __tablename__ = 'kegg_description'
+    __tablename__ = "kegg_description"
 
     id = Column(String(20), primary_key=True, nullable=False, index=True)
 
@@ -24,95 +25,68 @@ class KeggDescription(BASE):
     @property
     def serialize(self):
         return {
-            'kegg_id': self.id,
-            'kegg_description': self.description,
+            "kegg_id": self.id,
+            "kegg_description": self.description,
         }
 
 
-
-def get_kegg_description(kegg_hits, header_dict):
-    """Gets the KEGG IDs, and full KEGG hits from list of KEGG IDs for output in annotations"""
-    gene_description = list()
-    ko_list = list()
-    for kegg_hit in kegg_hits.kegg_hit:
-        header = header_dict[kegg_hit]
-        gene_description.append(header)
-        kos = re.findall(r"(K\d\d\d\d\d)", header)
-        if len(kos) == 0:
-            ko_list.append("")
-        else:
-            ko_list.append(",".join(kos))
-    # TODO: change kegg_id to kegg_genes_id so that people get an error and not the wrong identifier
-    new_df = pd.DataFrame(
-        [kegg_hits["kegg_hit"].values, ko_list, gene_description],
-        index=["kegg_genes_id", "ko_id", "kegg_hit"],
-        columns=kegg_hits.index,
-    )
-    return pd.concat(
-        [new_df.transpose(), kegg_hits.drop("kegg_hit", axis=1)], axis=1, sort=False
-    )
-
-
-SETTINGS = {
-    "search_databases": {
-        "kegg": {
-            "location": None,
-            "name": "KEGG db",
-            "description_db_updated": "Unknown, or Never",
-            "citation": "Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M., and Tanabe, M.; KEGG: integrating viruses and cellular organisms. Nucleic Acids Res. 49, D545-D551 (2021).",
-        }
-    }
-}
-
-
-class keggKit(DBKit):
+class KeggKit(DBKit):
 
     name = "kegg"
-    formal_name = "Kegg"
+    name_formal = "KEGG"
     citation: str = CITATION
 
-    def __init__(self, args, settings):
-        pass
-        # DBKit.__init__(
-        #     self,
-        #     self.name,
-        #     "KEGG",
-        #     "Copy this from dram public",
-        #     "",
-        # )
-
-    def search( self,):
-        pass
-        # logger.info(f"Annotating genes with {self.name_formal}.")
-        # query_db: str,
-        # gene_faa: str,
-        # tmp_dir: str,
-        # logger: logging.Logger,
-        # threads: str,
-        # verbose: str,
-        # db_handler,
-        # bit_score_threshold,
-        # rbh_bit_score_threshold,
-        # **args,
-        # hits = do_blast_style_search(
-        #     query_db,
-        #     db_handler.config["search_databases"]["kegg"]["location"],
-        #     tmp_dir,
-        #     db_handler,
-        #     get_kegg_description,
-        #     logger,
-        #     "kegg",
-        #     bit_score_threshold,
-        #     rbh_bit_score_threshold,
-        #     threads,
-        # )
-        # return hits
-    def check_setup(self):
+    def setup(self):
         pass
 
 
-    def get_descriptions(self):
-        pass
+    def search(self, fasta: Fasta):
+        return do_blast_style_search(
+            fasta.mmsdb,
+            self.mmsdb,
+            self.working_dir,
+            self.logger,
+            self.name,
+            self.bit_score_threshold,
+            self.rbh_bit_score_threshold,
+            self.threads,
+        )
+
+    def load_dram_config(self):
+        self.mmsdb = self.get_config_path("mmsdb")
+        self.description_db = SQLDescriptions(
+            self.get_config_path("description_db"),
+            self.logger,
+            KeggDescription,
+            self.name,
+        )
+
+    def get_descriptions(self, hits):
+        """
+        Gets the KEGG IDs, and full KEGG hits from list of KEGG IDs for output in annotations.
+        """
+        header_dict = self.description_db.get_descriptions(
+            hits["%s_hit" % self.name], "%s_description" % self.name
+        )
+        gene_description = list()
+        ko_list = list()
+        for kegg_hit in hits.kegg_hit:
+            header = header_dict[kegg_hit]
+            gene_description.append(header)
+            kos = re.findall(r"(K\d\d\d\d\d)", header)
+            if len(kos) == 0:
+                ko_list.append("")
+            else:
+                ko_list.append(",".join(kos))
+        # TODO: change kegg_id to kegg_genes_id so that people get an error and not the wrong identifier
+        new_df = pd.DataFrame(
+            [hits["kegg_hit"].values, ko_list, gene_description],
+            index=["kegg_genes_id", "ko_id", "kegg_hit"],
+            columns=hits.index,
+        )
+        return pd.concat(
+            [new_df.transpose(), hits.drop("kegg_hit", axis=1)], axis=1, sort=False
+        )
 
     @classmethod
     def get_ids(cls, annotatons):

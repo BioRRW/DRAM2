@@ -261,16 +261,19 @@ def test_FastaKit(phix_proteins, tmpdir, logger, dbargs_dict, tmp_fasta):
         out_received.drop("phix_eVal", axis=1)
     )
 
+@pytest.fixture()
+def tmp_camper_fasta(logger, tmp_path) -> Fasta:
+    input_faa = Path("tests", "data", "camper_test_genes.faa")
+    fasta = Fasta("test", None, Path(tmp_path), input_faa, None, None, None)
+    return make_mmseqs_db_for_fasta(fasta, logger, 1)
 
 def test_HmmKit(
-    tmpdir,
-    logger,
-    tmp_fasta,
+    tmp_camper_fasta,
     dbargs_dict,
 ):
     assert tmp_fasta.mmsdb.exists()
     hmmdb = HmmKit(
-        "camper_hmm",
+        "phix",
         Path("tests", "data", "camper_small.hmm"),
         Path("tests", "data", "camper_small_hmm_cutoffs.tsv"),
         {},
@@ -279,10 +282,10 @@ def test_HmmKit(
     out_received = hmmdb.search(tmp_fasta)
     expected_out = pd.DataFrame()
     # Must drop the evalue or round it but I am lazy and it is close
-    breakpoint()
-    expected_out.drop("phix_eVal", axis=1).equals(
-        out_received.drop("phix_eVal", axis=1)
-    )
+    # expected_out.drop("phix_eVal", axis=1).equals(
+    #     out_received.drop("phix_eVal", axis=1)
+    # )
+    # expected_out.equals( out_received.drop("phix_eVal", axis=1)
 
 
 def test_path_to_gene_fastas(faa_loc, tmp_path):

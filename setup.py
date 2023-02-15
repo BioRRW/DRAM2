@@ -20,7 +20,6 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",  # Optional (see note above)
     package_data={
-        "dram2.utils": ["CONFIG"],
         "dram2.rule_adjectives": ["rules.tsv"],
         "dram2.tree_kit": ["data", "dram_trees"],
     },
@@ -40,7 +39,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "dram2 = dram2.utils.command_line:dram2",
+            "dram2 = dram2.cli:dram2",
             # 'adj = dram2.rule_adjectives:evaluate',
             # 'tree = dram2.tree_kit.dram_phylo_pipe:tree_kit',
         ],

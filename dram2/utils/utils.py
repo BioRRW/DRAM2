@@ -1,40 +1,36 @@
 """General utilitys, avalible to all dram2 tools"""
-import re
 import subprocess
-from os import path, stat
+from dataclasses import dataclass
 from urllib.request import urlopen, urlretrieve
 from urllib.error import HTTPError
 import pandas as pd
 import logging
-from typing import Callable
-from os import path, getenv
-from typing import NamedTuple
+# from os import getenv
+from typing import Optional
 from pathlib import Path
-
-
-import json
+# import json
 
 
 
-def load_config(alt_location:Path, logger: logging.Logger):
-    """If all_loc is none the """
-    if alt_location is not None:
-        location = alt_location
-    elif (envioment_location := Path(getenv('DRAM_CONFIG_LOCATION'))) is not None:
-        location = envioment_location
-    elif (user_location := (Path.home() / '.config' / 'dram2bio'/ 'config')).exists():
-        location = user_location
-    elif (global_location := Path("/etc", "dram2bio", "config")).exists():
-        location = global_location
-    else:
-        logger.info(f"No config found any config that is created will go to {user_location}")
-        config = {}
-        config['config_location'] = user_location
-        return config
-    logger.info(f"Loading config from: {location}")
-    config = json.loads(open(location).read())
-    config['config_location'] = location
-    return config
+# def load_config(alt_location:Path, logger: logging.Logger):
+#     """If all_loc is none the """
+#     if alt_location is not None:
+#         location = alt_location
+#     elif (envioment_location := Path(getenv('DRAM_CONFIG_LOCATION'))) is not None:
+#         location = envioment_location
+#     elif (user_location := (Path.home() / '.config' / 'dram2bio'/ 'config')).exists():
+#         location = user_location
+#     elif (global_location := Path("/etc", "dram2bio", "config")).exists():
+#         location = global_location
+#     else:
+#         logger.info(f"No config found any config that is created will go to {user_location}")
+#         config = {}
+#         config['config_location'] = user_location
+#         return config
+#     logger.info(f"Loading config from: {location}")
+#     config = json.loads(open(location).read())
+#     config['config_location'] = location
+#     return config
 
 
 
@@ -51,26 +47,9 @@ def download_file(url, logger, output_file=None, verbose=True):
             raise error
 
 
-def setup_logger(logger, *log_file_paths, level=logging.INFO):
-    logger.setLevel(level)
-    formatter = logging.Formatter("%(asctime)s - %(message)s")
-    # create console handler
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    # create formatter and add it to the handlers
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    for log_file_path in log_file_paths:
-        fh = logging.FileHandler(log_file_path)
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(formatter)
-        # add the handlers to the logger
-        logger.addHandler(fh)
-
-
 def get_ids_from_annotations_by_row(data, logger):
-    functions = {i: j for i, j in ID_FUNCTION_DICT.items() if i in data.columns}
-    missing = [i for i in ID_FUNCTION_DICT if i not in data.columns]
+    # functions = {i: j for i, j in ID_FUNCTION_DICT.items() if i in data.columns}
+    # missing = [i for i in ID_FUNCTION_DICT if i not in data.columns]
     logger.info(
         "Note: the fallowing id fields "
         f"were not in the annotations file and are not being used: {missing},"
@@ -94,6 +73,72 @@ def get_ids_from_annotations_all(data, logger):
     data.apply(list)
     out = Counter(chain(*data.values))
     return out
+
+def export_posible_path(
+    path: Optional[Path], relative_path: Optional[Path] = None
+) -> Optional[str]:
+    if path is None:
+        return None
+    out_path = path.absolute()
+    if relative_path is not None and relative_path in out_path.parents:
+        out_path = out_path.relative_to(relative_path)
+    return out_path.as_posix()
+
+
+@dataclass
+class Fasta:
+    name: Optional[str]
+    origin: Optional[Path]
+    tmp_dir: Optional[Path]
+    faa: Optional[Path]
+    fna: Optional[Path]
+    gff: Optional[Path]
+    mmsdb: Optional[Path]
+
+    def export(self, output_dir):
+        return (
+            self.name,
+            export_posible_path(self.origin),
+            export_posible_path(self.tmp_dir, output_dir),
+            export_posible_path(self.faa, output_dir),
+            export_posible_path(self.fna, output_dir),
+            export_posible_path(self.gff, output_dir),
+            export_posible_path(self.mmsdb, output_dir),
+        )
+
+    @classmethod
+    def import_strings(
+        cls,
+        relative_path: Path,
+        name: str,
+        origin: str,
+        tmp_dir: str,
+        faa: str,
+        fna: str,
+        gff: str,
+        mmsdb: str,
+    ):
+        ob = cls(
+            name,
+            import_posible_path(origin),
+            import_posible_path(tmp_dir, relative_path),
+            import_posible_path(faa, relative_path),
+            import_posible_path(fna, relative_path),
+            import_posible_path(gff, relative_path),
+            import_posible_path(mmsdb, relative_path),
+        )
+        return ob
+
+def import_posible_path(
+    path: Optional[str], relative_path: Optional[Path] = None
+) -> Optional[Path]:
+    if path is None:
+        return None
+    out_path = Path(path)
+    if relative_path is None:
+        return out_path.absolute()
+    return (relative_path / out_path).absolute()
+
 
 
 def run_process(

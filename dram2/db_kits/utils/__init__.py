@@ -1,18 +1,15 @@
 "General utils for database objects including the template class"
-import re
-from typing import NamedTuple
 from abc import ABC, abstractmethod
 from os import path, stat
 from typing import Callable, Union
 from typing import Optional
 from functools import partial
 from pathlib import Path
-from dataclasses import dataclass
 import logging
 
 import pandas as pd
 
-from dram2.utils.utils import run_process
+from dram2.utils.utils import run_process, Fasta
 
 HMMSCAN_ALL_COLUMNS = [
     "query_id",
@@ -83,73 +80,9 @@ BOUTFMT6_COLUMNS = [
 FILE_LOCATION_TAG = "location"
 DRAM_DATAFOLDER_TAG = "dram_data_folder"
 DBKIT_TAG = "db_kits"
-
-
-def export_posible_path(
-    path: Optional[Path], relative_path: Optional[Path] = None
-) -> Optional[str]:
-    if path is None:
-        return None
-    out_path = path.absolute()
-    if relative_path is not None and relative_path in out_path.parents:
-        out_path = out_path.relative_to(relative_path)
-    return out_path.as_posix()
-
-
-def import_posible_path(
-    path: Optional[str], relative_path: Optional[Path] = None
-) -> Optional[Path]:
-    if path is None:
-        return None
-    out_path = Path(path)
-    if relative_path is None:
-        return out_path.absolute()
-    return (relative_path / out_path).absolute()
-
-
-@dataclass
-class Fasta:
-    name: Optional[str]
-    origin: Optional[Path]
-    tmp_dir: Optional[Path]
-    faa: Optional[Path]
-    fna: Optional[Path]
-    gff: Optional[Path]
-    mmsdb: Optional[Path]
-
-    def export(self, output_dir):
-        return (
-            self.name,
-            export_posible_path(self.origin),
-            export_posible_path(self.tmp_dir, output_dir),
-            export_posible_path(self.faa, output_dir),
-            export_posible_path(self.fna, output_dir),
-            export_posible_path(self.gff, output_dir),
-            export_posible_path(self.mmsdb, output_dir),
-        )
-
-    @classmethod
-    def import_strings(
-        cls,
-        relative_path: Path,
-        name: str,
-        origin: str,
-        tmp_dir: str,
-        faa: str,
-        fna: str,
-        gff: str,
-        mmsdb: str,
-    ):
-        ob = cls(
-            name,
-            import_posible_path(origin),
-            import_posible_path(tmp_dir, relative_path),
-            import_posible_path(faa, relative_path),
-            import_posible_path(fna, relative_path),
-            import_posible_path(gff, relative_path),
-            import_posible_path(mmsdb, relative_path),
-        )
-        return ob
+SETUP_NOTES_TAG = "setup_notes"
+CUSTOM_FASTA_DB_TYPE = "custom_fasta"
+CUSTOM_HMM_DB_TYPE = "custom_HMM"
 
 
 def run_mmseqs_profile_search(
@@ -160,7 +93,7 @@ def run_mmseqs_profile_search(
     output_prefix="mmpro_results",
     db_handler=None,
     threads=10,
-):
+) -> pd.DataFrame:
     """Use mmseqs to run a search against pfam, currently keeping all hits and not doing any extra filtering"""
     tmp_dir = path.join(output_loc, "tmp")
     output_db = path.join(output_loc, "%s.mmsdb" % output_prefix)
@@ -548,7 +481,7 @@ def process_custom_hmm_db_cutoffs(
     return {custom_hmm_db_name[i]: j for i, j in enumerate(custom_hmm_db_cutoffs_loc)}
 
 
-def get_basic_description(hits, header_dict, db_name):
+def get_basic_descriptions(hits, header_dict, db_name):
     """Get viral gene full descriptions based on headers (text before first space)"""
     hit_list = list()
     description = list()
@@ -580,22 +513,31 @@ def get_sig_row(row, evalue_lim: float = 1e-15):
 
 # TODO decide if we need use_hmmer_thresholds:bool=False
 def generic_hmmscan_formater(
-    hits: pd.DataFrame, db_name: str, hmm_info_path: Path = None, top_hit: bool = True
+    hits: pd.DataFrame,
+    db_name: str,
+    hmm_info_path: Optional[Path] = None,
+    top_hit: bool = True,
 ):
     if hmm_info_path is None:
         hmm_info = None
-        hits_sig = hits[hits.apply(get_sig_row, axis=1)]
+        hits_sig: pd.DataFrame = hits[hits.apply(get_sig_row, axis=1)]
     else:
         hmm_info = pd.read_csv(hmm_info_path, sep="\t", index_col=0)
-        hits_sig = sig_scores(hits, hmm_info)
+        hits_sig: pd.DataFrame = sig_scores(hits, hmm_info)
     if len(hits_sig) == 0:
         # if nothing significant then return nothing, don't get descriptions
         return pd.DataFrame()
     if top_hit:
         # Get the best hits
-        hits_sig = hits_sig.sort_values("full_evalue").drop_duplicates(
+        hits_no_dup = hits_sig.sort_values("full_evalue").drop_duplicates(
             subset=["query_id"]
         )
+        if hits_no_dup is None:
+            raise ValueError(
+                "This error would occurs if removing duplicates caused a None value to be returned. This should be impossible."
+            )
+        hits_sig = hits_no_dup
+
     hits_df = hits_sig[["target_id", "query_id"]]
     hits_df.set_index("query_id", inplace=True, drop=True)
     hits_df.rename_axis(None, inplace=True)
@@ -643,6 +585,7 @@ class DBKit(ABC):
     # this name will apear in lists as the
     name: str = ""
     formal_name: str = ""
+    search_type: str = "unknown"
     logger: logging.Logger
     working_dir: Path
     bit_score_threshold: int
@@ -657,6 +600,14 @@ class DBKit(ABC):
     selectable: bool = True
     dram_db_loc: Path
     run_set_up = False  # impliment later the ability to setup on the fly
+    keep_tmp: bool = False
+
+    # For updating a counter
+    fastas_to_annotate: int = 0
+    fastas_annotated: int = 0
+    show_percent_of_fastas_done: bool = True
+    step_percent_of_fastas_done: int = 10  # no fractions
+    percent_of_fastas_done: int = 0  # no fractions
 
     def set_universals(
         self, name: str, formal_name: str, config: dict, citation: str, db_version: str
@@ -694,6 +645,32 @@ class DBKit(ABC):
     def download(cls):
         pass
 
+    def start_counter(self, fastas_to_annotate: int):
+        self.fastas_to_annotate = fastas_to_annotate
+        if self.fastas_to_annotate < 10:
+            self.show_percent_of_fastas_done = False
+
+    def check_counter_after_annotation(self):
+        if self.fastas_to_annotate == 0:
+            self.logger.warning(f"Fasta counter not setup {self.formal_name}.")
+            return
+        if self.fastas_annotated == 0:
+            self.logger.info(f"Started annotating gene FASTAs with {self.formal_name}.")
+        self.fastas_annotated += 1
+        if self.fastas_annotated == self.fastas_to_annotate:
+            self.logger.info(
+                f"Finished annotating gene FASTAs with {self.formal_name}."
+            )
+        if self.show_percent_of_fastas_done and (
+            (self.fastas_to_annotate // self.fastas_annotated) * 100
+        ) >= (
+            self.step_percent_of_fastas_done + self.percent_of_fastas_done
+        ):
+            self.percent_of_fastas_done += self.step_percent_of_fastas_done
+            self.logger.info(
+                f"Still annotating gene FASTAs with {self.formal_name}, {self.percent_of_fastas_done}% done."
+            )
+
     def get_config_path(self, required_file: str) -> Path:
         """
         Paths in the config can be complicated. here is a funcion that will get
@@ -705,7 +682,10 @@ class DBKit(ABC):
 
 
         """
-        if ( self.config.get(required_file) is None or self.config[required_file].get(FILE_LOCATION_TAG) is None):
+        if (
+            self.config.get(required_file) is None
+            or self.config[required_file].get(FILE_LOCATION_TAG) is None
+        ):
             if not self.run_set_up:
                 raise ValueError(
                     f"The path for {required_file} is required by"
@@ -759,6 +739,12 @@ class DBKit(ABC):
     def setup(self):
         pass
 
+    def get_setup_notes(self) -> dict:
+        notes = self.config.get(SETUP_NOTES_TAG)
+        if notes is None:
+            return {}
+        return notes
+
     def set_args(
         self,
         logger: logging.Logger,
@@ -771,6 +757,7 @@ class DBKit(ABC):
         force: bool,
         extra: dict,
         db_path: Path,
+        keep_tmp: bool,
         # "fasta_paths": gene_fasta_paths,
     ):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
@@ -783,6 +770,7 @@ class DBKit(ABC):
         self.force: bool = force
         self.extra: dict = extra
         self.db_path = self.setup_db_path(db_path)
+        self.keep_tmp: bool = keep_tmp
 
     @staticmethod
     def setup_db_path(db_path: Path):
@@ -813,13 +801,53 @@ class DBKit(ABC):
     @abstractmethod
     def load_dram_config(self):
         """
-         This will be used to check if the database is setup and load vaiables
-         or file path from the dram config. Unless you
+        Geting Values out of the dram config
+        ____________________________________
+
+        This will be used to check if the database is setup and load vaiables
+        or file path from the dram config. Unless you
         overwrite the constructor this functon will be called during
         annotation after the values have been stored. So you can use this to
         check user arguments even read in cusom arguments.
         """
         pass
+
+    def get_settings(self) -> dict:
+        """
+        Documenting What DRAM does
+        __________________________
+
+        We must be able to document what dram does! This is obvious but in the case
+        of these many database it is more dificult. We could put all the passed args
+        in the log or config but as this program gets more and more complicated so
+        will that process and just becouse bit_score_threshold is set by the user
+        that unfortunatly dose not mean that the databases will all use it or use it
+        in the same whay.
+
+        The best solution is to have each dbkit return the values of the vairiable it uses,
+        and this is the method to make that happen. It is up to the maker of the database to
+        return all setings that could efect the restult of the run. tools down the line may
+        make use of this information to validate themselves.
+
+        This should honestly be easy to do if the rest of the dbkit is setup corectly.
+
+        1. Report the values from any globaly set paramiters. Or values set in the clase preamble.
+        2. Report the relivant values in the config files notes section for the db. The setup
+        of the database alows the developers of dram or the users to add notes about the databases
+        such as versions, upload dates, changes, and such. It is good to save these so they can go
+        into the project config and be saved for postarity.
+
+
+        There is no need to report the values from the dram_context, those will be reported in
+        annotatons.
+        """
+        return {
+            self.name: {
+                "db_type": "built_in",
+                "search_type": self.search_type,
+                SETUP_NOTES_TAG: self.get_setup_notes(),
+            }
+        }
 
     @abstractmethod
     def search(self):
@@ -880,14 +908,25 @@ class FastaKit(DBKit):
 
     def get_descriptions(self, annotatons):
         header_dict = multigrep(
-            hits[f"{self.db_name}_hit"],
-            f"{self.target_db}_h",
+            hits[f"{self.name}_hit"],
+            f"{self.mmsdb_target}_h",
             self.logger,
             "\x00",
             self.working_dir,
         )
-        hits = get_basic_description(annotatons, header_dict, self.name)
+        hits = get_basic_descriptions(annotatons, header_dict, self.name)
         return hits
+
+    def get_settings(self) -> dict:
+        return {
+            self.name: {
+                "db_type": CUSTOM_FASTA_DB_TYPE,
+                "input_fasta": self.fasta_loc.absolute().as_posix(),
+                "search_type": "blast_style",
+                "bit_score": self.bit_score_threshold,
+                "bit_score": self.rbh_bit_score_threshold,
+            }
+        }
 
     @classmethod
     def get_ids(cls, annotatons, name):
@@ -941,6 +980,15 @@ class HmmKit(DBKit):
 
     def get_descriptions(self):
         pass
+
+    def get_settings(self) -> dict:
+        return {
+            self.name: {
+                "db_type": CUSTOM_HMM_DB_TYPE,
+                "input_hmm": self.hmm_loc.absolute().as_posix(),
+                "search_type": "hmm_style",
+            }
+        }
 
     @classmethod
     def get_ids(cls, annotatons, name):

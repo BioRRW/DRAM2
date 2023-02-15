@@ -21,7 +21,7 @@ import pandas as pd
 from tempfile import TemporaryDirectory
 from dram2.tree_kit import __version__
 from dram2.tree_kit.pplacer import DramTree
-from dram2.utils.utils import run_process, setup_logger
+from dram2.utils.utils import run_process
 from dram2.distill.summarize_genomes import get_ids_from_annotations_by_row
 from skbio import write as write_sq
 from skbio import read as read_sq
@@ -62,20 +62,21 @@ UNPLACE_PREFIX: str = "Can't be placed:"
 
 
 def tree_kit(
-    dram_annotations: str = str(None),
-    gene_fasta: str = str(None),
-    dram_directory: str = str(None),
+    dram_annotations,
+    gene_fasta: str,
+    dram_directory: str,
+    logger: logging.Logger,
     output_dir: str = "./",
     annotate_all: bool = False,
     keep_temp: bool = False,
     cores: int = 10,
-    logg_path: str = "phylo_tree.log",
+    # logg_path: str = "phylo_tree.log",
     force: bool = False,
     max_len_to_label: float = MAX_LEN_TO_LABEL_DFLT,
     min_dif_len_ratio: float = MIN_DIF_LEN_RATIO_DFLT,
 ):
-    logger = logging.getLogger("dram_tree_log")
-    setup_logger(logger, logg_path)
+    # logger = logging.getLogger("dram_tree_log")
+    # eetup_logger(logger, logg_path)
     tree = NXR_NAR_TREE
     output_dir = os.path.abspath(output_dir)
     if not os.path.exists(output_dir):

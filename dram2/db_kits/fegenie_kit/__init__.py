@@ -8,6 +8,7 @@ from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
 from dram2.db_kits.utils import make_mmseqs_db, run_hmmscan, get_sig_row, DBKit
+from dram2.utils.utils import Fasta
 
 from dram2.utils.utils import (
     download_file,
@@ -81,8 +82,6 @@ def process(
         ),
     }
 
-    new_fa_db_loc = path.join(output_dir, f"{NAME}_blast.faa")
-    new_hmm_loc = path.join(output_dir, f"{NAME}_hmm.hmm")
     with tarfile.open(
         input_file,
     ) as tar:
@@ -160,49 +159,39 @@ def hmmscan_formater(
     return hits_df
 
 
-def search(
-    query_db: str,
-    gene_faa: str,
-    tmp_dir: str,
-    logger: logging.Logger,
-    threads: int,
-    verbose: str,
-    db_handler,
-    **args,
-):
-    logger.info(f"Annotating genes with {NAME_FORMAL}.")
-    return run_hmmscan(
-        genes_faa=gene_faa,
-        db_loc=db_handler.config["search_databases"]["fegenie_hmm"]["location"],
-        db_name=NAME,
-        threads=threads,
-        output_loc=tmp_dir,
-        formater=partial(
-            hmmscan_formater,
-            db_name=NAME,
-            hmm_info_path=db_handler.config["database_descriptions"]["fegenie_cutoffs"][
-                "location"
-            ],
-            top_hit=True,
-        ),
-        logger=logger,
-    )
-
-
 class FeGenieKit(DBKit):
     name = NAME
     formal_name: str = NAME_FORMAL
     version: str = VERSION
     citation: str = CITATION
 
-    def check_setup(self):
+    def setup(self):
         pass
 
-    def search(self):
-        pass
+    def load_dram_config(self):
+        self.hmm = self.get_config_path('hmmdb')
+        self.cutoffs = self.get_config_path('cutoffs')
 
-    def get_descriptions(self):
-        pass
+    def search(self, fasta):
+        self.logger.info(f"Annotating genes with {NAME_FORMAL}.")
+        return run_hmmscan(
+            genes_faa=fasta.faa,
+            db_loc=self.hmm.as_posix(),
+            db_name=NAME,
+            threads=self.threads,
+            logger=self.logger,
+            output_loc=self.working_dir.as_posix(),
+            formater=partial(
+                hmmscan_formater,
+                db_name=NAME,
+                hmm_info_path=self.cutoffs.as_posix(),
+                top_hit=True,
+            ),
+        )
+
+    def get_descriptions(self, hits):
+        "fix"
+        return hits
 
     @classmethod
     def get_ids(cls, annotatons):

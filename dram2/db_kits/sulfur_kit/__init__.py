@@ -8,10 +8,8 @@ from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
 from dram2.utils.utils import run_process
-from dram2.db_kits.utils import (
-    get_sig_row,
-    DBKit
-)
+from dram2.db_kits.utils import get_sig_row, DBKit
+from dram2.utils.utils import Fasta
 from dram2.db_kits.utils import run_hmmscan
 
 
@@ -54,25 +52,6 @@ SETTINGS = {
 #
 
 
-def process(
-    input_file, output_dir, logger, threads=1, version=VERSION, verbose=False
-) -> dict:
-    # this is the path within the tar file
-    final_paths = {
-        "sulfur_hmm": path.join(output_dir, f"{NAME}-{version}", f"{name}_hmm.hmm"),
-    }
-    if not path.exists(path.dirname(final_paths["sulfur_hmm"])):
-        mkdir(path.dirname(final_paths["sulfur_hmm"]))
-    # move and concatanate hmm to location
-    move(input_file, final_paths["sulfur_hmm"])
-
-    # build dbs
-    run_process(
-        ["hmmpress", "-f", final_paths["sulfur_hmm"]], logger, verbose=verbose
-    )  # all are pressed just in case
-    return final_paths
-
-
 # TODO check this
 def sig_scores(hits: pd.DataFrame, score_db: pd.DataFrame) -> pd.DataFrame:
     """
@@ -109,25 +88,16 @@ def hmmscan_formater(
     return hits_df
 
 
-def search(
+def sulfur_search(
     query_db: str,
     gene_faa: str,
     tmp_dir: str,
     logger: logging.Logger,
     threads: str,
-    verbose: str,
     db_handler,
     **args,
 ):
-    return run_hmmscan(
-        genes_faa=gene_faa,
-        db_loc=db_handler.config["search_databases"]["sulfur_hmm"]["location"],
-        db_name=NAME,
-        threads=threads,
-        output_loc=tmp_dir,
-        formater=partial(hmmscan_formater, logger=logger, db_name=NAME, top_hit=True),
-        logger=logger,
-    )
+    return
 
 
 class SulfurKit(DBKit):
@@ -136,11 +106,42 @@ class SulfurKit(DBKit):
     version: str = ""
     citation: str = CITATION
 
-    def check_setup(self):
+    def setup(self):
         pass
 
-    def search(self):
-        pass
+
+    def load_dram_config(self):
+        self.sulfur_hmm = self.get_config_path("hmmdb")
+
+    def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        return run_hmmscan(
+            genes_faa=fasta.faa.as_posix(),
+            db_loc=self.sulfur_hmm.as_posix(),
+            db_name=self.name,
+            threads=self.threads,
+            output_loc=self.working_dir.as_posix(),
+            logger=self.logger,
+            formater=partial(
+                hmmscan_formater, logger=self.logger, db_name=self.name, top_hit=True
+            ),
+        )
+
+    def setup(self):
+        final_paths = {
+            "sulfur_hmm": path.join(
+                output_dir, f"{self.name}-{version}", f"{self.name}_hmm.hmm"
+            ),
+        }
+        if not path.exists(path.dirname(final_paths["sulfur_hmm"])):
+            mkdir(path.dirname(final_paths["sulfur_hmm"]))
+        # move and concatanate hmm to location
+        move(input_file, final_paths["sulfur_hmm"])
+
+        # build dbs
+        run_process(
+            ["hmmpress", "-f", final_paths["sulfur_hmm"]], logger, verbose=verbose
+        )  # all are pressed just in case
+        return final_paths
 
     def get_descriptions(self):
         pass

@@ -1,34 +1,30 @@
-from os import path, stat
 import re
-import tarfile
-from shutil import move, rmtree
+
 # from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
-    make_mmseqs_db,
-    run_hmmscan,
-    get_best_hits,
-    BOUTFMT6_COLUMNS,
     DBKit,
-    get_sig_row,
-    Fasta,
+    do_blast_style_search,
+    get_basic_descriptions,
 )
+from dram2.utils.utils import Fasta
 
 from pathlib import Path
-from functools import partial
 import logging
 import pandas as pd
 
 from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
-UNIREF_CITATION = ("Y. Wang, Q. Wang, H. Huang, W. Huang, Y. Chen, P. B. McGarv"
-                  "ey, C. H. Wu, C. N. Arighi, and U. Consortium, \"A crowdsour"
-                  "cing open platform for literature curation in uniprot,\" PLo"
-                  "S Biology, vol. 19, no. 12, p. e3001464, 2021."
-                   )
+UNIREF_CITATION = (
+    "Y. Wang, Q. Wang, H. Huang, W. Huang, Y. Chen, P. B. McGarv"
+    'ey, C. H. Wu, C. N. Arighi, and U. Consortium, "A crowdsour'
+    'cing open platform for literature curation in uniprot," PLo'
+    "S Biology, vol. 19, no. 12, p. e3001464, 2021."
+)
+
 
 class UniRefDescription(BASE):
-    __tablename__ =  "uniref_description"
+    __tablename__ = "uniref_description"
     id = Column(String(40), primary_key=True, nullable=False, index=True)
 
     description = Column(String(1000))
@@ -36,9 +32,10 @@ class UniRefDescription(BASE):
     @property
     def serialize(self):
         return {
-            'kegg_id': self.id,
-            'kegg_description': self.description,
+            "kegg_id": self.id,
+            "kegg_description": self.description,
         }
+
 
 def get_uniref_description(uniref_hits, header_dict):
     """Gets UniRef ID's, taxonomy and full string from list of UniRef IDs for output in annotations"""
@@ -61,19 +58,41 @@ def get_uniref_description(uniref_hits, header_dict):
 
 
 class UniRefKit(DBKit):
-    name = 'uniref'
-    formal_name: str = 'UniRef'
+    name = "uniref"
+    formal_name: str = "UniRef"
     version: str = ""
     citation: str = UNIREF_CITATION
 
-    def check_setup(self):
+    def setup(self):
         pass
 
-    def search(self):
-        pass
 
-    def get_descriptions(self):
-        pass
+    def load_dram_config(self):
+        self.mmsdb = self.get_config_path("mmsdb")
+        self.description_db = SQLDescriptions(
+            self.get_config_path("description_db"),
+            self.logger,
+            UniRefDescription,
+            self.name,
+        )
+
+    def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        return do_blast_style_search(
+            fasta.mmsdb,
+            self.mmsdb,
+            self.working_dir,
+            self.logger,
+            self.name,
+            self.bit_score_threshold,
+            self.rbh_bit_score_threshold,
+            self.threads,
+        )
+
+    def get_descriptions(self, hits) -> pd.DataFrame:
+        header_dict = self.description_db.get_descriptions(
+            hits[f"{self.name}_hit"], f"{self.name}_description"
+        )
+        return get_basic_descriptions(hits, header_dict, self.name)
 
     @classmethod
     def get_ids(cls, annotatons):
