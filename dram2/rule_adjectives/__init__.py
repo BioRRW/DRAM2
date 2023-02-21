@@ -4,9 +4,10 @@ import click
 
 import pandas as pd
 
-from rule_adjectives.rule_graph import RuleParser, get_positive_genes
-from rule_adjectives.annotations import Annotations
+from dram2.rule_adjectives.rule_graph import RuleParser, get_positive_genes
+from dram2.rule_adjectives.annotations import Annotations
 
+from dram2.utils.utils import get_package_path
 
 
 __version__ = '0.0.4'
@@ -21,17 +22,6 @@ class PythonLiteralOption(click.Option):
             raise click.BadParameter(value)
 
 
-def get_package_path(local_path):
-    """
-    Locate the package data or non python files
-
-    :param local_path:
-    :returns:
-    """
-    abs_snake_path = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)),
-        local_path)
-    return abs_snake_path
 
 
 def list_adjectives(ctx, param, value):
@@ -56,7 +46,8 @@ def show_rules_path(ctx, param, value):
         return
     print(get_package_path('rules.tsv'))
 
-@click.command()
+
+@click.command('adjectives')
 @click.version_option(__version__)
 @click.argument('annotations_tsv', type=click.Path(exists=True))#, required=1, help="One of only 2 required files. Path to a DRAM annotations file.")
 @click.argument('adjectives_tsv', type=click.Path(), required=1)#, help="One of only 2 required files.Path for the output true false table created by this script.")
@@ -91,7 +82,7 @@ def show_rules_path(ctx, param, value):
 def evaluate(annotations_tsv:str, adjectives_tsv:str,
              rules_tsv:str=get_package_path('rules.tsv'),
              adjectives:list=None, plot_adjectives:list=None,
-             plot_genomes:list=None,plot_path:str=None,
+             plot_genomes:list=None, plot_path:str=None,
              debug_ids_by_fasta_to_tsv:str=None,
              strainer_tsv:str=None, strainer_type='pgtb'):
     """
@@ -125,7 +116,7 @@ def evaluate(annotations_tsv:str, adjectives_tsv:str,
         strainer_data.to_csv(strainer_tsv, sep='\t')
 
 
-@click.command()
+@click.command('adjectives_plot')
 @click.version_option(__version__)
 @click.argument('plot_path', type=click.Path(exists=False),
               default=None)#, help='will become a folder of output plots, no path no plots.')
