@@ -62,6 +62,7 @@ class UniRefKit(DBKit):
     formal_name: str = "UniRef"
     version: str = ""
     citation: str = UNIREF_CITATION
+    can_get_ids:bool = False
 
     def setup(self):
         pass
@@ -93,7 +94,3 @@ class UniRefKit(DBKit):
             hits[f"{self.name}_hit"], f"{self.name}_description"
         )
         return get_basic_descriptions(hits, header_dict, self.name)
-
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass

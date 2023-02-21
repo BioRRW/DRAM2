@@ -198,6 +198,15 @@ class dbCANKit(DBKit):
         "fix"
         return hits
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        main_id = 'cazy_best_hit'
+        if main_id in annotations:
+            return  [annotations[main_id].split('_')[0]]
+        return []
+
+    # "cazy_id": lambda x: [i.split("_")[0] for i in x.split("; ")],
+    # "cazy_hits": lambda x: [
+    #     f"{i[1:3]}:{i[4:-1]}" for i in re.findall(r"\(EC [\d+\.]+[\d-]\)", x)
+    # ],
+    # "cazy_subfam_ec": lambda x: [f"EC:{i}" for i in re.findall(r"[\d+\.]+[\d-]", x)],
+

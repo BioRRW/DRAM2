@@ -8,9 +8,8 @@ from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
 from dram2.utils.utils import run_process
-from dram2.db_kits.utils import get_sig_row, DBKit
+from dram2.db_kits.utils import get_sig_row, DBKit, run_hmmscan
 from dram2.utils.utils import Fasta
-from dram2.db_kits.utils import run_hmmscan
 
 
 VERSION = "1.0"
@@ -146,6 +145,3 @@ class SulfurKit(DBKit):
     def get_descriptions(self):
         pass
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass

@@ -1,9 +1,21 @@
-"""This is the script that distills the genomes"""
+"""
+DRAM Distillate
+_______________
+
+This is the script that distills the genomes from the annotations step.
+It requires annotations and the dram distillation step
+
+"""
 import logging
 from collections import Counter
 from itertools import chain
+from typing import Optional
+from importlib.resources import path as pkg_path
+
+from click import UsageError
 import pandas as pd
 from collections import Counter, defaultdict
+from pathlib import Path
 from os import path, mkdir
 import altair as alt
 import networkx as nx
@@ -11,17 +23,64 @@ from itertools import tee
 import re
 import numpy as np
 from datetime import datetime
+from dram2.utils.globals import FASTAS_CONF_TAG
 
-from dram2.utils.database_handler import DatabaseHandler
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
+
 from dram2.utils.utils import (
     get_ordered_uniques,
-    get_ids_from_annotations_all,
-    get_ids_from_annotations_by_row,
+    DramUsageError,
 )
+
+# from dram2.annotate import  get_ids_from_annotations_all
+from dram2.annotate import (
+    get_annotation_ids_by_row,
+    get_all_annotation_ids,
+    DB_KITS
+)
+
+__version__ = "2.0.0"
+DEFAULT_GROUPBY_COLUMN = "fasta"
+DEFAULT_SHOW_DISTILLATE_GENE_NAMES = False
+DEFAULT_GENOMES_PER_PRODUCT = 1000
+GENOMES_PRODUCT_LIMIT = 2000
+DEFAULT_MAKE_BIG_HTML = False
+SUMMARIZE_METABOLISM_TAG: str = "summarize_metabolism"
+MAKE_GENOME_STATS_TAG: str = "make_genome_stats"
+MAKE_PRODUCT_TAG: str = "make_product"
+GENOME_STATS_TAG = "genome_stats"
+METABOLISM_SUMMARY_TAG = "metabolism_summary"
+DISTILLATE_TAG = "distillation"
+PRODUCT_TAG = "product"
+DISTILLATE_MODUALS: tuple[str, str, str] = (
+    SUMMARIZE_METABOLISM_TAG,
+    MAKE_GENOME_STATS_TAG,
+    MAKE_PRODUCT_TAG,
+)
+DRAM_SHEET_TAG = "dram_sheets"
+GENOME_SUMMARY_FORM_TAG = "genome_summary_form"
+MODULE_STEPS_FORM_TAG = "module_step_form"
+FUNCTION_HEATMAP_FORM_TAG = "function_heatmap_form"
+ETC_MODULE_DF_TAG = "etc_module_database"
+FORM_TAGS: set = {
+    GENOME_SUMMARY_FORM_TAG,
+    MODULE_STEPS_FORM_TAG,
+    FUNCTION_HEATMAP_FORM_TAG,
+    ETC_MODULE_DF_TAG,
+}
+
+FILES_NAMES: dict[str, Path] = {
+    GENOME_SUMMARY_FORM_TAG: Path("distill", "data", "genome_summary_form.tsv"),
+    MODULE_STEPS_FORM_TAG: Path("distill", "data", "module_step_form.tsv"),
+    FUNCTION_HEATMAP_FORM_TAG: Path("distill", "data", "function_heatmap_form.tsv"),
+    ETC_MODULE_DF_TAG: Path("distill", "data", "etc_module_database.tsv"),
+}
+
+# DB_KITS = [i for i in DBKit.__subclasses__() if i.selectable and i.has_genome_summary]
+
 
 # TODO: add RBH information to output
 # TODO: add flag to output table and not xlsx
-# TODO: add flag to output heatmap table
 
 FRAME_COLUMNS = [
     "gene_id",
@@ -81,34 +140,28 @@ DISTILATE_SORT_ORDER_COLUMNS = [COL_HEADER, COL_SUBHEADER, COL_MODULE, COL_GENE_
 EXCEL_MAX_CELL_SIZE = 32767
 
 
-ID_FUNCTION_DICT = {
-    "camper_id": lambda x: [x],
-    "fegenie_id": lambda x: [x],
-    "sulfur_id": lambda x: [x],
-    "kegg_genes_id": lambda x: [x],
-    "ko_id": lambda x: [j for j in x.split(",")],
-    "kegg_id": lambda x: [j for j in x.split(",")],
-    "kegg_hit": lambda x: [i[1:-1] for i in re.findall(r"\[EC:\d*.\d*.\d*.\d*\]", x)],
-    "peptidase_family": lambda x: [j for j in x.split(";")],
-    "cazy_id": lambda x: [i.split("_")[0] for i in x.split("; ")],
-    "cazy_hits": lambda x: [
-        f"{i[1:3]}:{i[4:-1]}" for i in re.findall(r"\(EC [\d+\.]+[\d-]\)", x)
-    ],
-    "cazy_subfam_ec": lambda x: [f"EC:{i}" for i in re.findall(r"[\d+\.]+[\d-]", x)],
-    "pfam_hits": lambda x: [
-        j[1:-1].split(".")[0] for j in re.findall(r"\[PF\d\d\d\d\d.\d*\]", x)
-    ],
-}
+def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logger):
+    if (dram_sheets := dram_config.get(DRAM_SHEET_TAG)) is None or (
+        sheet_path := dram_sheets.get(form_tag)
+    ) is None:
+        sheet_path = FILES_NAMES[form_tag]
+        logger.debug(
+            f"Using the default distillation sheet for {form_tag} with its location at {sheet_path}. This information is only important if you intended to use a custom distillation sheet"
+        )
+    return pd.read_csv(sheet_path, sep="\t")
 
 
 def fill_genome_summary_frame(
-    annotations, genome_summary_frame, groupby_column, logger
+    annotation_ids_by_row,
+    genome_summary_frame,
+    groupby_column,
+    logger: logging.Logger,
 ):
     genome_summary_id_sets = [
         set([k.strip() for k in j.split(",")]) for j in genome_summary_frame["gene_id"]
     ]
-    for genome, frame in annotations.groupby(groupby_column, sort=False):
-        id_dict = get_ids_from_annotations_all(frame, logger)
+    for genome, frame in annotation_ids_by_row.groupby(groupby_column, sort=False):
+        id_dict = get_all_annotation_ids(frame)
         counts = list()
         for i in genome_summary_id_sets:
             identifier_count = 0
@@ -121,15 +174,15 @@ def fill_genome_summary_frame(
 
 
 def fill_genome_summary_frame_gene_names(
-    annotations, genome_summary_frame, groupby_column, logger
+    annotation_ids_by_row, genome_summary_frame, groupby_column, logger
 ):
     genome_summary_id_sets = [
         set([k.strip() for k in j.split(",")]) for j in genome_summary_frame["gene_id"]
     ]
-    for genome, frame in annotations.groupby(groupby_column, sort=False):
+    for genome, frame in annotation_ids_by_row.groupby(groupby_column, sort=False):
         # make dict of identifiers to gene names
         id_gene_dict = defaultdict(list)
-        for gene, ids in get_ids_from_annotations_by_row(frame, logger).iteritems():
+        for gene, ids in frame.iteritems():
             for id_ in ids:
                 id_gene_dict[id_].append(gene)
         # fill in genome summary_frame
@@ -143,7 +196,7 @@ def fill_genome_summary_frame_gene_names(
     return genome_summary_frame
 
 
-def summarize_rrnas(rrnas_df, groupby_column="fasta"):
+def summarize_rrnas(rrnas_df, groupby_column=DEFAULT_GROUPBY_COLUMN):
     genome_rrna_dict = dict()
     for genome, frame in rrnas_df.groupby(groupby_column):
         genome_rrna_dict[genome] = Counter(frame["type"])
@@ -154,8 +207,6 @@ def summarize_rrnas(rrnas_df, groupby_column="fasta"):
             "%s ribosomal RNA gene" % rna_type.split()[0],
             "rRNA",
             "rRNA",
-            "",
-            "",
         ]
         for genome, rrna_dict in genome_rrna_dict.items():
             row.append(genome_rrna_dict[genome].get(rna_type, 0))
@@ -166,7 +217,7 @@ def summarize_rrnas(rrnas_df, groupby_column="fasta"):
     return rrna_frame
 
 
-def summarize_trnas(trnas_df, groupby_column="fasta"):
+def summarize_trnas(trnas_df, groupby_column=DEFAULT_GROUPBY_COLUMN):
     # first build the frame
     combos = {(line.Type, line.Codon, line.Note) for _, line in trnas_df.iterrows()}
     frame_rows = list()
@@ -189,7 +240,7 @@ def summarize_trnas(trnas_df, groupby_column="fasta"):
     trna_frame = trna_frame.set_index("gene_id")
     for group, frame in trnas_df.groupby(groupby_column):
         gene_ids = list()
-        for index, line in frame.iterrows():
+        for _, line in frame.iterrows():
             if line.Note == "pseudo":
                 gene_id = "%s, pseudo (%s)"
             else:
@@ -202,18 +253,22 @@ def summarize_trnas(trnas_df, groupby_column="fasta"):
 
 
 def make_genome_summary(
-    annotations,
-    genome_summary_frame,
+    annotations: pd.DataFrame,
+    genome_summary_frame: pd.DataFrame,
+    all_annotation_ids: pd.DataFrame,
     logger,
     trna_frame=None,
     rrna_frame=None,
-    groupby_column="fasta",
 ):
     summary_frames = list()
     # get ko summaries
     summary_frames.append(
         fill_genome_summary_frame(
-            annotations, genome_summary_frame.copy(), groupby_column, logger
+            annotations,
+            genome_summary_frame.copy(),
+            groupby_column,
+            logger,
+            all_annotation_ids,
         )
     )
 
@@ -269,8 +324,12 @@ def write_summarized_genomes_to_xlsx(summarized_genomes, output_file):
 
 
 # TODO: add assembly stats like N50, longest contig, total assembled length etc
+# TODO: add in assembly stats
 def make_genome_stats(
-    annotations, rrna_frame=None, trna_frame=None, groupby_column="fasta"
+    annotations: pd.DataFrame,
+    rrna_frame: Optional[pd.DataFrame] = None,
+    trna_frame: Optional[pd.DataFrame] = None,
+    groupby_column: str = DEFAULT_GROUPBY_COLUMN,
 ):
     rows = list()
     columns = ["genome"]
@@ -327,7 +386,7 @@ def make_genome_stats(
         if trna_frame is not None:
             # TODO: remove psuedo from count?
             row.append(trna_frame.loc[trna_frame[groupby_column] == genome].shape[0])
-        if "assembly quality" in columns:
+        if "assembly quality" in columns and trna_frame is not None:
             if (
                 frame["bin_completeness"][0] > 90
                 and frame["bin_contamination"][0] < 5
@@ -434,7 +493,9 @@ def make_module_coverage_df(annotation_df, module_nets):
     return coverage_df
 
 
-def make_module_coverage_frame(annotations, module_nets, groupby_column="fasta"):
+def make_module_coverage_frame(
+    annotations, module_nets, groupby_column=DEFAULT_GROUPBY_COLUMN
+):
     # go through each scaffold to check for modules
     module_coverage_dict = dict()
     for group, frame in annotations.groupby(groupby_column, sort=False):
@@ -568,7 +629,12 @@ def get_module_coverage(module_net: nx.DiGraph, genes_present: set):
     )
 
 
-def make_etc_coverage_df(etc_module_df, annotations, groupby_column="fasta"):
+def make_etc_coverage_df(
+    etc_module_df,
+    annotation_ids_by_row: pd.DataFrame,
+    logger: logging.Logger,
+    groupby_column=DEFAULT_GROUPBY_COLUMN,
+):
     etc_coverage_df_rows = list()
     for _, module_row in etc_module_df.iterrows():
         definition = module_row["definition"]
@@ -582,9 +648,9 @@ def make_etc_coverage_df(etc_module_df, annotations, groupby_column="fasta"):
         for node in no_out:
             module_net.add_edge(node, "end")
         # go through each genome and check pathway coverage
-        for group, frame in annotations.groupby(groupby_column):
+        for group, frame in annotation_ids_by_row.groupby(groupby_column):
             # get annotation genes
-            grouped_ids = set(get_ids_from_annotations_all(frame, logger).keys())
+            grouped_ids = set(get_all_annotation_ids(frame).keys())
             (
                 path_len,
                 path_coverage_count,
@@ -660,7 +726,11 @@ def make_etc_coverage_heatmap(etc_coverage, mag_order=None, module_order=None):
 
 
 def make_functional_df(
-    annotations, function_heatmap_form, logger, groupby_column="fasta"
+    annotations,
+    function_heatmap_form,
+    logger,
+    annotation_ids_by_row: pd.DataFrame,
+    groupby_column=DEFAULT_GROUPBY_COLUMN,
 ):
     # clean up function heatmap form
     function_heatmap_form = function_heatmap_form.apply(
@@ -669,8 +739,8 @@ def make_functional_df(
     function_heatmap_form = function_heatmap_form.fillna("")
     # build dict of ids per genome
     genome_to_id_dict = dict()
-    for genome, frame in annotations.groupby(groupby_column, sort=False):
-        id_list = get_ids_from_annotations_all(frame, logger).keys()
+    for genome, frame in annotation_ids_by_row.groupby(groupby_column, sort=False):
+        id_list = get_all_annotation_ids(frame).keys()
         genome_to_id_dict[genome] = set(id_list)
     # build long from data frame
     rows = list()
@@ -773,13 +843,14 @@ def make_functional_heatmap(functional_df, mag_order=None):
 
 
 # TODO: refactor this to handle splitting large numbers of genomes into multiple heatmaps here
-def fill_liquor_dfs(
+def fill_product_dfs(
     annotations,
     module_nets,
     etc_module_df,
     function_heatmap_form,
     logger,
-    groupby_column="fasta",
+    annotation_ids_by_row: pd.DataFrame,
+    groupby_column=DEFAULT_GROUPBY_COLUMN,
 ):
     module_coverage_frame = make_module_coverage_frame(
         annotations, module_nets, groupby_column
@@ -790,7 +861,11 @@ def fill_liquor_dfs(
 
     # make functional frame
     function_df = make_functional_df(
-        annotations, function_heatmap_form, logger, groupby_column
+        annotations,
+        function_heatmap_form,
+        logger,
+        groupby_column,
+        annotation_ids_by_row,
     )
 
     return module_coverage_frame, etc_coverage_df, function_df
@@ -804,7 +879,7 @@ def rename_genomes_to_taxa(function_df, labels, mag_order):
     return function_df, mag_order
 
 
-def make_liquor_heatmap(
+def make_product_heatmap(
     module_coverage_frame, etc_coverage_df, function_df, mag_order=None, labels=None
 ):
     module_coverage_heatmap = make_module_coverage_heatmap(
@@ -821,7 +896,7 @@ def make_liquor_heatmap(
     return liquor
 
 
-def make_liquor_df(module_coverage_frame, etc_coverage_df, function_df):
+def make_product_df(module_coverage_frame, etc_coverage_df, function_df):
     liquor_df = pd.concat(
         [
             module_coverage_frame.pivot(
@@ -863,104 +938,279 @@ def make_strings_no_repeats(genome_taxa_dict):
     return labels
 
 
-def summarize_genomes(
-    input_file,
-    logger: logging.Logger,
-    trna_path=None,
-    rrna_path=None,
-    output_dir=".",
-    groupby_column="fasta",
-    log_file_path=None,
-    custom_distillate=None,
-    distillate_gene_names=False,
-    genomes_per_product=1000,
-):
-    # make output folder
-    mkdir(output_dir)
-    if log_file_path is None:
-        log_file_path = path.join(output_dir, "Distillation.log")
-    logger.info(f"The log file is created at {log_file_path}")
+from dram2.annotate import (
+    get_past_annotation_run,
+    ANNOTATION_FILE_TAG,
+    check_for_annotations,
+    USED_DBS_TAG,
+    DISTILLATION_MIN_SET,
+)
 
-    # read in data
-    annotations = pd.read_csv(input_file, sep="\t", index_col=0)
+
+def get_past_annotations(
+    annotation_run: Optional[dict], output_dir, force
+) -> pd.DataFrame:
+    if annotation_run is None:
+        raise UsageError(
+            "There is no annotations recorded in the project_config provided.\n\n"
+            "It must be the case that the DRAM directory dose not contain the result of "
+            "a successful annotation call.\n"
+            "Run `dram2 -o this_dram_dir get_status` to see if annotations have been run on this dram directory "
+            "or if it is valid at all. "
+            "If you have called genes but not run annotations then run "
+            "`dram2 -o this_output_dir annotate db_set 'distill'` in order to get the minimal "
+            "annotation set for distillation.\n"
+            " Review the documentation to learn more about the required pipeline needed "
+            "to run dram distill."
+        )
+    relative_annotation_path: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
+    if relative_annotation_path is None or annotation_run is None:
+        raise UsageError(
+            "There is no annotations.tsv recorded in the project_config provided.\n\n"
+            "It must be the case that the DRAM directory dose not contain the result of "
+            "a successful annotation call.\n"
+            "Run `dram2 get_status` to see if annotations have been run on this dram directory "
+            "or if it is valid at all. "
+            "If you have called genes but not run annotations then run "
+            "`dram2 -o this_output_dir annotate db_set 'distill'` in order to get the minimal "
+            "annotation set for distillation.\n"
+            " Review the documentation to learn more about the required pipeline needed "
+            "to run dram distill."
+        )
+    annotations_path = output_dir / relative_annotation_path
+    if not annotations_path.exists():
+        raise UsageError(
+            f"The path to annotations exists but it dose not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
+        )
+    if force:
+        logging.warning(
+            "Skipping the normal checks for needed annotations "
+            "because the force flag was passed."
+        )
+    else:
+        check_for_annotations(DISTILLATION_MIN_SET, annotation_run)
+
+    return pd.read_csv(annotations_path, sep="\t", index_col=0)
+
+
+def get_dbkit_genome_summary_forms(
+    annotation_run: Optional[dict],
+    dram_config: dict,
+    force: bool,
+    use_db_distilate: Optional[list],
+) -> list[Path]:
+    db_kits_with_distilate = [i for i in DB_KITS if i.selectable and i.has_genome_summary]
+    if annotation_run is None and use_db_distilate is None:
+        return []
+    elif annotation_run is not None and use_db_distilate is None:
+        dbs = set(annotation_run[USED_DBS_TAG])
+        dist_paths = [
+            i(dram_config).get_genome_summary() for i in db_kits_with_distilate if i.name in dbs
+        ]
+        return [i.get_genome_summary() for i in dist_paths]
+    elif annotation_run is not None and use_db_distilate is not None and not force:
+        dbs = set(annotation_run[USED_DBS_TAG])
+        missing = [i for i in use_db_distilate if i not in annotation_run]
+        if len(missing) > 0:
+            raise DramUsageError(
+                "There are databases missing for the distillate selected, the missing databases are: {missing}"
+            )
+        dist_paths = [
+            i(dram_config).get_genome_summary()
+            for i in db_kits_with_distilate
+            if i.name in use_db_distilate
+        ]
+        return [i.get_genome_summary() for i in dist_paths]
+    elif annotation_run is None and use_db_distilate is not None and force:
+        logging.debug("Skipping normal checks for annotations")
+        dist_paths = [
+            i(dram_config).get_genome_summary()
+            for i in db_kits_with_distilate
+            if i.name in use_db_distilate
+        ]
+        return [i.get_genome_summary() for i in dist_paths]
+    else:
+        raise ValueError(
+            "The developer failed to support the use case for get_dbkit_genome_summary_forms, contact the developer"
+        )
+
+
+def test_get_dbkit_genome_summary_forms():
+    class TestDBKit(DBKit):
+        name = "test"
+        has_genome_summary = True
+
+        def get_genome_summary(self):
+            return Path("test/path")
+
+        def search(self):
+            pass
+
+    get_dbkit_genome_summary_forms({USED_DBS_TAG: "test"}, {}, True, set(), {"test"})
+
+
+def distill(
+    run_id: str,
+    logger: logging.Logger,
+    output_dir: Path,
+    project_config: dict,
+    dram_config: dict,
+    # not from context
+    annotations_tsv_path: Optional[Path],
+    moduals: tuple[str, str, str],
+    force: bool,
+    trna_path: Optional[Path],
+    rrna_path: Optional[Path],
+    custom_summary_form: Optional[Path],
+    show_gene_names: bool = DEFAULT_SHOW_DISTILLATE_GENE_NAMES,
+    genomes_per_product: int = DEFAULT_GENOMES_PER_PRODUCT,
+    make_big_html: bool = DEFAULT_MAKE_BIG_HTML,
+    groupby_column: str = DEFAULT_GROUPBY_COLUMN,
+    use_db_distilate: Optional[list] = None,
+):
+
+    annotation_run: Optional[dict] = None
+    fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
+    new_project_config = {
+        DISTILLATE_TAG: {
+            "latest": run_id,
+            run_id: {
+                "version": __version__,
+                FASTAS_CONF_TAG: None if fastas is None else [i.name for i in fastas],
+            },
+        },
+    }
+    if annotations_tsv_path is not None:
+        if not force:
+            raise ValueError(
+                "You need to pass the -f/--force flag also, inorder to bypass the checks, that would rely on the project config, in order to ensure that you "
+            )
+        logger.warning("You are u")
+        annotations = pd.read_csv(annotations_tsv_path, sep="\t", index_col=0)
+    else:
+        annotation_run = get_past_annotation_run(project_config)
+        annotations = get_past_annotations(annotation_run, output_dir, force)
     if "bin_taxnomy" in annotations:
         annotations = annotations.sort_values("bin_taxonomy")
 
-    if trna_path is None:
-        trna_frame = None
-    else:
-        trna_frame = pd.read_csv(trna_path, sep="\t")
-    if rrna_path is None:
-        rrna_frame = None
-    else:
-        rrna_frame = pd.read_csv(rrna_path, sep="\t")
+    trna = None if trna_path is None else pd.read_csv(trna_path, sep="\t")
+    rrna = None if rrna_path is None else pd.read_csv(rrna_path, sep="\t")
+    # SUMMARIZE_METABOLISM_TAG, MAKE_GENOME_STATS_TAG, MAKE_PRODUCT_TAG
 
-    # get db_locs and read in dbs
-    database_handler = DatabaseHandler(logger)
-    if "genome_summary_form" not in database_handler.config["dram_sheets"]:
-        raise ValueError(
-            "Genome summary form location must be set in order to summarize genomes"
-        )
-    if "module_step_form" not in database_handler.config["dram_sheets"]:
-        raise ValueError(
-            "Module step form location must be set in order to summarize genomes"
-        )
-    if "function_heatmap_form" not in database_handler.config["dram_sheets"]:
-        raise ValueError(
-            "Functional heat map form location must be set in order to summarize genomes"
-        )
+    
 
-    # read in dbs
-    genome_summary_form = pd.read_csv(
-        database_handler.config["dram_sheets"]["genome_summary_form"], sep="\t"
-    )
-    if custom_distillate is not None:
+    db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
+    annotation_ids_by_row: pd.dataframe = get_annotation_ids_by_row(annotations, db_kits_with_ids, groupby_column)
+    modual_set: set[str] = set(moduals)
+    if MAKE_GENOME_STATS_TAG in modual_set:
+        genome_stats_path = output_dir / "genome_stats.tsv"
+        new_project_config[DISTILLATE_TAG][run_id][GENOME_STATS_TAG] = {
+            "location": genome_stats_path
+        }
+        make_genome_stats_file(
+            genome_stats_path,
+            annotations,
+            trna,
+            rrna,
+            logger,
+            groupby_column,
+        )
+    if SUMMARIZE_METABOLISM_TAG in modual_set:
+        # load the base summary form from config of package data
+        genome_summary_form = get_distillate_sheet(
+            GENOME_SUMMARY_FORM_TAG, dram_config, logger
+        )
+        # load runtime custom summary form
+        if custom_summary_form is not None:
+            genome_summary_form = pd.concat(
+                [genome_summary_form, pd.read_csv(custom_summary_form, sep="\t")]
+            )
+        db_kit_forms = get_dbkit_genome_summary_forms(
+            annotation_run, dram_config, force, use_db_distilate
+        )
+        # Merge base, custom,  and db_kit summary forms into one
         genome_summary_form = pd.concat(
-            [genome_summary_form, pd.read_csv(custom_distillate, sep="\t")]
+            [genome_summary_form] + [pd.read_csv(i, sep="\t") for i in db_kit_forms]
         )
-    # if f"{CAMPER_NAME}_id" in annotations:
-    #     if 'camper_distillate' not in database_handler.config["dram_sheets"]:
-    #         raise ValueError(f"Genome summary form location for {CAMPER_NAME} "
-    #                          "must be set in order to summarize genomes with this database.")
-    #     genome_summary_form = pd.concat([
-    #         genome_summary_form,
-    #         pd.read_csv(database_handler.config["dram_sheets"]['camper_distillate'], sep='\t')])
-    # if f"{FEGENIE_NAME}_id" in annotations:
-    #     if 'fegenie_distillate' not in database_handler.config["dram_sheets"]:
-    #         logger.warn(f"Genome summary form location for {FEGENIE_NAME} "
-    #                      "must be set in order to summarize genomes with this database.")
-    #     else:
-    #         genome_summary_form = pd.concat([
-    #             genome_summary_form, pd.read_csv(database_handler.config["dram_sheets"], sep='\t')])
-    # if f"{SULPHUR_NAME}_id" in annotations:
-    #     if 'sulphur_distillate' not in database_handler.config["dram_sheets"]:
-    #         logger.warn(f"Genome summary form location for {SULPHUR_NAME} "
-    #                      "must be set in order to summarize genomes with this database.")
-    #     else:
-    #         genome_summary_form = pd.concat([
-    #             genome_summary_form, pd.read_csv(database_handler.config["dram_sheets"], sep='\t')])
-    genome_summary_form = genome_summary_form.drop("potential_amg", axis=1)
-    module_steps_form = pd.read_csv(
-        database_handler.config["dram_sheets"]["module_step_form"], sep="\t"
-    )
-    function_heatmap_form = pd.read_csv(
-        database_handler.config["dram_sheets"]["function_heatmap_form"], sep="\t"
-    )
-    etc_module_df = pd.read_csv(
-        database_handler.config["dram_sheets"]["etc_module_database"], sep="\t"
-    )
-    logger.info("Retrieved database locations and descriptions")
+        # TODO add more information here
+        # output location is hard coded for now
+        metabolism_summary_output_path = output_dir / "metabolism_summary.xlsx"
 
+        make_metabolism_summary(
+            metabolism_summary_output_path,
+            annotations,
+            all_annotation_ids,
+            trna,
+            rrna,
+            genome_summary_form,
+            logger,
+            groupby_column,
+            show_gene_names,
+        )
+        new_project_config[DISTILLATE_TAG][run_id][METABOLISM_SUMMARY_TAG] = {
+            "location": metabolism_summary_output_path
+        }
+    if MAKE_PRODUCT_TAG in modual_set:
+        module_steps_form = get_distillate_sheet(
+            MODULE_STEPS_FORM_TAG, dram_config, logger
+        )
+        etc_module_df = get_distillate_sheet(ETC_MODULE_DF_TAG, dram_config, logger)
+        function_heatmap_form = get_distillate_sheet(
+            FUNCTION_HEATMAP_FORM_TAG, dram_config, logger
+        )
+        product_tsv_output = output_dir / "product.tsv"
+        product_html_base_path = output_dir / "product"
+        make_product(
+            product_tsv_output,
+            product_html_base_path,
+            annotations,
+            logger,
+            module_steps_form,
+            etc_module_df,
+            function_heatmap_form,
+            annotation_ids_by_row,
+            groupby_column,
+            genomes_per_product,
+            make_big_html,
+        )
+
+        # NOTE: We don't document the html because it is not used as input and we can't grantee it gets made
+        new_project_config[DISTILLATE_TAG][run_id][PRODUCT_TAG] = {
+            "location": product_tsv_output
+        }
+    return new_project_config
+
+
+def make_genome_stats_file(
+    output_path: Path,
+    annotations: pd.DataFrame,
+    trna: Optional[pd.DataFrame],
+    rrna: Optional[pd.DataFrame],
+    logger: logging.Logger,
+    groupby_column: str = DEFAULT_GROUPBY_COLUMN,
+):
     # make genome stats
     genome_stats = make_genome_stats(
-        annotations, rrna_frame, trna_frame, groupby_column=groupby_column
+        annotations, rrna, trna, groupby_column=groupby_column
     )
-    genome_stats.to_csv(path.join(output_dir, "genome_stats.tsv"), sep="\t", index=None)
+    genome_stats.to_csv(output_path, sep="\t", index=False)
     logger.info("Calculated genome statistics")
 
+
+def make_metabolism_summary(
+    output_path: Path,
+    annotations: pd.DataFrame,
+    all_annotation_ids: pd.DataFrame,
+    trna: Optional[pd.DataFrame],
+    rrna: Optional[pd.DataFrame],
+    genome_summary_form: pd.DataFrame,
+    logger: logging.Logger,
+    groupby_column: str = DEFAULT_GROUPBY_COLUMN,
+    show_distillate_gene_names: bool = DEFAULT_SHOW_DISTILLATE_GENE_NAMES,
+):
     # make genome metabolism summary
-    genome_summary = path.join(output_dir, "metabolism_summary.xlsx")
-    if distillate_gene_names:
+
+    if show_distillate_gene_names:
         summarized_genomes = fill_genome_summary_frame_gene_names(
             annotations, genome_summary_form, groupby_column, logger
         )
@@ -968,15 +1218,31 @@ def summarize_genomes(
         summarized_genomes = make_genome_summary(
             annotations,
             genome_summary_form,
+            all_annotation_ids,
             logger,
-            trna_frame,
-            rrna_frame,
+            trna,
+            rrna,
             groupby_column,
         )
-    write_summarized_genomes_to_xlsx(summarized_genomes, genome_summary)
+    write_summarized_genomes_to_xlsx(summarized_genomes, output_path)
     logger.info("Generated genome metabolism summary")
 
-    # make liquor
+
+def make_product(
+    tsv_output: Path,
+    html_base_path: Path,
+    annotations: pd.DataFrame,
+    logger: logging.Logger,
+    module_steps_form: pd.DataFrame,
+    etc_module_df: pd.DataFrame,
+    function_heatmap_form: pd.DataFrame,
+    annotation_ids_by_row: pd.DataFrame,
+    groupby_column: str = DEFAULT_GROUPBY_COLUMN,
+    genomes_per_product: int = DEFAULT_GENOMES_PER_PRODUCT,
+    make_big_html: bool = DEFAULT_MAKE_BIG_HTML,
+):
+
+    # make product
     if "bin_taxonomy" in annotations:
         genome_order = get_ordered_uniques(
             annotations.sort_values("bin_taxonomy")[groupby_column]
@@ -1011,7 +1277,10 @@ def summarize_genomes(
         if module in HEATMAP_MODULES
     }
 
-    if len(genome_order) > genomes_per_product:
+    if len(genome_order) > genomes_per_product and (
+        make_big_html or len(genome_order) < GENOMES_PRODUCT_LIMIT
+    ):
+
         module_coverage_dfs = list()
         etc_coverage_dfs = list()
         function_dfs = list()
@@ -1024,47 +1293,51 @@ def summarize_genomes(
             annotations_subset = annotations.loc[
                 [genome in genomes for genome in annotations[groupby_column]]
             ]
-            dfs = fill_liquor_dfs(
+            dfs = fill_product_dfs(
                 annotations_subset,
                 module_nets,
                 etc_module_df,
                 function_heatmap_form,
                 logger,
-                groupby_column="fasta",
+                annotation_ids_by_row,
             )
             module_coverage_df_subset, etc_coverage_df_subset, function_df_subset = dfs
             module_coverage_dfs.append(module_coverage_df_subset)
             etc_coverage_dfs.append(etc_coverage_df_subset)
             function_dfs.append(function_df_subset)
-            liquor = make_liquor_heatmap(
+            product = make_product_heatmap(
                 module_coverage_df_subset,
                 etc_coverage_df_subset,
                 function_df_subset,
                 genomes,
                 labels,
             )
-            liquor.save(path.join(output_dir, "product_%s.html" % i))
-        liquor_df = make_liquor_df(
+            product.save(f"{html_base_path.as_posix()}_{i}.html")
+            logger.info(f"Generated product heatmap {i}")
+        product_df = make_product_df(
             pd.concat(module_coverage_dfs),
             pd.concat(etc_coverage_dfs),
             pd.concat(function_dfs),
         )
-        liquor_df.to_csv(path.join(output_dir, "product.tsv"), sep="\t")
     else:
-        module_coverage_df, etc_coverage_df, function_df = fill_liquor_dfs(
+        module_coverage_df, etc_coverage_df, function_df = fill_product_dfs(
             annotations,
             module_nets,
             etc_module_df,
             function_heatmap_form,
             logger,
-            groupby_column=groupby_column,
+            annotation_ids_by_row,
         )
-        liquor_df = make_liquor_df(module_coverage_df, etc_coverage_df, function_df)
-        liquor = make_liquor_heatmap(
-            module_coverage_df, etc_coverage_df, function_df, genome_order, None
-        )
-        liquor.save(path.join(output_dir, "product.html"))
-    logger.info("Generated product heatmap and table")
+        product_df = make_product_df(module_coverage_df, etc_coverage_df, function_df)
+        if make_big_html or len(genome_order) < GENOMES_PRODUCT_LIMIT:
+            product = make_product_heatmap(
+                module_coverage_df, etc_coverage_df, function_df, genome_order, None
+            )
+            product.save(f"{html_base_path.as_posix()}.html")
+            logger.info(f"Generated product heatmap")
+    product_df.to_csv(tsv_output, sep="\t")
+    logger.info("Generated product table")
+
     logger.info("Completed distillation")
 
 

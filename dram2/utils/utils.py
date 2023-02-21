@@ -32,7 +32,19 @@ from pathlib import Path
 #     config['config_location'] = location
 #     return config
 
+class DramUsageError(Exception):
+    "Raised when dram is not used corectly, usally it means you are missing a step"
+    pass
 
+def get_package_path(local_path:Path):
+    """
+    Locate the package data or non python files
+
+    :param local_path:
+    :returns:
+    """
+    abs_snake_path = Path(__file__).parent.parent.absolute() / local_path
+    return abs_snake_path
 
 def download_file(url, logger, output_file=None, verbose=True):
     if verbose:
@@ -47,7 +59,7 @@ def download_file(url, logger, output_file=None, verbose=True):
             raise error
 
 
-def get_ids_from_annotations_by_row(data, logger):
+def get_annotation_ids_by_row(data, logger):
     # functions = {i: j for i, j in ID_FUNCTION_DICT.items() if i in data.columns}
     # missing = [i for i in ID_FUNCTION_DICT if i not in data.columns]
     logger.info(
@@ -68,7 +80,7 @@ def get_ids_from_annotations_by_row(data, logger):
     return out
 
 
-def get_ids_from_annotations_all(data, logger):
+def get_all_annotation_ids(data, logger):
     data = get_ids_from_annotations_by_row(data, logger)
     data.apply(list)
     out = Counter(chain(*data.values))

@@ -17,29 +17,19 @@ TODO:
 """
 #! /bin/python3
 import click
+from pathlib import Path
 from typing import Optional
 
-from pathlib import Path
-
-from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, get_time_stamp_id
-
-from dram2.annotate import annotate_cmd, list_databases
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP
 from dram2.call_genes import call_genes_cmd
-from dram2.rule_adjectives import evaluate, rule_plot
-from dram2.tree_kit import phylo_tree
-from dram2.distill import distill
-from dram2.genbank import generate_genbank
-from dram2.merger import merger
-from dram2.strainer import strainer
-from dram2.rna import pull_trna, pull_rrna
-from dram2.db_builder import db_builder
-from dram2.amg_summary import amg_summary
+from dram2.annotate import annotate_cmd, list_databases
 
 from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 
 from datetime import datetime
 
 DEFAULT_VERBOSE = 3 # maps to logging levels
+
 
 
 @click.group(
@@ -112,7 +102,7 @@ def dram2(
     output_dir: Optional[Path] = None,
     # force: bool = DEFAULT_FORCE,
     keep_tmp: bool = DEFAULT_KEEP_TMP,
-    verbose=None,
+    verbose: int= DEFAULT_VERBOSE,
 ):
     ctx.obj = DramContext(
         cores=cores,
@@ -129,21 +119,66 @@ def dram2_logged_entry():
     click.get_current_context()
     pass
 
-
-dram2.add_command(call_genes_cmd)
+# These are the essential components of dram, and call may not be
 dram2.add_command(annotate_cmd)
+dram2.add_command(call_genes_cmd)
 dram2.add_command(list_databases)
-dram2.add_command(evaluate)
-dram2.add_command(rule_plot)
-dram2.add_command(phylo_tree)
-dram2.add_command(distill)
-dram2.add_command(amg_summary)
-dram2.add_command(generate_genbank)
-dram2.add_command(merger)
-# dram2.add_command(strainer)
-dram2.add_command(pull_rrna)
-dram2.add_command(pull_trna)
-dram2.add_command(db_builder)
+
+try:
+    from dram2.rule_adjectives import evaluate, rule_plot
+    dram2.add_command(evaluate)
+    dram2.add_command(rule_plot)
+except ImportError:
+    pass
+
+try:
+   from dram2.distill import distill_cmd
+   dram2.add_command(distill_cmd)
+except ImportError:
+    pass
+
+try:
+   from dram2.genbank import generate_genbank
+   dram2.add_command(generate_genbank)
+except ImportError:
+    pass
+
+try:
+   from dram2.merger import merger
+   dram2.add_command(merger)
+except ImportError:
+    pass
+
+try:
+   from dram2.strainer import strainer
+   dram2.add_command(strainer)
+except ImportError:
+    pass
+
+try:
+   from dram2.rna import pull_trna, pull_rrna
+   dram2.add_command(pull_rrna)
+   dram2.add_command(pull_trna)
+except ImportError:
+    pass
+
+try:
+   from dram2.db_builder import db_builder
+   dram2.add_command(db_builder)
+except ImportError:
+    pass
+
+try:
+   from dram2.tree_kit import phylo_tree
+   dram2.add_command(phylo_tree)
+except ImportError:
+    pass
+
+try:
+   from dram2.amg_summary import amg_summary
+   dram2.add_command(amg_summary)
+except ImportError:
+    pass
 
 
 if __name__ == "__main__":

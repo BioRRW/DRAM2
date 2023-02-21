@@ -37,6 +37,3 @@ class CountMotifsKit(DBKit):
     def get_descriptions(self, hits) -> pd.DataFrame:
         return hits
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass

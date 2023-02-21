@@ -3,7 +3,7 @@ from typing import Optional
 import tarfile
 from shutil import move, rmtree
 from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process
+from dram2.utils.utils import download_file, run_process, get_package_path, Fasta
 from dram2.db_kits.utils import (
     make_mmseqs_db,
     run_hmmscan,
@@ -15,7 +15,6 @@ from dram2.db_kits.utils import (
     DRAM_DATAFOLDER_TAG,
     DBKIT_TAG,
 )
-from dram2.utils.utils import Fasta
 
 
 from pathlib import Path
@@ -163,6 +162,13 @@ class CamperKit(DBKit):
     camper_hmm_cutoffs: Path
     camper_distillate: Path
     search_type: str = "hmm_and_blast_style"
+    has_genome_summary: bool= True
+
+    def get_genome_summary(self) -> Path:
+        genome_summary_form = self.request_config_path("genome_summary_form")
+        if genome_summary_form is None:
+            return get_package_path(Path("db_kits", "camper_kit", "CAMPER_distillate.tsv"))
+        return genome_summary_form
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         if fasta.name is None:
@@ -228,13 +234,13 @@ class CamperKit(DBKit):
         self.camper_distillate = self.get_config_path("distillate")
         self.logger.info("CAMPER looks ready to use!")
 
-    def setup(self):
-        if self.db_path is None:
-            raise ValueError(f"CAMPER needs an output location to setup the db")
-        tarfile = self.download(self.working_dir, self.logger)
-        # tarfile = "./CAMPER-1.0.0-beta.1.tar.gz"
-        self.config = self.pre_process(tarfile, self.db_path, self.logger, self.threads)
-        # raise ValueError("I have not made this yet")
+    # def setup(self):
+    #     if self.db_path is None:
+    #         raise ValueError(f"CAMPER needs an output location to setup the db")
+    #     tarfile = self.download(self.working_dir, self.logger)
+    #     # tarfile = "./CAMPER-1.0.0-beta.1.tar.gz"
+    #     self.config = self.pre_process(tarfile, self.db_path, self.logger, self.threads)
+    #     # raise ValueError("I have not made this yet")
 
     @classmethod
     def download(cls, temporary, logger, version=None):
@@ -267,10 +273,6 @@ class CamperKit(DBKit):
     @classmethod
     def get_descriptions(self, annotation):
         return pd.DataFrame()
-
-    @classmethod
-    def get_ids(self):
-        pass
 
     @classmethod
     def setup(

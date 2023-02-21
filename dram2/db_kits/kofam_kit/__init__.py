@@ -94,6 +94,8 @@ class KOfamKit(DBKit):
         "fix"
         return hits
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        main_id = f"ko_id"
+        if main_id in annotations:
+            return  [annotations[main_id]]
+        return []

@@ -8,10 +8,11 @@ from dram2.db_kits.utils import (
     DBKit,
     multigrep,
 )
-from dram2.utils.utils import Fasta
+from dram2.utils.utils import Fasta, get_package_path 
 from functools import partial
 import logging
 import pandas as pd
+from pathlib import Path
 
 VERSION = "0.1.0"
 NAME = "methyl"
@@ -34,13 +35,6 @@ SETTINGS = {
     },
 }
 
-"""
-import os
-drampath  = '/home/projects-wrighton-2/DRAM/scratch_space_flynn/aug_9_methyl/snakeSpeed/results/dram'
-os.system(f'dram2 annotate_genes -i {drampath}/genes.faa -a {drampath}/annotations.tsv -o ./test_output --use_db methyl')
-
-
-"""
 # target_db = "/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/methyl.mmsdb"
 # multigrep(hits['%s_hit' % db_name], '%s_h' % target_db, '\x00', working_dir)
 PROCESS_OPTIONS = {}
@@ -75,6 +69,14 @@ class MethylKit(DBKit):
     name = NAME
     formal_name = NAME_FORMAL
     citation: str = CITATION
+    has_genome_summary: bool= True
+
+    def get_genome_summary(self) -> Path:
+        genome_summary_form = self.request_config_path("genome_summary_form")
+        if genome_summary_form is None:
+            return
+        return genome_summary_form
+
 
     def setup(self):
         # somthing like
@@ -101,6 +103,3 @@ class MethylKit(DBKit):
     def get_descriptions(self, hits):
         return hits
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass

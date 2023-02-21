@@ -88,6 +88,15 @@ class KeggKit(DBKit):
             [new_df.transpose(), hits.drop("kegg_hit", axis=1)], axis=1, sort=False
         )
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        ko_id = "ko_id"
+        kegg_id = "kegg_hit"
+        ec_id = "kegg_id"
+        ids = []
+        if ko_id in annotations:
+            ids += [j for j in annotations[ko_id].split(",")],
+        if kegg_id in annotations:
+            ids += [j for j in annotations[kegg_id].split(",")],
+        if ec_id in annotations:
+            ids += [i[1:-1] for i in re.findall(r"\[EC:\d*.\d*.\d*.\d*\]", annotations[ec_id])]
+        return ids

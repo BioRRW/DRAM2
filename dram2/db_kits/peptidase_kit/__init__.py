@@ -102,6 +102,8 @@ class PeptidaseKit(DBKit):
         )
         return get_basic_descriptions(hits, header_dict, self.name)
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        main_id = "peptidase_family"
+        if main_id in annotations:
+            return  [j for j in annotations[main_id].split(";")]
+        return []

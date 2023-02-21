@@ -14,6 +14,7 @@ from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
+import re
 
 from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
@@ -78,6 +79,12 @@ class PfamKit(DBKit):
         )
         return get_basic_descriptions(hits, header_dict, self.name)
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        main_id = "pfam_hits"
+        if main_id in annotations:
+            return [
+                j[1:-1].split(".")[0]
+                for j in re.findall(r"\[PF\d\d\d\d\d.\d*\]", str(annotations[main_id]))
+          ]
+        return []
+

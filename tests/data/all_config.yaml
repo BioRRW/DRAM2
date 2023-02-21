@@ -58,7 +58,7 @@ db_kits:
       hmmdb:
         location: fegenie_iron_oxidation_reduction.hmm
     camper:
-      distillate:
+      genome_summary_form:
         location: CAMPER_distillate.tsv
       mmsdb:
         location: CAMPER_blast.faa
@@ -76,8 +76,6 @@ dram_sheets:
     etc_module_database:
       location: None
     function_heatmap_form:
-      location: None
-    amg_database:
       location: None
 dram_version: "2.0.rc-1"
 log_file_path: "db_builder.log"

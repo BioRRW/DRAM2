@@ -7,6 +7,7 @@ import pandas as pd
 from dram2.rule_adjectives.rule_graph import RuleParser, get_positive_genes
 from dram2.rule_adjectives.annotations import Annotations
 
+from dram2.utils.utils import get_package_path
 
 
 __version__ = '0.0.4'
@@ -21,17 +22,6 @@ class PythonLiteralOption(click.Option):
             raise click.BadParameter(value)
 
 
-def get_package_path(local_path):
-    """
-    Locate the package data or non python files
-
-    :param local_path:
-    :returns:
-    """
-    abs_snake_path = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)),
-        local_path)
-    return abs_snake_path
 
 
 def list_adjectives(ctx, param, value):

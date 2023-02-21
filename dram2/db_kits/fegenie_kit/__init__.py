@@ -193,6 +193,3 @@ class FeGenieKit(DBKit):
         "fix"
         return hits
 
-    @classmethod
-    def get_ids(cls, annotatons):
-        pass

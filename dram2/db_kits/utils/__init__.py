@@ -11,6 +11,7 @@ import pandas as pd
 
 from dram2.utils.utils import run_process, Fasta
 
+
 HMMSCAN_ALL_COLUMNS = [
     "query_id",
     "query_ascession",
@@ -601,6 +602,8 @@ class DBKit(ABC):
     dram_db_loc: Path
     run_set_up = False  # impliment later the ability to setup on the fly
     keep_tmp: bool = False
+    has_genome_summary: bool = False
+    can_get_ids:bool = True
 
     # For updating a counter
     fastas_to_annotate: int = 0
@@ -620,7 +623,7 @@ class DBKit(ABC):
         self.db_version: str = db_version
         self.citation: str = citation
 
-    def __init__(self, config: dict, args: dict):
+    def __init__(self, config: dict):
         if (
             config.get(DBKIT_TAG) is not None
             and config[DBKIT_TAG].get(self.name) is not None
@@ -638,12 +641,14 @@ class DBKit(ABC):
                 "That should not be posible if it was corectly loaded. Are you "
                 "doing your own development?"
             )
-        self.set_args(**args)
         self.load_dram_config()
 
     @classmethod
     def download(cls):
         pass
+
+    def get_genome_summary(self) -> Optional[Path]:
+        return None
 
     def start_counter(self, fastas_to_annotate: int):
         self.fastas_to_annotate = fastas_to_annotate
@@ -732,6 +737,56 @@ class DBKit(ABC):
                     f" config file if you don't feel up to editing it"
                     f" yourself."
                 )
+        return required_path
+
+    def request_config_path(self, required_file: str) -> Optional[Path]:
+        """
+        Paths in the config can be complicated. here is a funcion that will get
+        you the absolute path, the relitve path or whatever. This should be more
+        fomalized and the config
+
+        should actualy be maniged in its own structure. With a data file class
+        that can use this function.
+
+
+        """
+        if (
+            self.config.get(required_file) is None 
+            or self.config[required_file].get(FILE_LOCATION_TAG) is None
+        ):
+            if not self.run_set_up:
+                return None
+        required_path = Path(self.config[required_file]["location"])
+        if not required_path.is_absolute() and self.dram_data_folder is not None:
+            required_path = self.dram_data_folder / required_path
+        elif not required_path.is_absolute() and self.dram_data_folder is None:
+            self.logger.debug(
+                "All paths must be absolute or the DRAM data path can't be "
+                "none, but this is not the case for this config and the path "
+                f"{required_path}."
+            )
+            return None
+        if not required_path.exists():
+            if not self.run_set_up:
+                self.logger.debug(
+                    f"The file {required_file} is not at the path"
+                    f" {required_path}. Most likely you moved the DRAM"
+                    f" data but forgot to update the config file to"
+                    f" point to it. The easy fix is to set the"
+                    f" {DRAM_DATAFOLDER_TAG} variable in the config"
+                    f" like:\n"
+                    f" {DRAM_DATAFOLDER_TAG}: the/path/to/my/file"
+                    f" If you are useing full paths and not the"
+                    f" {DRAM_DATAFOLDER_TAG} you may want to revue the"
+                    f" Configure Dram section of the documentation to"
+                    f" make shure your config will work with dram."
+                    f" remembere that the config must be a vailid yaml"
+                    f" file to work. Also you can alwase use"
+                    f" db_bulder to remake your databases and the"
+                    f" config file if you don't feel up to editing it"
+                    f" yourself."
+                )
+                return None
         return required_path
 
     @classmethod
@@ -857,10 +912,11 @@ class DBKit(ABC):
     def get_descriptions(self):
         pass
 
-    @classmethod
-    @abstractmethod
-    def get_ids(cls, annotatons):
-        pass
+    def get_ids(self, annotations: pd.Series) -> list:
+        main_id = f"{self.name}_id"
+        if main_id in annotations:
+            return  [annotations[main_id]]
+        return []
 
 
 class FastaKit(DBKit):
@@ -928,9 +984,6 @@ class FastaKit(DBKit):
             }
         }
 
-    @classmethod
-    def get_ids(cls, annotatons, name):
-        pass
 
 
 class HmmKit(DBKit):
@@ -989,7 +1042,3 @@ class HmmKit(DBKit):
                 "search_type": "hmm_style",
             }
         }
-
-    @classmethod
-    def get_ids(cls, annotatons, name):
-        pass

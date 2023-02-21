@@ -22,6 +22,13 @@ setup(
     package_data={
         "dram2.rule_adjectives": ["rules.tsv"],
         "dram2.tree_kit": ["data", "dram_trees"],
+        "dram2.distill": ["data", "amg_database.tsv"],
+        "dram2.distill": ["data", "etc_module_database.tsv"],
+        "dram2.distill": ["data", "genome_summary_form.tsv"],
+        "dram2.distill": ["data", "module_step_form.tsv"],
+        "dram2.distill": ["data", "function_heatmap_form.tsv"],
+        "dram2.db_kits.methyl_kit": ["methylotrophy.faa"],
+        "dram2.db_kits.methyl_kit": ["methylotrophy_distillate.tsv"],
     },
     # package_dir={'': ''},
     python_requires=">=3.10",

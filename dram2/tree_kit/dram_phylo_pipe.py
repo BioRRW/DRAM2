@@ -22,7 +22,7 @@ from tempfile import TemporaryDirectory
 from dram2.tree_kit import __version__
 from dram2.tree_kit.pplacer import DramTree
 from dram2.utils.utils import run_process
-from dram2.distill.summarize_genomes import get_ids_from_annotations_by_row
+from dram2.annotate import get_annotation_ids_by_row
 from skbio import write as write_sq
 from skbio import read as read_sq
 from Bio import Phylo as phy
@@ -89,7 +89,7 @@ def tree_kit(
 
     logger.info("Processing annotations")
     annotations = pd.read_csv(dram_annotations, sep="\t", index_col=0)
-    annotation_ids = get_ids_from_annotations_by_row(annotations, logger)
+    annotation_ids = get_annotation_ids_by_row(annotations, logger)
     with TemporaryDirectory(dir=output_dir, prefix="tmp_") as work_dir:
         for tree in TREES:
             logger.info(f"Performing phylogenetic disambiguation with tree {tree.name}")
