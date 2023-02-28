@@ -15,12 +15,12 @@ TODO:
  - add a safe and replace force
 
 """
-#! /bin/python3
-import click
 from pathlib import Path
 from typing import Optional
 
-from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP
+import click
+
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__, OrderedGroup
 from dram2.call_genes import call_genes_cmd
 from dram2.annotate import annotate_cmd, list_databases
 
@@ -28,12 +28,13 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 
 from datetime import datetime
 
-DEFAULT_VERBOSE = 3 # maps to logging levels
+DEFAULT_VERBOSE = 3  # maps to logging levels
+
 
 
 
 @click.group(
-    chain=True,
+    cls=OrderedGroup,
     help=(
         "\b\n"  # this \b tells click to respect your formating till \n\n
         "____________  ___  ___  ___\n"
@@ -44,12 +45,48 @@ DEFAULT_VERBOSE = 3 # maps to logging levels
         "|___/ \\_| \\_\\_| |_/\\_|  |_/\n\n"
         "Welcome to DRAM2, the premiere metabolic annotator and analyzer. "
         "Bellow you will find a set of commands that you can use to annualize "
-        "your MAGS V-mags or other genome collections. If you are new why not "
-        "start with the pre defined study commands which will take you from "
-        "raw data to defined distillate in a mater of seconds. \n\nThere are "
+        "your MAGS V-mags or other genome collections.\n\n If you are new why not "
+        "start with the pre defined protocal commands which will take you from "
+        "raw data to refined distillate in a mater of seconds. \n\nThere are "
         "many advanced options to choose from so pleas look over the DRAM2 "
         "documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com"
     ),
+)
+@click.option(
+    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory"
+)
+@click.option(
+    "--config_file",
+    type=click.Path(path_type=Path),
+    help="Point to a config file that you would like to use.",
+)
+@click.version_option(__version__)
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    type=int,
+    default=DEFAULT_VERBOSE,
+    help=(
+        "Verbosity of the logging output, the number of 'v's maps to the default"
+        " logging level of pythons logging modual. the default is -vvv. The "
+        "mapping is 0 = CRITICAL ,-v = ERROR, -vv = WARNING, -vvv = INFO, "
+        "-vvvv = DEBUG, -vvvvv... = NOTSET "
+    ),
+)
+@click.option(
+    "-c",
+    "--cores",
+    type=int,
+    default=10,
+    help="number of processors to use. This will increase the amount of memory required",
+)
+@click.option(
+    "--keep_tmp",
+    is_flag=True,
+    show_default=True,
+    default=DEFAULT_KEEP_TMP,
+    help="Keep all temporary files",
 )
 @click.option(
     "-d",
@@ -64,37 +101,9 @@ DEFAULT_VERBOSE = 3 # maps to logging levels
         "the config file you pass."
     ),
 )
-@click.option(
-    "--config_file",
-    type=click.Path(path_type=Path),
-    help="Point to a config file that you would like to use.",
-)
-@click.option(
-    "--keep_tmp",
-    is_flag=True,
-    show_default=True,
-    default=DEFAULT_KEEP_TMP,
-    help="Keep all temporary files",
-)
-@click.option(
-    "-o", "--output_dir", type=click.Path(path_type=Path), help="output directory"
-)
-@click.option(
-    "-v",
-    "--verbose",
-    count=True,
-    default=DEFAULT_VERBOSE,
-    help=(
-        "Verbosity of the logging output, the number of 'v's maps to the default"
-        " logging level of pythons logging modual. the default is -vvv. The "
-        "mapping is 0 = CRITICAL ,-v = ERROR, -vv = WARNING, -vvv = INFO, "
-        "-vvvv = DEBUG, -vvvvv... = NOTSET "
-    ),
-)
-@click.option("-c", "--cores", type=int, default=10, help="number of processors to use")
 @click.pass_context
 def dram2(
-    ctx,
+    ctx: click.Context,
     cores: int,
     db_path: Optional[Path] = None,
     config_file: Optional[Path] = None,
@@ -102,7 +111,7 @@ def dram2(
     output_dir: Optional[Path] = None,
     # force: bool = DEFAULT_FORCE,
     keep_tmp: bool = DEFAULT_KEEP_TMP,
-    verbose: int= DEFAULT_VERBOSE,
+    verbose: int = DEFAULT_VERBOSE,
 ):
     ctx.obj = DramContext(
         cores=cores,
@@ -119,64 +128,50 @@ def dram2_logged_entry():
     click.get_current_context()
     pass
 
+
 # These are the essential components of dram, and call may not be
-dram2.add_command(annotate_cmd)
 dram2.add_command(call_genes_cmd)
+dram2.add_command(annotate_cmd)
 dram2.add_command(list_databases)
+from dram2.rna import pull_trna_cmd, pull_rrna_cmd
+dram2.add_command(pull_rrna_cmd)
+dram2.add_command(pull_trna_cmd)
+
+# Optional arguments, you can remove any of these and they will just magically disappear
+
+from dram2.distill import distill_cmd
+dram2.add_command(distill_cmd)
 
 try:
-    from dram2.rule_adjectives import evaluate, rule_plot
-    dram2.add_command(evaluate)
-    dram2.add_command(rule_plot)
+    from dram2.amg_summary import amg_summary_cmd
+
+    dram2.add_command(amg_summary_cmd)
 except ImportError:
     pass
 
-try:
-   from dram2.distill import distill_cmd
-   dram2.add_command(distill_cmd)
-except ImportError:
-    pass
+from dram2.genbank import generate_genbank_cmd
+dram2.add_command(generate_genbank_cmd)
+
+from dram2.merger import merger_cmd
+dram2.add_command(merger_cmd)
+
+from dram2.strainer import strainer_cmd
+dram2.add_command(strainer_cmd)
+
+from dram2.neighbors import neighbors_cmd
+dram2.add_command(neighbors_cmd)
+
+
+from dram2.tree_kit import phylo_tree_cmd
+dram2.add_command(phylo_tree_cmd)
+
+from dram2.rule_adjectives import adjectives_cmd
+dram2.add_command(adjectives_cmd)
+
 
 try:
-   from dram2.genbank import generate_genbank
-   dram2.add_command(generate_genbank)
-except ImportError:
-    pass
-
-try:
-   from dram2.merger import merger
-   dram2.add_command(merger)
-except ImportError:
-    pass
-
-try:
-   from dram2.strainer import strainer
-   dram2.add_command(strainer)
-except ImportError:
-    pass
-
-try:
-   from dram2.rna import pull_trna, pull_rrna
-   dram2.add_command(pull_rrna)
-   dram2.add_command(pull_trna)
-except ImportError:
-    pass
-
-try:
-   from dram2.db_builder import db_builder
-   dram2.add_command(db_builder)
-except ImportError:
-    pass
-
-try:
-   from dram2.tree_kit import phylo_tree
-   dram2.add_command(phylo_tree)
-except ImportError:
-    pass
-
-try:
-   from dram2.amg_summary import amg_summary
-   dram2.add_command(amg_summary)
+    from dram2.db_builder import db_builder_cmd
+    dram2.add_command(db_builder_cmd)
 except ImportError:
     pass
 

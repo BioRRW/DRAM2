@@ -1,6 +1,7 @@
 import click
 
-__version__ = '2.0.0'
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
+
 # TODO: make it take an input and output gff location and not overwrite
 # TODO: for some reason 1 is getting added to intervals when added to gff
 def add_intervals_to_gff(
@@ -275,8 +276,21 @@ def make_gbk_from_gff_and_fasta(
     else:
         open(output_gbk, "w").write(genbank_records)
 
+def generate_genbank():
+    pass
 
 @click.command('generate_genbank')
-@click.version_option(__version__)
-def generate_genbank():
-    print("This comand is comming soon")
+@click.pass_context
+def generate_genbank_cmd(
+    ctx: click.Context,
+):
+    """
+    Make A DRAM GenBank File (Not Ready)
+    ___
+
+    Using an annotations file and a set of called genes make a GenBank file with select information from dram.
+
+    I have not looked into implementing this yet and I don't know what will be required.
+
+    """
+    print("This command requires more work to work in dram2")

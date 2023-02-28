@@ -1,11 +1,6 @@
 import click
 
-__version__ = '2.0.0'
-
-@click.command('merge')
-@click.version_option(__version__)
-def merger():
-    print("This comand is comming soon")
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
 
 
 def merge_gtdb_taxonomy(annotations, gtdb_taxonomy):
@@ -116,3 +111,18 @@ def merge_checkm_quality(annotations, checkm_quality):
     annotations["bin_completeness"] = completeness
     annotations["bin_contamination"] = contamination
 
+
+@click.command('merger')
+@click.option('--safe/--un_safe', is_flag=True)
+@click.pass_context
+def merger_cmd(
+    ctx: click.Context,
+):
+    """
+    Merge DRAM Projects (Not Ready)
+    ___
+
+    You may have separate dram projects that you need to merge. This command will be able to do so with viruses levels of safety. Merging dram runs is tricky because there is no guaranty that the annotations will the same.
+
+    """
+    print("This command requires more work to function in dram2")

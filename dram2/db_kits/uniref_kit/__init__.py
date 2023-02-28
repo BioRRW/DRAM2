@@ -78,10 +78,12 @@ class UniRefKit(DBKit):
         )
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        tmp_dir = self.working_dir / fasta.name
+        tmp_dir.mkdir()
         return do_blast_style_search(
             fasta.mmsdb,
             self.mmsdb,
-            self.working_dir,
+            tmp_dir,
             self.logger,
             self.name,
             self.bit_score_threshold,

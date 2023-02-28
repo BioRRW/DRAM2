@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 
 from pathlib import Path
 import pandas as pd
+from typing import Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -69,7 +70,7 @@ class SQLDescriptions():
             .description
         )
 
-    def get_descriptions(self, ids,description_name="description"):
+    def get_descriptions(self, ids,description_name="description", none_descriptors: Optional[set] = None):
         descriptions = [
             des
             for chunk in divide_chunks(list(ids), 499)
@@ -78,13 +79,17 @@ class SQLDescriptions():
             .all()
 
         ]
-        # [des for des in self.session.query(description_class).filter(description_class.id.in_(list(ids))).all() ]
-        # [i.id for i in self.session.query(TABLE_NAME_TO_CLASS_DICT['dbcan_description']).all()]
-        if len(descriptions) == 0:
-            self.logger.warn(
-                "No descriptions were found for your id's. Does this %s look like an id from %s"
-                % (list(ids)[0], self.db_name)
-            )
+
+            
+
+        if len(descriptions) == 0: 
+            for i in list(ids):
+                if none_descriptors is None or i not in none_descriptors:
+                    self.logger.warn(
+                        "No descriptions were found for your id's. Does the id \"%s\" look like an id from %s"
+                        % (i, self.db_name)
+                    )
+                break
         return {i.id: i.__dict__[description_name] for i in descriptions}
 
     # TODO: Make option to build on description database that already exists?

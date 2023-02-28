@@ -19,29 +19,36 @@ from functools import partial
 import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
-from dram2.tree_kit import __version__
 from dram2.tree_kit.pplacer import DramTree
 from dram2.utils.utils import run_process
-from dram2.annotate import get_annotation_ids_by_row
 from skbio import write as write_sq
 from skbio import read as read_sq
 from Bio import Phylo as phy
 from Bio.Phylo.BaseTree import Clade
 from Bio.Phylo.Newick import Tree
+from dram2.utils.utils import Fasta, DramUsageError
+from pathlib import Path
+
+from dram2.annotate import (
+    get_annotation_ids_by_row,
+    DB_KITS,
+    get_all_annotation_ids,
+    get_past_annotation_run,
+    ANNOTATION_FILE_TAG,
+    check_for_annotations,
+    USED_DBS_TAG,
+    DISTILLATION_MIN_SET,
+    DISTILLATION_MIN_SET_KEGG,
+)
 
 
-"""
-import os
-os.system('dram2 annotate --help')
-os.system('ls /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/')
-/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/nov_30_22_trees_and_adjectives/DRAM2/dram2/tree_kit/data/nxr_nar/nxr-nar-tree-mapping.tsv
-"""
 
 data_path = files('dram2.tree_kit').joinpath('data')
 NXR_NAR_TREE = DramTree(
     name="nxr_nar",
     pplacer_profile=os.path.join(data_path, "nxr_nar", "nxr_nar.refpkg"),
     target_ids=["K11180", "dsrA", "dsrB", "K11181"],
+    target_dbs=["K11180", "dsrA", "dsrB", "K11181"],
     reference_seq=os.path.join(data_path, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"),
     gene_mapping_path=os.path.join(data_path, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
     color_mapping_path=os.path.join(data_path, "nxr_nar", "color_map.tsv")
@@ -61,35 +68,24 @@ CLADE_INFO_PREFIX: str = "Placed based destination clade:"
 UNPLACE_PREFIX: str = "Can't be placed:"
 
 
-def tree_kit(
-    dram_annotations,
-    gene_fasta: str,
-    dram_directory: str,
+def phylo_tree(
+    annotations: Path,
+    gene_fasta: Path,
+    output_dir: Path,
     logger: logging.Logger,
-    output_dir: str = "./",
-    annotate_all: bool = False,
-    keep_temp: bool = False,
-    cores: int = 10,
-    # logg_path: str = "phylo_tree.log",
-    force: bool = False,
-    max_len_to_label: float = MAX_LEN_TO_LABEL_DFLT,
-    min_dif_len_ratio: float = MIN_DIF_LEN_RATIO_DFLT,
-):
-    # logger = logging.getLogger("dram_tree_log")
-    # eetup_logger(logger, logg_path)
+    # annotate_all: bool,
+    keep_temp: bool ,
+    cores: int,
+    # force: bool,
+    max_len_to_label: float,
+    min_dif_len_ratio: float,
+) -> list[str]:
     tree = NXR_NAR_TREE
-    output_dir = os.path.abspath(output_dir)
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
-    elif not force:
-        raise ValueError(
-            "The output_dir already exists! try using the -f flag to overwrite"
-        )
     logger.info("Start phylogenetic tree disambiguation")
 
     logger.info("Processing annotations")
-    annotations = pd.read_csv(dram_annotations, sep="\t", index_col=0)
-    annotation_ids = get_annotation_ids_by_row(annotations, logger)
+    annotations = pd.read_csv(annotations, sep="\t", index_col=0)
+    annotation_ids = get_annotation_ids_by_row(annotations, [db for db in DB_KITS if db.name == 'kegg' or db.name == 'kofam'])
     with TemporaryDirectory(dir=output_dir, prefix="tmp_") as work_dir:
         for tree in TREES:
             logger.info(f"Performing phylogenetic disambiguation with tree {tree.name}")
@@ -116,18 +112,15 @@ def tree_kit(
             tree_df = make_df_of_tree(
                 placed_terminals, tree.name, edpl, max_len_to_label, min_dif_len_ratio
             )
-            logger.info("Writing output, to {output_dir}")
+            logger.info("Writing output, to {output_dir.as_posix()}")
             write_files(
                 tree.name, tree_df, treeph, jplace_file, output_dir, work_dir, keep_temp
             )
             logger.info(end_message(tree_df, tree.name))
+    tree_names = [tree.name for tree in TREES]
+    return tree_names
 
 
-"""
-import os
-os.system('test_env/bin/python3 dram_tree_kit/dram_phylo_tree.py  -f -a tests/data/mini_nxr_nar_annotations.tsv -g tests/data/mini_nxr_nar_genes.faa -c 30')
-dram_tree_kit()
-"""
 
 
 def extract_enigmatic_genes(
@@ -198,7 +191,7 @@ def find_all_nearest(
             )
 
 
-def color_known_termininals(treeph, annotations, mapping):
+def color_known_termininals(treeph, annotations: pd.DataFrame, mapping:pd.DataFrame):
     terminals = treeph.get_terminals()
     known_terminals = [i for i in terminals if (i.name in mapping.index)]
     placed_terminals = [i for i in terminals if (i.name in annotations.index)]
@@ -483,7 +476,7 @@ def write_files(
     tree_df: pd.DataFrame,
     treeph: Tree,
     jplace_file: str,
-    output_dir: str,
+    output_dir: Path,
     work_dir: str,
     keep_temp: bool,
 ):
@@ -521,5 +514,5 @@ def end_message(tree_df: pd.DataFrame, tree_name: str) -> str:
     )
 
 
-if __name__ == "__main__":
-    dram_tree_kit()
+# if __name__ == "__main__":
+#     dram_tree_kit()

@@ -1,6 +1,16 @@
-import click
+"""
+RNA Tools 
+_________
 
-__version__ = '2.0.0'
+One of DRAM's many subsidiary 
+
+"""
+
+
+import click
+import pandas as pd
+
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
 
 RAW_RRNA_COLUMNS = [
     "scaffold",
@@ -127,68 +137,48 @@ def run_trna_scan(
         logger.warning("No tRNAs were detected, no trnas.tsv file will be created.")
         return None
 
-@click.command('pull_rrna')
-@click.version_option(__version__)
+
 def pull_rrna():
-    print("This comand is comming soon")
+    pass
+    # rrna_table = run_barrnap(renamed_scaffolds, fasta_name, logger,  threads=threads, verbose=verbose)
+    # if rrna_table is not None:
+    #     rrna_loc = path.join(output_dir, 'rrnas.tsv')
+    #     rrna_table.to_csv(rrna_loc, sep='\t', index=False)
+    #     add_intervals_to_gff(rrna_loc, renamed_gffs, len_dict, make_rrnas_interval, 'scaffold', logger)
 
-@click.command('pull_trna')
-@click.version_option(__version__)
+
 def pull_trna():
-    print("This comand is comming soon")
+    pass
+    # trna_table = run_trna_scan(renamed_scaffolds, tmp_dir, fasta_name, logger, threads=threads, verbose=verbose)
+    # if trna_table is not None:
+    #     trna_loc = path.join(output_dir, 'trnas.tsv')
+    #     trna_table.to_csv(trna_loc, sep='\t', index=False)
+    #     add_intervals_to_gff(trna_loc, renamed_gffs, len_dict, make_trnas_interval, 'Name', logger)
 
-
-#trash
-import click
-
-__version__ = '2.0.0'
-
-def get_dups(columns):
-    keep = list()
-    seen = list()
-    for column in columns:
-        if column in seen:
-            keep.append(False)
-        else:
-            seen.append(column)
-            keep.append(True)
-    return keep
-
-
-def run_trna_scan(
-    fasta,
-    tmp_dir,
-    fasta_name,
-    logger,
-    threads=10,
+@click.command('pull_rrna')
+@click.pass_context
+def pull_rrna_cmd(
+    ctx: click.Context,
 ):
-    """Run tRNAscan-SE on scaffolds and create a table of tRNAs as a separate output"""
-    raw_trnas = path.join(tmp_dir, "raw_trnas.txt")
-    run_process(
-        ["tRNAscan-SE", "-G", "-o", raw_trnas, "--thread", str(threads), fasta],
-        logger,
-    )
-    if path.isfile(raw_trnas) and stat(raw_trnas).st_size > 0:
-        trna_frame = pd.read_csv(raw_trnas, sep="\t", skiprows=[0, 2])
-        trna_frame.columns = [i.strip() for i in trna_frame.columns]
-        # if begin.1 or end.1 are in trnas then drop, else drop the second begin or end
-        if "Begin.1" in trna_frame.columns:
-            trna_frame = trna_frame.drop(["Begin.1"], axis=1)
-        if "End.1" in trna_frame.columns:
-            trna_frame = trna_frame.drop(["End.1"], axis=1)
-        trna_frame = trna_frame.loc[:, get_dups(trna_frame.columns)]
-        trna_frame.insert(0, "fasta", fasta_name)
-        return trna_frame
-    else:
-        logger.warning("No tRNAs were detected, no trnas.tsv file will be created.")
-        return None
+    """
+    Pull rRNA Sequences With Barrnap  (Not Ready)
+    ___
 
-@click.command('pull_rrna')
-@click.version_option(__version__)
-def pull_rrna():
-    print("This comand is comming soon")
+    This command makes an rrna.tsv file that can be used to distill
+    """
+    print("This command requires more work to work in dram2")
+    pull_rrna()
 
 @click.command('pull_trna')
-@click.version_option(__version__)
-def pull_trna():
-    print("This comand is comming soon")
+@click.pass_context
+def pull_trna_cmd(
+    ctx: click.Context,
+):
+    """
+    Pull tRNA Sequences With tRNAscan (Not Ready)
+    ___
+
+    This command makes an trna.tsv file that can be used to distill
+    """
+    print("This command requires more work to work in dram2")
+    pull_trna()

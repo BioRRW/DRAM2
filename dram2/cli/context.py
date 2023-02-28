@@ -24,12 +24,15 @@ was "dram_data_folder: ./" the data must be stored in the same folder as the
 config.
 
 """
+import collections
 import logging
-import yaml
 from typing import Optional
 from datetime import datetime
-
 from pathlib import Path
+
+import yaml
+import click
+
 
 from dram2.db_kits.utils import DRAM_DATAFOLDER_TAG, FILE_LOCATION_TAG
 
@@ -38,14 +41,19 @@ USER_CONFIG = Path.home() /  ".config" / "dram_config.yaml"
 GLOBAL_CONFIG = Path("/etc") / "dram_config.yaml"
 DEFAULT_KEEP_TMP = False
 
+__version__ = "2.0.0"
 
-def get_config_path(custom_path: Optional[Path] = None) -> Path:
+def get_config_path(logger:logging.Logger, custom_path: Optional[Path] = None) -> Path:
     if custom_path is not None and custom_path.exists:
+        logger.debug(f"Loading custom config from: {custom_path.as_posix()}")
         return custom_path
     if USER_CONFIG.exists():
+        logger.debug(f"Loading user config from: {USER_CONFIG.as_posix()}")
         return USER_CONFIG
     if GLOBAL_CONFIG.exists():
+        logger.debug(f"Loading global config from: {GLOBAL_CONFIG.as_posix()}")
         return GLOBAL_CONFIG
+
     serched_paths = ", ".join(
         {i for i in [custom_path, USER_CONFIG, GLOBAL_CONFIG] if i is not None}
     )
@@ -144,7 +152,7 @@ class DramContext(object):
             with open(project_config_path, "w") as pcf:
                 yaml.safe_dump(self.project_config, pcf)
 
-    def setup_logger(self, logger):
+    def get_logger(self):
         """
         Setup the Logger
         ________________
@@ -171,7 +179,8 @@ class DramContext(object):
 
         Docs: https://docs.python.org/3/library/logging.html
         
-        """
+        """ 
+        logger = logging.getLogger("dram2_log")
 
         # conver verbosity to log levels
         match self.verbose:
@@ -185,10 +194,8 @@ class DramContext(object):
                 level = logging.INFO # numaric level = 20
             case 4:
                 level = logging.DEBUG # numaric level = 10
-            case 5:
-                level = logging.NOTSET # numaric level = 0
             case _:
-                level = logging.NOTSET # numaric level = 0
+                level = logging.DEBUG# numaric level = 0
 
         if self.log_file_path is None:
             output_dir = self.get_output_dir()
@@ -210,6 +217,7 @@ class DramContext(object):
         logger.addHandler(ch)
         logger.setLevel(level)
         logger.info(f"The log file is created at {log_file_path}")
+        return logger
 
     def get_dram_config(self, logger) -> dict:
         """
@@ -221,7 +229,7 @@ class DramContext(object):
         :returns: A config dictionary with the path resuolved
         :raises ValueError: When an error in the config file is found
         """
-        dram_config_path = get_config_path(self.custom_config_file)
+        dram_config_path = get_config_path(logger, self.custom_config_file)
         with open(dram_config_path, "r") as conf:
             config = yaml.safe_load(conf)
         data_folder = config.get(DRAM_DATAFOLDER_TAG)
@@ -250,3 +258,13 @@ class DramContext(object):
         type: Optional[str] = None,
     ):
         pass
+
+
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        #: the registered subcommands by their exported names.
+        self.commands = commands or collections.OrderedDict()
+
+    def list_commands(self, ctx):
+        return self.commands

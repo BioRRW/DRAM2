@@ -8,7 +8,9 @@ It requires annotations and the dram distillation step
 """
 import click
 from pathlib import Path
-from dram2.cli.context import DramContext, get_time_stamp_id
+from dram2.cli.context import DramContext, get_time_stamp_id, __version__
+
+
 from typing import Optional
 import logging
 
@@ -22,15 +24,13 @@ from dram2.distill.summarize_genomes import (
     GENOMES_PRODUCT_LIMIT,
     DISTILLATE_MODUALS,
     DB_KITS,
-    __version__,
 )
 
 
 DISTILLATE_RUN_TAG = "distill"
 
-
-@click.command("distill")
-@click.version_option(__version__)
+COMMAND_NAME = "distill"
+@click.command(COMMAND_NAME)
 @click.option(
     "--annotations_tsv_path",
     type=click.Path(exists=True, path_type=Path),
@@ -71,7 +71,7 @@ DISTILLATE_RUN_TAG = "distill"
     "--show_gene_names",
     is_flag=True,
     default=DEFAULT_SHOW_DISTILLATE_GENE_NAMES,
-    help="Give names of genes instead of counts in genome metabolism summary",
+    help="Give names of genes instead of counts in genome metabolism summary. This tool is not fully supported, and may run into the limits of Excel. Use with caution.",
 )
 @click.option(
     "--use_db_distilate",
@@ -108,6 +108,7 @@ DISTILLATE_RUN_TAG = "distill"
     "large amout of time it will take to make these distilates it makes sense to just make the product html",
 )
 # TODO let the product html be make from the product itself
+@click.pass_context
 def distill_cmd(
     ctx: click.Context,
     annotations_tsv_path: Optional[Path],
@@ -122,10 +123,23 @@ def distill_cmd(
     custom_summary_form: Optional[Path],
     use_db_distilate: Optional[list],
 ):
+    """
+    DRAM Distillate
+    ___
+
+    This command can generate three outputs. The user can select the files they want to make with the -m/--moduals options, by by default it generates all of them.
+
+    The output files are:
+
+    - The genome_summary.xlsx which contains a summary of metabolisms present in each genome. It gives gene by gene information across various metabolisms for every genome in your dataset. 
+     - The genome_statistics.tsv file contains all measures required by the MIMAG about each fasta used as input. 
+     - The product.html and product.tsv allow the user to understaned the metabolic protential of each MAG or Colection at a glance. The product.html is an interactive html that allows users to hover over each box to see what genes prompted the box color (Example here) and was manually curated to consider alternate genes for pathways and single processes. This heat map allows the user to quickly profile ecosystem relevant processes across hundreds of genomes. The product.tsv provides the same information in a tsv format. If you have many FASTA's your product html may be split into may output files. 
+    
+    """
     context: DramContext = ctx.obj
     run_id: str = get_time_stamp_id(DISTILLATE_RUN_TAG)
     logger: logging.Logger = logging.getLogger("dram2_log")
-    context.setup_logger(logger)
+    context.get_logger()
     output_dir: Path = context.get_output_dir()
     project_config: dict = context.get_project_config()
     dram_config: dict = context.get_dram_config(logger)  # FIX
@@ -154,5 +168,5 @@ def distill_cmd(
 
     except Exception as e:
         logger.error(e)
-        logger.exception("Fatal error in annotation")
+        logger.exception(f"Fatal error in {COMMAND_NAME}")
         raise (e)

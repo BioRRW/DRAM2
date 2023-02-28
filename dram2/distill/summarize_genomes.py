@@ -12,7 +12,6 @@ from itertools import chain
 from typing import Optional
 from importlib.resources import path as pkg_path
 
-from click import UsageError
 import pandas as pd
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -27,16 +26,19 @@ from dram2.utils.globals import FASTAS_CONF_TAG
 
 from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
 
-from dram2.utils.utils import (
-    get_ordered_uniques,
-    DramUsageError,
-)
+from dram2.utils.utils import get_ordered_uniques, DramUsageError, Fasta
 
 # from dram2.annotate import  get_ids_from_annotations_all
 from dram2.annotate import (
     get_annotation_ids_by_row,
+    DB_KITS,
     get_all_annotation_ids,
-    DB_KITS
+    get_past_annotation_run,
+    ANNOTATION_FILE_TAG,
+    check_for_annotations,
+    USED_DBS_TAG,
+    DISTILLATION_MIN_SET,
+    DISTILLATION_MIN_SET_KEGG,
 )
 
 __version__ = "2.0.0"
@@ -938,20 +940,11 @@ def make_strings_no_repeats(genome_taxa_dict):
     return labels
 
 
-from dram2.annotate import (
-    get_past_annotation_run,
-    ANNOTATION_FILE_TAG,
-    check_for_annotations,
-    USED_DBS_TAG,
-    DISTILLATION_MIN_SET,
-)
-
-
 def get_past_annotations(
     annotation_run: Optional[dict], output_dir, force
 ) -> pd.DataFrame:
     if annotation_run is None:
-        raise UsageError(
+        raise DramUsageError(
             "There is no annotations recorded in the project_config provided.\n\n"
             "It must be the case that the DRAM directory dose not contain the result of "
             "a successful annotation call.\n"
@@ -965,7 +958,7 @@ def get_past_annotations(
         )
     relative_annotation_path: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
     if relative_annotation_path is None or annotation_run is None:
-        raise UsageError(
+        raise dramusageerror(
             "There is no annotations.tsv recorded in the project_config provided.\n\n"
             "It must be the case that the DRAM directory dose not contain the result of "
             "a successful annotation call.\n"
@@ -979,7 +972,7 @@ def get_past_annotations(
         )
     annotations_path = output_dir / relative_annotation_path
     if not annotations_path.exists():
-        raise UsageError(
+        raise DramUsageError(
             f"The path to annotations exists but it dose not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
         )
     if force:
@@ -988,7 +981,8 @@ def get_past_annotations(
             "because the force flag was passed."
         )
     else:
-        check_for_annotations(DISTILLATION_MIN_SET, annotation_run)
+        if (db_error:=check_for_annotations([DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET], annotation_run)) is not None:
+            raise DramUsageError(db_error)
 
     return pd.read_csv(annotations_path, sep="\t", index_col=0)
 
@@ -999,13 +993,17 @@ def get_dbkit_genome_summary_forms(
     force: bool,
     use_db_distilate: Optional[list],
 ) -> list[Path]:
-    db_kits_with_distilate = [i for i in DB_KITS if i.selectable and i.has_genome_summary]
+    db_kits_with_distilate = [
+        i for i in DB_KITS if i.selectable and i.has_genome_summary
+    ]
     if annotation_run is None and use_db_distilate is None:
         return []
     elif annotation_run is not None and use_db_distilate is None:
         dbs = set(annotation_run[USED_DBS_TAG])
         dist_paths = [
-            i(dram_config).get_genome_summary() for i in db_kits_with_distilate if i.name in dbs
+            i(dram_config).get_genome_summary()
+            for i in db_kits_with_distilate
+            if i.name in dbs
         ]
         return [i.get_genome_summary() for i in dist_paths]
     elif annotation_run is not None and use_db_distilate is not None and not force:
@@ -1070,7 +1068,12 @@ def distill(
 ):
 
     annotation_run: Optional[dict] = None
-    fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
+    called_fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
+    fastas = (
+        None
+        if called_fastas is None
+        else [Fasta.import_strings(output_dir, *j) for j in called_fastas]
+    )
     new_project_config = {
         DISTILLATE_TAG: {
             "latest": run_id,
@@ -1097,10 +1100,10 @@ def distill(
     rrna = None if rrna_path is None else pd.read_csv(rrna_path, sep="\t")
     # SUMMARIZE_METABOLISM_TAG, MAKE_GENOME_STATS_TAG, MAKE_PRODUCT_TAG
 
-    
-
     db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
-    annotation_ids_by_row: pd.dataframe = get_annotation_ids_by_row(annotations, db_kits_with_ids, groupby_column)
+    annotation_ids_by_row: pd.dataframe = get_annotation_ids_by_row(
+        annotations, db_kits_with_ids, groupby_column
+    )
     modual_set: set[str] = set(moduals)
     if MAKE_GENOME_STATS_TAG in modual_set:
         genome_stats_path = output_dir / "genome_stats.tsv"

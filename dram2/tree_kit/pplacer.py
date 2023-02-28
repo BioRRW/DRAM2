@@ -17,7 +17,8 @@ class DramTree:
         reference_seq: str,
         gene_mapping_path: str,
         color_mapping_path: str,
-        target_ids: list,
+        target_dbs: list['str'],
+        target_ids: list['str'],
     ):
         self.name = name
         self.pplacer_profile = pplacer_profile

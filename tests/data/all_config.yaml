@@ -47,9 +47,9 @@ db_kits:
         location: vog_latest_hmms.txt
       description_db:
         location: "06/16/2022, 12:00:51"
-    peptidase:
+    peptidases:
       mmsdb:
-        location: peptidases.20220927.mmsdb
+        location: peptidases.20220928.mmsdb
       description_db:
         location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/peptidase.sqlite
     fegenie:

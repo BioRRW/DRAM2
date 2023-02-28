@@ -14,6 +14,7 @@ from dram2.db_kits.utils import (
 )
 from dram2.utils.utils import Fasta
 
+
 from pathlib import Path
 from functools import partial
 from sqlalchemy import Column, String
@@ -23,6 +24,7 @@ import pandas as pd
 
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
+KNOWN_DBCAN_NONE_DESCRIPTORS = {"GT2_Glycos_transf_2", "GT2_Glyco_tranf_2_3"}
 
 VERSION = "11"
 DATE = "08062022"
@@ -32,6 +34,8 @@ CITATION = (
     'notation," Nucleic acids research, vol. 40, no. W1, pp. W44'
     "5–W451, 2012."
 )
+DESCRIPTION_COL = "description"
+EC_COL = "subfam_ec"
 
 
 class DbcanDescription(BASE):
@@ -46,8 +50,8 @@ class DbcanDescription(BASE):
     def serialize(self):
         return {
             "dbcan_id": self.id,
-            "dbcan_description": self.description,
-            "dbcan_subfam_ec": self.ec,
+            DESCRIPTION_COL: self.description,
+            EC_COL: self.ec,
         }
 
 
@@ -72,7 +76,7 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
             else:
                 description = " ".join(line)
             return pd.DataFrame(
-                {"id": line[0], "description": description.replace("\n", " ")},
+                {"id": line[0], DESCRIPTION_COL: description.replace("\n", " ")},
                 index=[0],
             )
 
@@ -92,6 +96,16 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
     ec_data = pd.DataFrame(ec_data, columns=["ec"]).reset_index()
     data = pd.merge(description_data, ec_data, how="outer", on="id").fillna("")
     return [i.to_dict() for _, i in data.iterrows()]
+
+
+def description_pull(x: str, sql_descriptions: SQLDescriptions):
+    id_list = ([re.findall("^[A-Z]*[0-9]*", str(x))[0] for x in x.split("; ")],)
+    id_list = [y for x in id_list for y in x if len(x) > 0]
+    description_list = sql_descriptions.get_descriptions(
+        id_list, DESCRIPTION_COL, KNOWN_DBCAN_NONE_DESCRIPTORS
+    ).values()
+    description_str = "; ".join(description_list)
+    return description_str
 
 
 def dbcan_hmmscan_formater(
@@ -125,20 +139,17 @@ def dbcan_hmmscan_formater(
     hits_df = pd.DataFrame(all_hits)
     hits_df.columns = [f"{db_name}_ids"]
 
-    def description_pull(x: str):
-        id_list = ([re.findall("^[A-Z]*[0-9]*", str(x))[0] for x in x.split("; ")],)
-        id_list = [y for x in id_list for y in x if len(x) > 0]
-        description_list = sql_descriptions.get_descriptions(
-            id_list, "dbcan_description"
-        ).values()
-        description_str = "; ".join(description_list)
-        return description_str
-
     if sql_descriptions is not None:
-        hits_df[f"{db_name}_hits"] = hits_df[f"{db_name}_ids"].apply(description_pull)
+        sql_descriptions.start_db_session()
+        hits_df[f"{db_name}_hits"] = hits_df[f"{db_name}_ids"].apply(
+            partial(description_pull, sql_descriptions=sql_descriptions)
+        )
         hits_df[f"{db_name}_subfam_ec"] = hits_df[f"{db_name}_ids"].apply(
             lambda x: "; ".join(
-                sql_descriptions.get_descriptions(x.split("; "), "ec").values()
+                sql_descriptions.get_descriptions(
+                    x.split("; "),
+                    "ec", KNOWN_DBCAN_NONE_DESCRIPTORS
+                ).values()
             )
         )
     hits_df[f"{db_name}_best_hit"] = [find_best_dbcan_hit(*i) for i in hit_groups]
@@ -157,8 +168,7 @@ class dbCANKit(DBKit):
     hmm_db: Path
     description_db: SQLDescriptions
 
-    def setup(
-    ) -> dict:
+    def setup() -> dict:
         pass
 
     def load_dram_config(self):
@@ -180,7 +190,7 @@ class dbCANKit(DBKit):
                 f"Fasta with out called genes faa was passed to the search function for {self.formal_name}"
             )
         self.logger.info("Getting hits from dbCAN")
-        pd.annotations = run_hmmscan(
+        annotations = run_hmmscan(
             genes_faa=fasta.faa.absolute().as_posix(),
             db_loc=self.hmm_db.absolute().as_posix(),
             db_name=self.name,
@@ -193,15 +203,16 @@ class dbCANKit(DBKit):
                 sql_descriptions=self.description_db,
             ),
         )
+        return annotations
 
     def get_descriptions(self, hits):
         "fix"
         return hits
 
     def get_ids(self, annotations: pd.Series) -> list:
-        main_id = 'cazy_best_hit'
+        main_id = "cazy_best_hit"
         if main_id in annotations:
-            return  [annotations[main_id].split('_')[0]]
+            return [annotations[main_id].split("_")[0]]
         return []
 
     # "cazy_id": lambda x: [i.split("_")[0] for i in x.split("; ")],
@@ -209,4 +220,3 @@ class dbCANKit(DBKit):
     #     f"{i[1:3]}:{i[4:-1]}" for i in re.findall(r"\(EC [\d+\.]+[\d-]\)", x)
     # ],
     # "cazy_subfam_ec": lambda x: [f"EC:{i}" for i in re.findall(r"[\d+\.]+[\d-]", x)],
-

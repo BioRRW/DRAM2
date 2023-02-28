@@ -231,8 +231,7 @@ class CamperKit(DBKit):
         self.camper_hmm = self.get_config_path("hmmdb")
         self.camper_fa_db_cutoffs = self.get_config_path("mmsdb_cutoffs")
         self.camper_hmm_cutoffs = self.get_config_path("hmmdb_cutoffs")
-        self.camper_distillate = self.get_config_path("distillate")
-        self.logger.info("CAMPER looks ready to use!")
+        self.camper_distillate = self.get_config_path("genome_summary_form")
 
     # def setup(self):
     #     if self.db_path is None:

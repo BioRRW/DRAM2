@@ -63,10 +63,12 @@ class PfamKit(DBKit):
         )
 
     def search(self, fasta: Fasta):
+        tmp_dir = self.working_dir / fasta.name
+        tmp_dir.mkdir()
         run_mmseqs_profile_search(
-            fasta.mmsdb,
-            self.mmsdb,
-            self.working_dir,
+            fasta.mmsdb.absolute().as_posix(),
+            self.mmsdb.absolute().as_posix(),
+            tmp_dir.absolute().as_posix(),
             self.logger,
             output_prefix=self.name,
             db_handler=self.description_db,

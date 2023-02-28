@@ -33,7 +33,7 @@ class KeggDescription(BASE):
 class KeggKit(DBKit):
 
     name = "kegg"
-    name_formal = "KEGG"
+    formal_name: str = "KEGG"
     citation: str = CITATION
 
     def setup(self):

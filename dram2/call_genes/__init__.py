@@ -11,9 +11,9 @@ from pathlib import Path
 from pkg_resources import resource_filename
 import collections
 from skbio.io import read as read_sequence, write as write_sequence
-from dram2.utils.utils import Fasta, run_process, import_posible_path
+from dram2.utils.utils import Fasta, run_process, import_posible_path, DramUsageError
 from dram2.utils.globals import FASTAS_CONF_TAG
-from dram2.cli.context import DramContext, get_time_stamp_id
+from dram2.cli.context import DramContext, get_time_stamp_id, __version__
 from multiprocessing import Pool
 from functools import partial
 from typing import Optional
@@ -48,18 +48,23 @@ def call_genes(
     force: bool = False,
 ) -> dict:
     """
+    Prodigal is one of many tools that we use in the DRAM pipline. You will notice that this function not only calls prodigal it also performs a number of checks and organizes the files.  These first steps alow us to be confindent we will not fail down the line.
+
+    This command takes a positonal argument/agumnest namely FASTAs. The FASTA are path/paths to FASTAs representing mags or other genome collections of uncalled genes. This means that the use of the program will look like this.
+
+
+    .. code-block:: BASH
+      dram2 -o dram_dir call <option> /some/path/*.fasta
+
+    or
+
+    .. code-block:: BASH
+      dram2 -o dram_dir call <option> /some/path/fasta1.fasta /some/path/fasta2.fasta
+
+    or anything es you can imagen
     Call Genes and organize files
     ________________________
 
-    As previously mentoned Prodigal is one of many tools that we use in the DRAM pipline. You will notice that this function not only calls prodigal it also performs a number of checks and organizes the files.  These first steps alow us to be confindent we will not fail down the line.
-
-    comandline expample:
-    '''
-    import os
-    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # pass")
-    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # fail")
-    os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
-    '''
 
     :param ctx: The context passed from click
     :param fasta_paths: A list of fasta files probably each representing a BIN from a MAG.
@@ -118,7 +123,7 @@ def call_genes(
         FASTAS_CONF_TAG: [i.export(output_dir) for i in fastas],
     }
     if len(fastas) < 1:
-        raise ValueError("No genes found, DRAM2 will not be able to proceed")
+        raise DramUsageError("No genes found, DRAM2 will not be able to proceed")
     return new_config
 
 
@@ -154,7 +159,7 @@ def call_genes(
 )
 @click.pass_context
 def call_genes_cmd(
-    ctx,
+    ctx: click.Context,
     fasta_paths: list[Path],
     genes_dir: Optional[Path],
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
@@ -163,29 +168,25 @@ def call_genes_cmd(
     force: bool = False,
 ):
     """
-    Call Genes and Organize Files
-    _____________________________
+    Call Genes and Filter Fastas
+    ___
 
-    As previously mentoned Prodigal is one of many tools that we use in the DRAM pipline. You will notice that this function not only calls prodigal it also performs a number of checks and organizes the files.  These first steps alow us to be confindent we will not fail down the line.
+    Prodigal is one of many tools that we use in the DRAM pipline. You will notice that this function not only calls prodigal it also performs a number of checks and organizes the files.  These first steps alow us to be confindent we will not fail down the line.
 
-    comandline expample:
-    '''
-    import os
-    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # pass")
-    os.system("dram2 -o test call ./tests/data/NC_001422.fasta # fail")
-    os.system("dram2 -o test call -f ./tests/data/NC_001422.fasta # pass")
-    '''
+    This command takes a positonal argument/agumnest namely FASTAs. The FASTA are path/paths to FASTAs representing mags or other genome collections of uncalled genes. This means that the use of the program will look like this.
 
-    :param ctx: The context passed from click
-    :param fasta_paths: A list of fasta files probably each representing a BIN from a MAG.
-    :param min_contig_size: The minimum contig size for DRAM to consider calling genes on
-    :param prodigal_mode: Mode of prodigal to use
-    :param prodigal_trans_tables: The number of trans_tables to use for prodigal see the prodigal docs
-    :raises ValueError:
+
+    dram2 -o dram_dir call <option> /some/path/*.fasta
+
+    or
+
+    dram2 -o dram_dir call <option> /some/path/fasta1.fasta /some/path/fasta2.fasta
+
+
+
     """
     context: DramContext = ctx.obj
-    logger = logging.getLogger("dram2_log")
-    context.setup_logger(logger)
+    logger = context.get_logger()
     output_dir: Path = context.get_output_dir()
     keep_tmp: bool = context.keep_tmp
     cores: int = context.cores
@@ -222,7 +223,9 @@ def call_genes_cmd(
 def clean_called_genes(output_dir: Path, project_config: dict, logger: logging.Logger):
     if (genes_called := project_config.get("genes_called")) is not None:
         for i in genes_called.values():
-            if (genes_path:= import_posible_path(i["working_dir"], output_dir)) is not None:
+            if (
+                genes_path := import_posible_path(i["working_dir"], output_dir)
+            ) is not None:
                 rmtree(genes_path)
     del genes_called
 
@@ -386,7 +389,7 @@ def get_fasta_names_dirs(
         ]
         if len(duplicated) > 0:
             logger.debug(f"duplicated names: {','.join(duplicated)}")
-            raise ValueError(
+            raise DramUsageError(
                 f"Genome file names must be unique. There are {len(duplicated)} name/s that appear twice in this search."
             )
         # make tmp_dirs

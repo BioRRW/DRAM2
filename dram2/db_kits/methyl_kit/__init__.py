@@ -46,25 +46,6 @@ def process(methyl_fa, output_dir, logger, threads=10, verbose=False) -> dict:
     return {"methyl_fa_db": methyl_fa_db}
 
 
-# process('/home/projects-wrighton-2/DRAM/dram_data/methyl/sep0122_methylotrophy_all_dist.faa',
-#         '/home/projects-wrighton-2/DRAM/dram_data/dram1.4_final_06_07_22/', logging.getLogger())
-
-# in the future the database will get the same input as was given in the data
-def search(
-    query_db: str,
-    gene_faa: str,
-    tmp_dir: str,
-    logger: logging.Logger,
-    threads: str,
-    verbose: str,
-    db_handler,
-    bit_score_threshold,
-    rbh_bit_score_threshold,
-    **args,
-):
-    logger.info(f"Annotating genes with {NAME_FORMAL}.")
-
-
 class MethylKit(DBKit):
     name = NAME
     formal_name = NAME_FORMAL
@@ -87,11 +68,13 @@ class MethylKit(DBKit):
         self.mmsdb = self.get_config_path("mmsdb")
 
     def search(self, fasta: Fasta):
-        get_custom_description = partial(get_basic_descriptions, db_name=NAME)
+        # get_custom_description = partial(get_basic_descriptions, db_name=NAME)
+        tmp_dir = self.working_dir / fasta.name
+        tmp_dir.mkdir()
         hits = do_blast_style_search(
             fasta.mmsdb.as_posix(),
             self.mmsdb.as_posix(),
-            self.working_dir,
+            tmp_dir,
             self.logger,
             self.name,
             self.bit_score_threshold,

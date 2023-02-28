@@ -24,7 +24,7 @@ from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 
-KOFAM_CITATION = (
+CITATION = (
     "T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
     ', S. Goto, and H. Ogata, "Kofamkoala: Kegg ortholog assignme'
     'nt based on profile hmm and adaptive score threshold," Bioin'
@@ -64,7 +64,8 @@ def kofam_hmmscan_formater(
 
 class KOfamKit(DBKit):
     name = "kofam"
-    name_formal = "KOfam"
+    formal_name: str = "KOfam"
+    citation: str = CITATION
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         return run_hmmscan(

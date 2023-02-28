@@ -587,6 +587,7 @@ class DBKit(ABC):
     name: str = ""
     formal_name: str = ""
     search_type: str = "unknown"
+    citation: str = "This database has no citation"
     logger: logging.Logger
     working_dir: Path
     bit_score_threshold: int
@@ -623,7 +624,8 @@ class DBKit(ABC):
         self.db_version: str = db_version
         self.citation: str = citation
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, logger:logging.Logger):
+        self.logger = logger
         if (
             config.get(DBKIT_TAG) is not None
             and config[DBKIT_TAG].get(self.name) is not None
@@ -802,7 +804,6 @@ class DBKit(ABC):
 
     def set_args(
         self,
-        logger: logging.Logger,
         working_dir: Path,
         output_dir: Path,
         bit_score_threshold: int,
@@ -816,7 +817,6 @@ class DBKit(ABC):
         # "fasta_paths": gene_fasta_paths,
     ):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
-        self.logger: logging.Logger = logger
         self.working_dir: Path = working_dir
         self.output_dir: Path = output_dir
         self.bit_score_threshold: int = bit_score_threshold
@@ -837,21 +837,21 @@ class DBKit(ABC):
         else:
             db_path.mkdir(parents=True)
 
-    def check_on_fly_setup(self):
-        """
-        TODO:
-        - This should be a match but I don't feel like updating today
-        -
+    # def check_on_fly_setup(self):
+    #     """
+    #     TODO:
+    #     - This should be a match but I don't feel like updating today
+    #     -
 
-        """
-        if self.config.get("default_db_dir") is None:
-            self.config["default_db_dir"] = self.dram_db_loc
-        if self.db_path is None:
-            self.dram_db_loc = self.config["default_db_dir"]
-        if self.db_path is None and self.config.get("default_db_dir") is None:
-            raise ValueError(
-                "Without a dram_db_directory defided, database can't be built on the fly"
-            )
+    #     """
+    #     if self.config.get("default_db_dir") is None:
+    #         self.config["default_db_dir"] = self.dram_db_loc
+    #     if self.db_path is None:
+    #         self.dram_db_loc = self.config["default_db_dir"]
+    #     if self.db_path is None and self.config.get("default_db_dir") is None:
+    #         raise ValueError(
+    #             "Without a dram_db_directory defided, database can't be built on the fly"
+    #         )
 
     @abstractmethod
     def load_dram_config(self):
@@ -904,8 +904,14 @@ class DBKit(ABC):
             }
         }
 
+    # def search(self, fasta:Fasta):
+    #     fasta_tmp_dir = working_dir / fasta.name
+    #     fasta_tmp_dir.mkdir
+    #     hits = get_hits(fasta_tmp_dir, working_dir)
+    #     pass
+
     @abstractmethod
-    def search(self):
+    def search(self, fasta:Fasta):
         pass
 
     @abstractmethod
