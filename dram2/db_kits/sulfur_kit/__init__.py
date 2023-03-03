@@ -142,6 +142,3 @@ class SulfurKit(DBKit):
         )  # all are pressed just in case
         return final_paths
 
-    def get_descriptions(self):
-        pass
-

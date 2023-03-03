@@ -8,7 +8,6 @@ from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
     DBKit,
     do_blast_style_search,
-    get_basic_descriptions,
 )
 from dram2.utils.utils import Fasta
 from pathlib import Path
@@ -45,30 +44,48 @@ class PeptidaseDescription(BASE):
         }
 
 
-def get_peptidase_description(peptidase_hits, header_dict):
-    peptidase_list: list[str] = list()
-    peptidase_family: list[str] = list()
-    peptidase_descirption: list[str] = list()
-    for peptidase_hit in peptidase_hits.peptidase_hit:
-        header = header_dict[peptidase_hit]
-        peptidase_list.append(peptidase_hit)
-        peptidase_family.append(re.search(r"#\w*.#", header).group()[1:-1])
-        peptidase_descirption.append(header)
-    new_df = pd.DataFrame(
-        [peptidase_list, peptidase_family, peptidase_descirption],
-        index=["peptidase_id", "peptidase_family", "peptidase_hit"],
-        columns=peptidase_hits.index,
+# def get_peptidase_description(peptidase_hits, header_dict):
+#     peptidase_list: list[str] = list()
+#     peptidase_family: list[str] = list()
+#     peptidase_descirption: list[str] = list()
+#     for peptidase_hit in peptidase_hits.peptidase_id:
+#         header = header_dict[peptidase_id]
+#         peptidase_list.append(peptidase_id)
+#         peptidase_family.append(re.search(r"#\w*.#", header).group()[1:-1])
+#         peptidase_descirption.append(header)
+#     new_df = pd.DataFrame(
+#         [peptidase_list, peptidase_family, peptidase_descirption],
+#         index=["peptidase_id", "peptidase_family", "peptidase_hit"],
+#         columns=peptidase_hits.index,
+#     )
+#     return pd.concat(
+#         [new_df.transpose(), peptidase_hits.drop("peptidase_hit", axis=1)],
+#         axis=1,
+#         sort=False,
+#     )
+
+
+def get_peptidase_descriptions(
+    hits: pd.DataFrame, header_dict: dict[str, str], db_name: str
+) -> pd.DataFrame:
+    """
+    Get viral gene full descriptions based on headers (text before first space)
+    """
+    descriptions: pd.DataFrame = pd.DataFrame(hits[f"{db_name}_hit"].dropna()).rename(
+        columns={f"{db_name}_hit": f"{db_name}_id"}
     )
-    return pd.concat(
-        [new_df.transpose(), peptidase_hits.drop("peptidase_hit", axis=1)],
-        axis=1,
-        sort=False,
+    descriptions[f"{db_name}_description"] = descriptions[f"{db_name}_id"].apply(
+        lambda x: header_dict[x]
     )
+    descriptions[f"{db_name}_family"] = descriptions[f"{db_name}_description"].apply(
+        lambda x: re.search(r"#\w*.#", x).group()[1:-1]
+    )
+    return descriptions
 
 
 class PeptidaseKit(DBKit):
 
-    name = "peptidases"
+    name = "peptidase"
     formal_name: str = "Peptidase"
     citation: str = CITATION
 
@@ -80,13 +97,13 @@ class PeptidaseKit(DBKit):
             PeptidaseDescription,
             self.name,
         )
+
     def setup(self):
         pass
 
-
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         tmp_dir = self.working_dir / fasta.name
-        tmp_dir.mkdir()
+        tmp_dir.mkdir(exist_ok=True, parents=True)
         return do_blast_style_search(
             fasta.mmsdb,
             self.mmsdb,
@@ -100,12 +117,14 @@ class PeptidaseKit(DBKit):
 
     def get_descriptions(self, hits) -> pd.DataFrame:
         header_dict = self.description_db.get_descriptions(
-            hits[f"{self.name}_hit"], f"{self.name}_description"
+            hits[f"{self.name}_hit"], f"description"
         )
-        return get_basic_descriptions(hits, header_dict, self.name)
+        return get_peptidase_descriptions(hits, header_dict, self.name)
 
     def get_ids(self, annotations: pd.Series) -> list:
         main_id = "peptidase_family"
-        if main_id in annotations:
-            return  [j for j in annotations[main_id].split(";")]
+        if main_id not in annotations:
+            self.logger.debug(f"Expected {main_id} to be in annotations,  but it was not found")
+        elif not pd.isna(annotations[main_id]):
+            return [j for j in str(annotations[main_id]).split(";")]
         return []

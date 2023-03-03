@@ -46,14 +46,20 @@ from dram2.utils.globals import FASTAS_CONF_TAG
 from itertools import chain
 from collections import Counter
 
-# from dram2.call_genes import clean_called_genes
+from dram2.call_genes import DEFAULT_GENES_FILE
 from typing import Sequence, Optional
 from datetime import datetime
 
 # from dram2.utils.globals import
 
+import click
 
 from pkg_resources import resource_filename
+
+for i in pkgutil.iter_modules(db_kits.__path__, db_kits.__name__ + "."):
+    importlib.import_module(i.name)
+
+DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 
 
 ANNOTATION_FILE_TAG: str = "annotation_file"
@@ -66,18 +72,21 @@ FORCE_DEFAULT: bool = False
 USED_DBS_TAG: str = "used_dbs"
 ANNOTATIONS_TAG = "annotations"
 FASTA_COL = "fasta"
-
+GENE_ID_COL = "gene_ids"
 DISTILLATION_MIN_SET_KEGG = {"kegg", "dbcan", "pfam", "heme", "peptidase"}
 DISTILLATION_MIN_SET = {"kofam", "dbcan", "pfam", "heme", "peptidase"}
+ADJECTIVES_SET = {"kofam", "dbcan", "pfam", "heme", "peptidase", "sulfur", "camper", "FeGenie"}
+ADJECTIVES_SET_KEGG = {"kegg", "dbcan", "pfam", "heme", "peptidase", "sulfur", "camper", "FeGenie"}
+DBSETS_COL = "db_id_sets"
 DBSETS = {
     "mini": DISTILLATION_MIN_SET,
     "mini_kegg": DISTILLATION_MIN_SET,
-    # "wrighton_full": {},
+    "adjectives": ADJECTIVES_SET,
+    "adjectives_kegg": ADJECTIVES_SET_KEGG,
+    "wrighton_full": {i.name for i in DB_KITS},
     # "adjectives_full": {},
     # "adjectives_full_kegg": {},
 }
-import click
-
 # def check_columns(data, db_kits, logger):
 # functions = {i:j for i,j in ID_FUNCTION_DICT.items() if i in data.columns}
 # missing = [i for i in ID_FUNCTION_DICT if i not in data.columns]
@@ -87,16 +96,19 @@ import click
 
 
 def get_annotation_ids_by_row(
-    data: pd.DataFrame, db_kits: list, groupby_column: Optional[str] = None
-):
-    if groupby_column is not None:
-        data.set_index(groupby_column, inplace=True)
-    out = data.apply(lambda x: {i for i in j.get_ids(x) for j in db_kits})
-    return out
+    data: pd.DataFrame, db_kits: list
+) -> pd.DataFrame:
+    # if groupby_column is not None:
+    #     data.set_index(groupby_column, inplace=True)
+    return data.assign(
+        **{DBSETS_COL: lambda x: [
+            {i for j in (k for k in db_kits if k.can_get_ids) for i in j.get_ids(x) if not pd.isna(i)} for _, x in data.iterrows()
+        ]}
+    )
 
 
 def get_all_annotation_ids(ids_by_row) -> dict:
-    out = Counter(chain(*ids_by_row.values))
+    out = Counter(chain(*ids_by_row[DBSETS_COL].values))
     return out
 
 
@@ -104,10 +116,6 @@ def get_config_loc():
     return Path(resource_filename("dram2.utils", "CONFIG"))
 
 
-for i in pkgutil.iter_modules(db_kits.__path__, db_kits.__name__ + "."):
-    importlib.import_module(i.name)
-
-DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 
 
 def check_for_annotations(
@@ -126,46 +134,23 @@ def check_for_annotations(
     you_need_or = [
         ", ".join(i - you_need_and) for i in you_need if len(i - you_need_and) > 0
     ]
+    if len(you_need_or) < len(you_need_and):
+        you_need_or = []
     error_message = "You are trying to use a DRAM2 function that requires specific annotations which this DRAM project does not have yet.\n"
     if len(you_need_and) > 0:
         error_message += (
             f"You need to run annotate with with: [{', '.join(you_need_and)}]"
             "\n"
-            f"The command to do that is like `dram2 -o this_dram_dir"
+            f"The command to do that is like `dram2 -o this_output_dir"
             f" annotate --use_db {' --use_db '.join(you_need_and)}`"
             "\n"
         )
+        if len(you_need_or) > 0:
+            error_message += "Also!\n"
     if len(you_need_or) > 0:
-        error_message += (
-            f"You also need to annotate with: {' or '.join(you_need_or)}\n\n"
-        )
+        error_message += f"You need to annotate with: {' or '.join(you_need_or)}\n\n"
     error_message += "You should still review the docs to make sure you are running the program correctly to get results you want."
     return error_message
-
-
-def test_check_for_annotations():
-    assert "You need to run annotate with with: [c, d]" in check_for_annotations(
-        [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}], {USED_DBS_TAG: ["a", "b"]}
-    )
-    assert "You also need to annotate with: a or e" in (
-        check_for_annotations(
-            [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}], {USED_DBS_TAG: ["b"]}
-        )
-    )
-    assert (
-        check_for_annotations(
-            [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}],
-            {USED_DBS_TAG: ["a", "b", "c", "d"]},
-        )
-        == None
-    )
-    assert (
-        check_for_annotations(
-            [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}],
-            {USED_DBS_TAG: ["b", "c", "d", "e"]},
-        )
-        == None
-    )
 
 
 def check_fasta_nams(fastas: list[Fasta]):
@@ -186,7 +171,7 @@ def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
     return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
 
 
-def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads) -> Fasta:
+def make_mmseqs_db_for_fasta(fasta: Fasta, logger: logging.Logger, threads:int) -> Fasta:
     if fasta.mmsdb is not None and fasta.mmsdb.exists():
         return fasta
     if fasta.tmp_dir is None:
@@ -203,6 +188,7 @@ def make_mmseqs_db_for_fasta(fasta: Fasta, logger, threads) -> Fasta:
             "to put that mmseqs-db. Pleas kindly file a bug report on GitHub. "
             "This indicates that the developer probably made a mistake"
         )
+    fasta.tmp_dir.mkdir(exist_ok=True, parents=True)
     mmsdb = fasta.tmp_dir / "gene.mmsdb"
     make_mmseqs_db(
         fasta.faa.absolute().as_posix(),
@@ -231,7 +217,7 @@ def get_all_fastas(
     force: bool,
 ):
     fastas: list[Fasta] = []
-    fastas += [path_to_gene_fastas(i, working_dir) for i in gene_fasta_paths]
+    fastas += [path_to_gene_fastas(i, output_dir / DEFAULT_GENES_FILE) for i in gene_fasta_paths]
     if called_fastas is not None:
         fastas += [Fasta.import_strings(output_dir, *j) for j in called_fastas]
         [j for j in called_fastas]
@@ -334,10 +320,14 @@ def make_new_project_config(
 
 
 def search_fasta_with_database(databases: list[DBKit], fasta: Fasta) -> pd.DataFrame:
-    data = reduce(
-        partial(pd.merge, left_index=True, right_index=True, how="outer"),
-        [j.search(fasta) for j in databases],
-    ).assign(**{FASTA_COL: fasta.name})
+    data = (
+        reduce(
+            partial(pd.merge, left_index=True, right_index=True, how="outer"),
+            [j.search(fasta) for j in databases],
+        )
+        .assign(**{FASTA_COL: fasta.name})
+        .assign(**{GENE_ID_COL: lambda x: x.index})
+    )
     data.index = [f"{fasta.name}_{j}" for j in data.index.values]
     return data
 
@@ -364,7 +354,6 @@ def annotate(
     custom_hmm_db_cutoffs_loc: Sequence = (),
     kofam_use_dbcan2_thresholds: bool = False,
     # rename_genes: bool = True,
-    threads: int = DEFAULT_THREADS,
     # make_new_faa: bool = bool(None),
     force: bool = False,
     extra=None,
@@ -395,12 +384,17 @@ def annotate(
         raise DramUsageError(
             "No FASTAs were passed to the annotator DRAM has nothing to do."
         )
-    if cores < len(fastas):
-        cores_for_sub_process = cores
-        cores_for_maping = 1
+
+    # cores_for_sub_process:int = cores
+    # fasta = [make_mmseqs_db_for_fasta(i, logger=logger, threads=cores_for_sub_process) for i in fastas]
+
+    if cores > len(fastas):
+        cores_for_sub_process:int = cores
+        cores_for_maping:int = 1
     else:
-        cores_for_sub_process = 1
-        cores_for_maping = cores
+        cores_for_sub_process:int = 1
+        cores_for_maping:int = cores
+    
     with Pool(cores_for_maping) as p:
         fastas = p.map(
             partial(
@@ -408,6 +402,7 @@ def annotate(
             ),
             fastas,
         )
+
     db_args = {
         # "fasta_paths": gene_fasta_paths,
         "output_dir": output_dir,
@@ -415,7 +410,7 @@ def annotate(
         "bit_score_threshold": bit_score_threshold,
         "rbh_bit_score_threshold": rbh_bit_score_threshold,
         "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
-        "threads": threads,
+        "threads": cores,
         "force": force,
         "extra": extra,
         "db_path": db_path,  # where to store dbs on the fly
@@ -424,6 +419,7 @@ def annotate(
 
     # add argument for annotations
     for i in databases:
+        i.load_dram_config()
         i.set_args(**db_args)
 
     # update the config
@@ -448,7 +444,7 @@ def annotate(
             custom_hmm_db_name, custom_hmm_db_loc, custom_hmm_db_cutoffs_loc
         )
     ]
-    annotation_tsv = output_dir / "annotations.tsv"
+
     if len(databases) < 1:
         logger.warning(
             "No databases were selected. There is nothing for DRAM to do but save progress and exit."
@@ -462,6 +458,19 @@ def annotate(
             [search_fasta_with_database(databases, fasta=i) for i in fastas]
         )
 
+    # ADD DESCRIPTIONS
+    # with Pool(cores) as p:
+    #     descriptions: list[pd.DataFrame] = p.map(get_descriptions_for_annotations, databases)
+    descriptions: list[pd.DataFrame] = [
+        i.get_descriptions(new_annotations) for i in databases
+    ]
+    new_annotations = reduce(
+        partial(pd.merge, left_index=True, right_index=True, how="outer"),
+        descriptions + [new_annotations],
+    )
+
+    # make a tsv even through that is stupid
+    annotation_tsv = output_dir / "annotations.tsv"
     # could be a match statement
     if past_annotation_run is not None and ANNOTATION_FILE_TAG in past_annotation_run:
         logger.info(
@@ -513,14 +522,18 @@ def merge_past_annotations(
     logger: logging.Logger,
     force: bool,
 ) -> pd.DataFrame:
-    known_coliders = {FASTA_COL}
+    known_colliders = {FASTA_COL, GENE_ID_COL}
     colliding_columns = set(past_annotations.columns).intersection(
         set(new_annotations.columns)
     )
-    if len(colliding_columns - known_coliders) > 0:
+    problem_colliders = colliding_columns - known_colliders
+    if len(problem_colliders) > 0:
         if not force:
             raise DramUsageError(
-                "There is a column name collisions in the old and new annotations file, you need to use the force flag to overwrite this data"
+                f"There is a name collision s for the column/columns:"
+                f" ({', '.join(problem_colliders)}). \n\n You need to"
+                f" use the force flag to overwrite this data in the"
+                f" old annotations file, "
             )
     colliding_genes = set(new_annotations.index).intersection(
         set(past_annotations.index)
@@ -565,7 +578,7 @@ def merge_past_annotations(
     multiple=True,
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
-    help="Specifiy exactly which dbs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 -o dram_dir annotate --use_db fegenie --use_db camper`, the options avalible are in this help.",
+    help="Specifiy exactly which dbs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 -o output/dir annotate --use_db fegenie --use_db camper`, the options avalible are in this help.",
 )
 @click.option(
     "--bit_score_threshold",
@@ -646,7 +659,6 @@ def annotate_cmd(
     custom_hmm_db_name: Sequence = (),
     custom_hmm_db_cutoffs_loc: Sequence = (),
     kofam_use_dbcan2_thresholds: bool = False,
-    threads: int = DEFAULT_THREADS,
     # make_new_faa: Optional[bool] = None,
     tempory_dir: Optional[Path] = None,
     force: bool = False,
@@ -680,7 +692,8 @@ def annotate_cmd(
     project_config: dict = context.get_project_config()
     dram_config = context.get_dram_config(logger)  # FIX
     if len(use_dbset) > 0:
-        use_db += [i for j in use_db for i in DBSETS[j]]
+        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j]]
+
     use_db = list(set(use_db))
     try:
         new_config = annotate(
@@ -703,7 +716,6 @@ def annotate_cmd(
             custom_hmm_db_name=custom_hmm_db_name,
             custom_hmm_db_cutoffs_loc=custom_hmm_db_cutoffs_loc,
             kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
-            threads=threads,
             force=force,
             extra=extra,
         )

@@ -21,7 +21,7 @@ import numpy as np
 from skbio.io import read as read_sequence
 from dram2.utils.command_line import dram2
 from dram2.db_kits.utils import Fasta
-from dram2.annotate import annotate, path_to_gene_fastas, make_mmseqs_db_for_fasta
+from dram2.annotate import annotate, path_to_gene_fastas, make_mmseqs_db_for_fasta, check_for_annotations, USED_DBS_TAG
 from dram2.db_kits.utils import FastaKit, HmmKit
 
 
@@ -266,6 +266,36 @@ def tmp_camper_fasta(logger, tmp_path) -> Fasta:
     input_faa = Path("tests", "data", "camper_test_genes.faa")
     fasta = Fasta("test", None, Path(tmp_path), input_faa, None, None, None)
     return make_mmseqs_db_for_fasta(fasta, logger, 1)
+    
+def test_check_for_annotations():
+    assert "You need to run annotate with with: [c, d]" in check_for_annotations(
+        [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}], {USED_DBS_TAG: ["a", "b"]}
+    )
+    assert "You need to annotate with: a or e" in (
+        check_for_annotations(
+            [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}], {USED_DBS_TAG: ["b"]}
+        )
+    )
+    assert "You also need to annotate with: e" not in (
+            check_for_annotations(
+                [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}], {USED_DBS_TAG: ["b", 'a']}
+            )
+        )
+    assert (
+        check_for_annotations(
+            [{"a", "b", "c", "d"}, {"b", "c", "d", "e"}],
+            {USED_DBS_TAG: ["a", "b", "c", "d"]},
+        )
+        == None
+    )
+    assert (
+        check_for_annotations(
+            [{"a", "b", "c", "d", 'f'}, {"b", "c", "d", "e"}],
+            {USED_DBS_TAG: ["b", "c", "d", "e"]},
+        )
+        == None
+    )
+
 
 def test_HmmKit(
     tmp_camper_fasta,

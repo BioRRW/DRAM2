@@ -137,14 +137,14 @@ def blast_search(
     info_db = pd.read_csv(info_db_path, sep="\t", index_col=0)
     bit_score_threshold = get_minimum_bitscore(info_db)
     hits_path = get_best_hits(
-        query_db,
-        target_db,
-        logger,
-        working_dir,
-        "gene",
-        db_name,
-        bit_score_threshold,
-        threads,
+        query_db=query_db,
+        target_db=target_db,
+        logger=logger,
+        output_dir=working_dir,
+        bit_score_threshold = bit_score_threshold,
+        query_prefix="gene",
+        target_prefix=db_name,
+        threads=threads,
     )
     return blast_search_formater(hits_path, db_name, info_db, logger)
 
@@ -269,9 +269,6 @@ class CamperKit(DBKit):
         )
         return camper_database
 
-    @classmethod
-    def get_descriptions(self, annotation):
-        return pd.DataFrame()
 
     @classmethod
     def setup(
@@ -334,3 +331,4 @@ class CamperKit(DBKit):
             ["hmmpress", "-f", final_paths["camper_hmm"]], logger
         )  # all are pressed just in case
         return final_paths
+

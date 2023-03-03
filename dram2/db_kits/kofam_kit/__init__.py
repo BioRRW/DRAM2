@@ -59,7 +59,8 @@ def kofam_hmmscan_formater(
                 ",".join([i for i in frame.target_id]),
                 "; ".join([hmm_info.loc[i, "definition"] for i in frame.target_id]),
             ]
-    return pd.DataFrame(kegg_dict, index=["ko_id", "kegg_hit"]).transpose()
+    return pd.DataFrame(kegg_dict, index=["kofam_id", "kfam_hit"]).transpose()
+
 
 
 class KOfamKit(DBKit):
@@ -89,14 +90,16 @@ class KOfamKit(DBKit):
     def load_dram_config(self):
         self.hmm: Path = self.get_config_path("hmmdb")
         self.kofam_ko_list: Path= self.get_config_path("kofam_ko_list")
-        self.logger.info("{self.formal_name} looks ready to use!")
 
-    def get_descriptions(self, hits):
-        "fix"
-        return hits
 
     def get_ids(self, annotations: pd.Series) -> list:
+        ids = []
+        # OLD ID TO REMOVE
+        ko_id = f"ko_id"
+        if ko_id in annotations:
+            ids += [annotations[ko_id]]
+        # OLD ID TO REMOVE
         main_id = f"ko_id"
         if main_id in annotations:
-            return  [annotations[main_id]]
-        return []
+            ids += [annotations[main_id]]
+        return ids

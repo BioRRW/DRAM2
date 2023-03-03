@@ -77,6 +77,7 @@ class UniRefKit(DBKit):
             self.name,
         )
 
+
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         tmp_dir = self.working_dir / fasta.name
         tmp_dir.mkdir()

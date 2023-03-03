@@ -1,19 +1,25 @@
 """Tool to parse the rules tsv, and make a graph."""
 import re
 import os
+from pathlib import Path
+import logging
+
+
 import pandas as pd
 import numpy as np
 import networkx as nx
 import graphviz
+
+
 from typing import Optional
 from dram2.rule_adjectives.annotations import (
     Annotations,
     SULFUR_ID,
-    FEGENIE_ID,
-    FUNCTION_DICT,
+    FEGENIE_ID,COLUMN_SET
 )
+from dram2.tree_kit import NXR_NAR_TREE, AMOA_PMOA_TREE
 
-LEAF_NODES = ["ko", "camper", "fegenie", "sulfur", "PF", "ec", "columnvalue", "tree"]
+LEAF_NODES = ["ko", "camper", "fegenie", "sulfur", "PF", "ec", "columnvalue", NXR_NAR_TREE.name, AMOA_PMOA_TREE.name]
 
 
 def parse_ands(logic: str):
@@ -107,8 +113,8 @@ def ko_func(ko: str, annotations):
     return ko in annotations
 
 
-def tree_func(tr: str, annotations):
-    return tr in annotations
+def tree_func(tree_data, tr: str, genome):
+    return tree_data[genome] == tr
 
 
 def sulfur_func(so: str, annotations):
@@ -129,7 +135,7 @@ def pf_func(pf: str, annotations):
 
 class RuleParser:
     def __init__(
-        self, rule_path: str, verbose: bool = False, adjectives: set[str] = None
+        self, rule_path:Path, verbose: bool = False, adjectives: set[str] = None
     ):
 
         self.annotations = None
@@ -232,13 +238,14 @@ class RuleParser:
             )
             self.G.add_edge(parent, nodeid)
             return
-        if re.match(r"^t>*$", logic):
-            nodeid = logic[2:]
-            self.G.add_node(
-                nodeid, display=nodeid, type="tree", function=tree_func, genomes={}
-            )
-            self.G.add_edge(parent, nodeid)
-            return
+        for tree_name in [NXR_NAR_TREE.name, AMOA_PMOA_TREE.name]:
+            if re.match(rf"^{tree_name}>[0-9A-z]+$", logic):
+                nodeid = logic.removeprefix(f"{tree_name}>")
+                self.G.add_node(
+                    nodeid, display=nodeid, type=tree_name, function=tree_func, genomes={}
+                )
+                self.G.add_edge(parent, nodeid)
+                return
         if re.match(r"^PF\d+", logic):
             nodeid = logic
             self.G.add_node(
@@ -404,7 +411,7 @@ class RuleParser:
         successor = list(self.G.successors(node))
         if len(successor) > 1:
             raise ValueError(
-                "A step can have only one child, this is a programing error"
+                "A step can have only one child, this is a programming error"
             )
         return self.check_node(successor[0], genome_name, annotations)
 
@@ -419,24 +426,55 @@ class RuleParser:
         return value
 
     def sufficient_info(self, node: str) -> bool:
-        """Check if we have sufficient_info for all the adjectivs"""
-        missing = [i for i in FUNCTION_DICT if i not in self.annot.data.columns]
-        functions = {
-            i: j for i, j in FUNCTION_DICT.items() if i in self.annot.data.columns
-        }
+        """Check if we have sufficient_info for all the adjectives"""
+        missing = [i for i in COLUMN_SET if i not in self.annot.data.columns]
+        #  functions = {
+        #      i: j for i, j in COLUMN_SET.items() if i in self.annot.data.columns
+        #  }
+        adjective = node
+        if NXR_NAR_TREE.name not in self.tree_data:
+            for i in nx.descendants(self.G, node):
+                if self.G.nodes[i]["type"] == NXR_NAR_TREE.name:
+                    self.logger.warning(
+                        f"The adjective {adjective} requires output from the "
+                        f"Phylo-genetic tree {NXR_NAR_TREE.name}. Data from "
+                        f"that tree can't be found so this adjective will not "
+                        f"be evaluated.")
+                    return False
+        if AMOA_PMOA_TREE.name not in self.tree_data:
+            for i in nx.descendants(self.G, node):
+                if self.G.nodes[i]["type"] == AMOA_PMOA_TREE.name:
+                    self.logger.warning(
+                        f"The adjective {adjective} requires output from the "
+                        f"Phylo-genetic tree {AMOA_PMOA_TREE.name}. Data from "
+                        f"that tree can't be found so this adjective will not "
+                        f"be evaluated.")
+                    return False
         if SULFUR_ID in missing:
             for i in nx.descendants(self.G, node):
                 if self.G.nodes[i]["type"] == "sulfur":
+                    self.logger.warning(
+                        f"The adjective {adjective} requires output from the "
+                        f" annotation with the Sulfur database. Data from "
+                        f"that database can't be found so this adjective will not "
+                        f"be evaluated.")
                     return False
         if FEGENIE_ID in missing:
             for i in nx.descendants(self.G, node):
                 if self.G.nodes[i]["type"] == "fegenie":
+                    self.logger.warning(
+                        f"The adjective {adjective} requires output from the "
+                        f" annotation with the FeGenie database. Data from "
+                        f"that database can't be found so this adjective will not "
+                        f"be evaluated.")
                     return False
         return True
 
-    def check_genomes(self, annot: Annotations):
+    def check_genomes(self, annot: Annotations, logger: logging.Logger, tree_data: dict[str, pd.Series]):
         # TODO make names and flags
         self.annot = annot
+        self.logger = logger
+        self.tree_data = tree_data
         output = annot.ids_by_fasta.apply(
             lambda x: {
                 node: self.check_node(node, x.name, x.annotations)
@@ -463,8 +501,10 @@ class RuleParser:
                 return self.G.nodes[node]["function"](node, annotations)
             case "ko":
                 return self.G.nodes[node]["function"](node, annotations)
-            case "tree":
-                return self.G.nodes[node]["function"](node, annotations)
+            case NXR_NAR_TREE.name:
+                return tree_func(self.tree_data[NXR_NAR_TREE.name], node, genome_name)
+            case AMOA_PMOA_TREE.name:
+                return tree_func(self.tree_data[AMOA_PMOA_TREE.name], node, genome_name)
             case "camper":
                 return self.G.nodes[node]["function"](node, annotations)
             case "sulfur":

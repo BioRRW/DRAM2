@@ -23,6 +23,7 @@ class CountMotifsKit(DBKit):
     )
     date: Optional[str] = None
     max_threads = 1
+    can_get_ids:bool = False
 
     def load_dram_config(self):
         pass
@@ -63,5 +64,3 @@ class CountMotifsKit(DBKit):
             ],
         )
 
-    def get_descriptions(self, hits) -> pd.DataFrame:
-        return hits

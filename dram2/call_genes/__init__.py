@@ -210,7 +210,6 @@ def call_genes_cmd(
             prodigal_trans_tables=prodigal_trans_tables,
             force=force,
         )
-
         project_config.update(new_config)
         context.set_project_config(project_config)
 

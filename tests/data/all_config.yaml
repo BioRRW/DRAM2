@@ -4,7 +4,7 @@ db_kits:
       mmsdb:
         location: "kegg.20221012.mmsdb"
       description_db:
-        location: "/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/kegg.sqlite"
+        location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/split_sql_dbs/kegg.sqlite
     methyl:
       mmsdb:
         location: /home/Database/DRAM/methyl/methylotrophy.mmsdb
@@ -47,7 +47,7 @@ db_kits:
         location: vog_latest_hmms.txt
       description_db:
         location: "06/16/2022, 12:00:51"
-    peptidases:
+    peptidase:
       mmsdb:
         location: peptidases.20220928.mmsdb
       description_db:
@@ -70,13 +70,13 @@ db_kits:
         location: CAMPER_hmm_scores.tsv
 dram_sheets:
     genome_summary_form:
-      location: None
+      location: null
     module_step_form:
-      location: None
+      location: null
     etc_module_database:
-      location: None
+      location: null
     function_heatmap_form:
-      location: None
+      location: null
 dram_version: "2.0.rc-1"
 log_file_path: "db_builder.log"
 

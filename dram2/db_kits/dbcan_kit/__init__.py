@@ -5,10 +5,7 @@ from shutil import move, rmtree
 from dram2.db_kits.fegenie_kit import process
 from dram2.utils.utils import download_file, run_process
 from dram2.db_kits.utils import (
-    make_mmseqs_db,
     run_hmmscan,
-    get_best_hits,
-    BOUTFMT6_COLUMNS,
     DBKit,
     get_sig_row,
 )
@@ -81,7 +78,8 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
             )
 
     with open(dbcan_fam_activities) as f:
-        description_data = pd.concat([line_reader(line) for line in f.readlines()])
+        description_data = pd.concat(
+            [line_reader(line) for line in f.readlines()])
 
     ec_data = pd.read_csv(
         dbcan_subfam_ec, sep="\t", names=["id", "id2", "ec"], comment="#"
@@ -140,7 +138,6 @@ def dbcan_hmmscan_formater(
     hits_df.columns = [f"{db_name}_ids"]
 
     if sql_descriptions is not None:
-        sql_descriptions.start_db_session()
         hits_df[f"{db_name}_hits"] = hits_df[f"{db_name}_ids"].apply(
             partial(description_pull, sql_descriptions=sql_descriptions)
         )
@@ -181,7 +178,6 @@ class dbCANKit(DBKit):
             DbcanDescription,
             self.name,
         )
-        self.logger.info("{self.formal_name} looks ready to use!")
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
 
@@ -205,14 +201,13 @@ class dbCANKit(DBKit):
         )
         return annotations
 
-    def get_descriptions(self, hits):
-        "fix"
-        return hits
 
     def get_ids(self, annotations: pd.Series) -> list:
-        main_id = "cazy_best_hit"
-        if main_id in annotations:
-            return [annotations[main_id].split("_")[0]]
+        main_id = f"{self.name}_best_hit"
+        if main_id not in annotations:
+            self.logger.debug(f"Expected {main_id} to be in annotations but not found")
+        elif not pd.isna(annotations[main_id]):
+            return [str(annotations[main_id]).split("_")[0]]
         return []
 
     # "cazy_id": lambda x: [i.split("_")[0] for i in x.split("; ")],

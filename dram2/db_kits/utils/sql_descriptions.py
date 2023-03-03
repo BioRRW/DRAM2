@@ -70,18 +70,18 @@ class SQLDescriptions():
             .description
         )
 
-    def get_descriptions(self, ids,description_name="description", none_descriptors: Optional[set] = None):
-        descriptions = [
-            des
-            for chunk in divide_chunks(list(ids), 499)
-            for des in self.session.query(self.description_class)
-            .filter(self.description_class.id.in_(chunk))
-            .all()
+    def get_descriptions(self, ids: list|pd.Series, description_name="description", none_descriptors: Optional[set] = None):
+        """
+        Pull The descriptions from SQLDB 
+        ________________________________
 
-        ]
-
-            
-
+        the dram database
+        """
+        if not isinstance(ids, list):
+            ids: list = ids.dropna().values
+        self.start_db_session()
+        descriptions = [ des for chunk in divide_chunks(list(ids), 499) for des in self.session.query(self.description_class).filter(self.description_class.id.in_(chunk)).all() ]
+        self.session.close()
         if len(descriptions) == 0: 
             for i in list(ids):
                 if none_descriptors is None or i not in none_descriptors:
@@ -90,6 +90,7 @@ class SQLDescriptions():
                         % (i, self.db_name)
                     )
                 break
+
         return {i.id: i.__dict__[description_name] for i in descriptions}
 
     # TODO: Make option to build on description database that already exists?

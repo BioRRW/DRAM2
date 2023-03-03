@@ -10,27 +10,29 @@ import logging
 from collections import Counter
 from itertools import chain
 from typing import Optional
-from importlib.resources import path as pkg_path
 
 import pandas as pd
 from collections import Counter, defaultdict
 from pathlib import Path
-from os import path, mkdir
 import altair as alt
 import networkx as nx
 from itertools import tee
 import re
 import numpy as np
-from datetime import datetime
 from dram2.utils.globals import FASTAS_CONF_TAG
 
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
-
-from dram2.utils.utils import get_ordered_uniques, DramUsageError, Fasta
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
+from dram2.utils.utils import (
+    get_ordered_uniques,
+    DramUsageError,
+    Fasta,
+    get_package_path,
+)
 
 # from dram2.annotate import  get_ids_from_annotations_all
 from dram2.annotate import (
     get_annotation_ids_by_row,
+    get_all_annotation_ids,
     DB_KITS,
     get_all_annotation_ids,
     get_past_annotation_run,
@@ -50,9 +52,6 @@ DEFAULT_MAKE_BIG_HTML = False
 SUMMARIZE_METABOLISM_TAG: str = "summarize_metabolism"
 MAKE_GENOME_STATS_TAG: str = "make_genome_stats"
 MAKE_PRODUCT_TAG: str = "make_product"
-GENOME_STATS_TAG = "genome_stats"
-METABOLISM_SUMMARY_TAG = "metabolism_summary"
-DISTILLATE_TAG = "distillation"
 PRODUCT_TAG = "product"
 DISTILLATE_MODUALS: tuple[str, str, str] = (
     SUMMARIZE_METABOLISM_TAG,
@@ -140,16 +139,57 @@ CONSTANT_DISTILLATE_COLUMNS = [
 ]
 DISTILATE_SORT_ORDER_COLUMNS = [COL_HEADER, COL_SUBHEADER, COL_MODULE, COL_GENE_ID]
 EXCEL_MAX_CELL_SIZE = 32767
+LOCATION_TAG = "location"
 
 
 def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logger):
-    if (dram_sheets := dram_config.get(DRAM_SHEET_TAG)) is None or (
-        sheet_path := dram_sheets.get(form_tag)
-    ) is None:
-        sheet_path = FILES_NAMES[form_tag]
+    """
+    Paths in the config can be complicated. Here is a function that will get
+    you the absolute path, the relative path,  or whatever. specifically for
+    distillate sheets This should be more
+    formalized and the config
+
+    should actualy be maniged in its own structure. With a data file class
+    that can use this function.
+    """
+    if (
+        (dram_sheets := dram_config.get(DRAM_SHEET_TAG)) is None
+        or dram_sheets.get(form_tag) is None
+        or (sheet_path_str := dram_sheets[form_tag].get(LOCATION_TAG)) is None
+    ):
+        sheet_path: Path = get_package_path(Path(FILES_NAMES[form_tag]))
         logger.debug(
             f"Using the default distillation sheet for {form_tag} with its location at {sheet_path}. This information is only important if you intended to use a custom distillation sheet"
         )
+    else:
+        sheet_path = Path(sheet_path_str)
+        if not sheet_path.is_absolute():
+            dram_data_folder: Optional[str] = config.get(DRAM_DATAFOLDER_TAG)
+            if dram_data_folder is None:
+                raise DramUsageError(
+                    f"In the DRAM2 config File, the path {form_tag} is relive and the {DRAM_DATAFOLDER_TAG} is not set!"
+                )
+            sheet_path = Path(dram_data_folder) / sheet_path
+        if not sheet_path.exists():
+            raise DramUsageError(
+                f"The file {form_tag} is not at the path"
+                f" {sheet_path}. Most likely you moved the DRAM"
+                f" data but forgot to update the config file to"
+                f" point to it. The easy fix is to set the"
+                f" {DRAM_DATAFOLDER_TAG} variable in the config"
+                f" like:\n"
+                f" {DRAM_DATAFOLDER_TAG}: the/path/to/my/file"
+                f" If you are useing full paths and not the"
+                f" {DRAM_DATAFOLDER_TAG} you may want to revue the"
+                f" Configure Dram section of the documentation to"
+                f" make sure your config will work with dram."
+                f" rememberer that the config must be a valid yaml"
+                f" file to work. Also you can always use"
+                f" db_builder to remake your databases and the"
+                f" config file if you don't feel up to editing it"
+                f" yourself."
+            )
+
     return pd.read_csv(sheet_path, sep="\t")
 
 
@@ -184,7 +224,7 @@ def fill_genome_summary_frame_gene_names(
     for genome, frame in annotation_ids_by_row.groupby(groupby_column, sort=False):
         # make dict of identifiers to gene names
         id_gene_dict = defaultdict(list)
-        for gene, ids in frame.iteritems():
+        for gene, ids in frame.items():
             for id_ in ids:
                 id_gene_dict[id_].append(gene)
         # fill in genome summary_frame
@@ -255,22 +295,21 @@ def summarize_trnas(trnas_df, groupby_column=DEFAULT_GROUPBY_COLUMN):
 
 
 def make_genome_summary(
-    annotations: pd.DataFrame,
     genome_summary_frame: pd.DataFrame,
-    all_annotation_ids: pd.DataFrame,
-    logger,
-    trna_frame=None,
-    rrna_frame=None,
+    annotation_ids_by_row: pd.DataFrame,
+    logger: logging.Logger,
+    trna_frame,
+    rrna_frame,
+    groupby_column: str,
 ):
     summary_frames = list()
     # get ko summaries
     summary_frames.append(
         fill_genome_summary_frame(
-            annotations,
+            annotation_ids_by_row,
             genome_summary_frame.copy(),
             groupby_column,
             logger,
-            all_annotation_ids,
         )
     )
 
@@ -456,8 +495,17 @@ def get_module_step_coverage(kos, module_net):
 
 def make_module_coverage_df(annotation_df, module_nets):
     kos_to_genes = defaultdict(list)
-    ko_id_name = "kegg_id" if "kegg_id" in annotation_df.columns else "ko_id"
-    for gene_id, ko_list in annotation_df[ko_id_name].iteritems():
+    ko_id: Optional(str) = None
+    ko_id_names: list[str] = ["kegg_id", "kofam_id", "ko_id"]
+    for id in ko_id_names:
+        if id in annotation_df:
+            ko_id = id
+            break
+    if ko_id is None:
+        raise ValueError(
+            f"No KEGG or KOfam id column could be found. These names were tried: {', '.join(ko_id_names)}"
+        )
+    for gene_id, ko_list in annotation_df[ko_id].items():
         if type(ko_list) is str:
             for ko in ko_list.split(","):
                 kos_to_genes[ko].append(gene_id)
@@ -866,8 +914,8 @@ def fill_product_dfs(
         annotations,
         function_heatmap_form,
         logger,
-        groupby_column,
         annotation_ids_by_row,
+        groupby_column,
     )
 
     return module_coverage_frame, etc_coverage_df, function_df
@@ -981,7 +1029,11 @@ def get_past_annotations(
             "because the force flag was passed."
         )
     else:
-        if (db_error:=check_for_annotations([DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET], annotation_run)) is not None:
+        if (
+            db_error := check_for_annotations(
+                [DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET], annotation_run
+            )
+        ) is not None:
             raise DramUsageError(db_error)
 
     return pd.read_csv(annotations_path, sep="\t", index_col=0)
@@ -1065,7 +1117,12 @@ def distill(
     make_big_html: bool = DEFAULT_MAKE_BIG_HTML,
     groupby_column: str = DEFAULT_GROUPBY_COLUMN,
     use_db_distilate: Optional[list] = None,
-):
+) -> tuple[Optional[list[Fasta]], Optional[Path], Optional[Path], Optional[Path]]:
+
+    # Out_paths for config
+    genome_stats_path: Optional[Path] = None
+    metabolism_summary_output_path: Optional[Path] = None
+    product_tsv_output: Optional[Path] = None
 
     annotation_run: Optional[dict] = None
     called_fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
@@ -1074,15 +1131,6 @@ def distill(
         if called_fastas is None
         else [Fasta.import_strings(output_dir, *j) for j in called_fastas]
     )
-    new_project_config = {
-        DISTILLATE_TAG: {
-            "latest": run_id,
-            run_id: {
-                "version": __version__,
-                FASTAS_CONF_TAG: None if fastas is None else [i.name for i in fastas],
-            },
-        },
-    }
     if annotations_tsv_path is not None:
         if not force:
             raise ValueError(
@@ -1101,15 +1149,19 @@ def distill(
     # SUMMARIZE_METABOLISM_TAG, MAKE_GENOME_STATS_TAG, MAKE_PRODUCT_TAG
 
     db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
+    if not force:
+        dbs_we_have_ano = set(annotation_run[USED_DBS_TAG])
+        db_kits_with_ids = [i for i in db_kits_with_ids if i.name in dbs_we_have_ano]
+    else:
+        logger.warning("Skipping the normal checks because of the force flag")
+    logger.debug("Loading dram_config into db_kits")
+    db_kits = [i(dram_config, logger) for i in db_kits_with_ids]
     annotation_ids_by_row: pd.dataframe = get_annotation_ids_by_row(
-        annotations, db_kits_with_ids, groupby_column
+        annotations, db_kits
     )
     modual_set: set[str] = set(moduals)
     if MAKE_GENOME_STATS_TAG in modual_set:
         genome_stats_path = output_dir / "genome_stats.tsv"
-        new_project_config[DISTILLATE_TAG][run_id][GENOME_STATS_TAG] = {
-            "location": genome_stats_path
-        }
         make_genome_stats_file(
             genome_stats_path,
             annotations,
@@ -1142,7 +1194,7 @@ def distill(
         make_metabolism_summary(
             metabolism_summary_output_path,
             annotations,
-            all_annotation_ids,
+            annotation_ids_by_row,
             trna,
             rrna,
             genome_summary_form,
@@ -1150,9 +1202,6 @@ def distill(
             groupby_column,
             show_gene_names,
         )
-        new_project_config[DISTILLATE_TAG][run_id][METABOLISM_SUMMARY_TAG] = {
-            "location": metabolism_summary_output_path
-        }
     if MAKE_PRODUCT_TAG in modual_set:
         module_steps_form = get_distillate_sheet(
             MODULE_STEPS_FORM_TAG, dram_config, logger
@@ -1178,10 +1227,7 @@ def distill(
         )
 
         # NOTE: We don't document the html because it is not used as input and we can't grantee it gets made
-        new_project_config[DISTILLATE_TAG][run_id][PRODUCT_TAG] = {
-            "location": product_tsv_output
-        }
-    return new_project_config
+    return fastas, genome_stats_path, metabolism_summary_output_path, product_tsv_output
 
 
 def make_genome_stats_file(
@@ -1203,7 +1249,7 @@ def make_genome_stats_file(
 def make_metabolism_summary(
     output_path: Path,
     annotations: pd.DataFrame,
-    all_annotation_ids: pd.DataFrame,
+    annotation_ids_by_row: pd.DataFrame,
     trna: Optional[pd.DataFrame],
     rrna: Optional[pd.DataFrame],
     genome_summary_form: pd.DataFrame,
@@ -1219,9 +1265,8 @@ def make_metabolism_summary(
         )
     else:
         summarized_genomes = make_genome_summary(
-            annotations,
             genome_summary_form,
-            all_annotation_ids,
+            annotation_ids_by_row,
             logger,
             trna,
             rrna,

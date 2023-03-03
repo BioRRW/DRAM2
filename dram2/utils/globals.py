@@ -18,3 +18,4 @@ GENOMES_PER_PRODUCT = 1000
 DEFAULT_FORCE: bool = False
 DEFAULT_OUTPUT_DIR: Path = Path(".")
 FASTAS_CONF_TAG = "fastas"
+

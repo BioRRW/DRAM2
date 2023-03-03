@@ -189,7 +189,4 @@ class FeGenieKit(DBKit):
             ),
         )
 
-    def get_descriptions(self, hits):
-        "fix"
-        return hits
 

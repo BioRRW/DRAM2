@@ -20,6 +20,8 @@ class CountMotifsKit(DBKit):
     citation:str = "This database is so simple \"(C..CH)\" it dose not warrant a citation."
     date: Optional[str] = None
     max_threads = 1
+    can_get_ids:bool = False
+    
 
     def load_dram_config(self):
         pass
@@ -36,7 +38,4 @@ class CountMotifsKit(DBKit):
                 },
                 index=["heme_regulatory_motif_count"],
             ).T
-
-    def get_descriptions(self, hits) -> pd.DataFrame:
-        return hits
 

@@ -1,14 +1,10 @@
-from dram2.tree_kit.dram_phylo_pipe import (
-    phylo_tree,
-    MIN_DIF_LEN_RATIO_DFLT,
-    MAX_LEN_TO_LABEL_DFLT,
-)
-
-import click
 import logging
 from pathlib import Path
 from typing import Optional
 import os
+from importlib.resources import files
+
+import click
 
 from dram2.cli.context import (
     DramContext,
@@ -19,13 +15,109 @@ from dram2.annotate import ANNOTATIONS_TAG
 from dram2.utils.utils import Fasta, DramUsageError
 from dram2.annotate import (
     get_past_annotation_run,
+    DB_KITS,
+    USED_DBS_TAG,
     ANNOTATION_FILE_TAG,
     check_for_annotations,
-    DISTILLATION_MIN_SET,
-    DISTILLATION_MIN_SET_KEGG,
+)
+from dram2.tree_kit.dram_phylo_pipe import (
+    phylo_tree,
+    MIN_DIF_LEN_RATIO_DFLT,
+    MAX_LEN_TO_LABEL_DFLT,
 )
 from dram2.utils.globals import FASTAS_CONF_TAG
+from dram2.tree_kit.pplacer import DramTree
 
+TREE_TAG: str = "phylo_trees"
+
+DATA_PATH = Path(files("dram2.tree_kit").joinpath("data"))
+NXR_NAR_TREE = DramTree(
+    name="nxr_nar",
+    pplacer_profile=os.path.join(DATA_PATH, "nxr_nar", "nxr_nar.refpkg"),
+    target_ids=["K11180", "dsrA", "dsrB", "K11181"],
+    target_dbs=[{"kegg"}, {"kofam"}],
+    reference_seq=os.path.join(
+        DATA_PATH, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"
+    ),
+    gene_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
+    color_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "color_map.tsv"),
+)
+AMOA_PMOA_TREE = DramTree(
+    name="amoa_pmoa",
+    pplacer_profile=os.path.join(DATA_PATH, "nxr_nar", "nxr_nar.refpkg"),
+    target_ids=["K11180", "dsrA", "dsrB", "K11181"],
+    target_dbs=[{"kegg"}, {"kofam"}],
+    reference_seq=os.path.join(
+        DATA_PATH, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"
+    ),
+    gene_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
+    color_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "color_map.tsv"),
+)
+TREES = [NXR_NAR_TREE]
+LATEST_TREE_RUN_TAG: str = "latest"
+
+def get_annotations_and_genes_path(
+    annotation_run: Optional[dict],
+    genes_list: Optional[list],
+    annotations: Optional[Path],
+    genes: Optional[Path],
+    force: bool,
+    output_dir: Path,
+    logger: logging.Logger
+) -> tuple[Path, Path | list]:
+    if force:
+        logger.warning(
+            "Skipping the normal checks for needed annotations "
+            "because the force flag was passed."
+        )
+    elif annotation_run is not None:
+        if (
+            db_error := check_for_annotations(
+                [{'kofam'}, {"kegg"}], annotation_run
+            )
+        ) is not None:
+            raise DramUsageError(db_error)
+    else:
+        raise DramUsageError(
+            "The project_config dose not exist or you have not annotated. \n"
+            "Have you called genes and annotations?\n\n You must at least annotate"
+            " with KOfam or KEGG in order to run this script.\n\nIf you have done"
+            " the steps but dont have a project_config for whatever reason then "
+            "you can use the force option to skip this check."
+        )
+    if isinstance(annotations, Path):
+        annotation_to_use:Path = annotations
+    elif annotation_run is None:
+        raise DramUsageError(
+            "There is no project_config in the output directory and no"
+            " annotation.tsv was provided in its place."
+            "\nIf your output directory has no project config file,"
+            "you must use the --annotations option to point to an annotations.tsv."
+        )
+    else:
+        annotation_to_use_str: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
+        if annotation_to_use_str is None:
+            raise DramUsageError(
+                "There is no annotations.tsv recorded in the project_config "
+                "provided.\n\nIt must be the case that the DRAM directory"
+                " dose not contain the result of a successful annotation, "
+                " because it was not run or it was moved."
+                # "\nRun `dram2 get_status` to see if annotations have been "
+                # "run on this dram directory or if it is valid at all. "
+            )
+        else:
+            annotation_to_use: Path = output_dir /annotation_to_use_str
+    if isinstance(genes, Path):
+        return annotation_to_use, genes
+    elif isinstance(genes_list, list):
+        return annotation_to_use, genes_list
+    else:
+        raise DramUsageError(
+            "There is no genes directory recorded in the project_config file"
+            " provided, and no genes.faa was provided in its place."
+            "\nIf your output directory has no project config file,"
+            " you must use the --genes option to point to a genes.faa."
+        )
 
 @click.command("phylotree")
 # @click.version_option(__version__)
@@ -34,24 +126,26 @@ from dram2.utils.globals import FASTAS_CONF_TAG
     "annotations",
     type=click.Path(exists=True),
     required=False,
-    help="The DRAM annotations file, not necessary"
-    "  if you use the dram_directory option",
+    help="The DRAM annotations.tsv file, it must meet all the requirement for"
+    " this tool. pointing to this not necessary if you use the output directory"
+    " option. If there is no project config in the output directory you will"
+    " need to use force. ",
 )
 @click.option(
     "-g",
     "genes",
-    type=click.Path(exists=True, type=Optional[Path]),
+    type=click.Path(exists=True, path_type=Path),
     default=None,
     required=False,
     help="The gene fasta file, genes.faa file from dram combine genes.",
 )
-@click.option(
-    "-d",
-    "dram_directory",
-    type=click.Path(exists=True),
-    required=False,
-    help="The dram input file, with no names changed so it contains annotations.txt and genes.faa, genes.fna",
-)
+# @click.option(
+#     "-d",
+#     "dram_directory",
+#     type=click.Path(exists=True),
+#     required=False,
+#     help="The dram input file, with no names changed so it contains annotations.txt and genes.faa, genes.fna",
+# )
 # @click.option(
 #     "-o",
 #     "--output_dir",
@@ -79,14 +173,21 @@ from dram2.utils.globals import FASTAS_CONF_TAG
     "--min_dif_len_ratio",
     type=int,
     required=False,
-    help="The minimum ratio, in distances, between the nearest labeled gene and the nearest differently labeled gene for a placed gene to adopt that label. This does not apply to genes labeled based on placement in a labeled clad. So if the first distance is d1 and the second longer distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the paced gene will fail to be labeled.",
+    help="The minimum ratio, in distances, between the nearest labeled gene and"
+    " the nearest differently labeled gene for a placed gene to adopt that"
+    " label. This does not apply to genes labeled based on placement in a"
+    " labeled clad. So if the first distance is d1 and the second longer"
+    " distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the paced gene will"
+    " fail to be labeled.",
     default=MIN_DIF_LEN_RATIO_DFLT,
 )
 @click.option(
     "--max_len_to_label",
     type=int,
     required=False,
-    help="The maximum distance that a placed gene can be from the nearest labeled node and adopt that label. This does not apply to genes labeled based on placement in a labeled clad.",
+    help="The maximum distance that a placed gene can be from the nearest"
+    " labeled node and adopt that label. This does not apply to genes labeled"
+    " based on placement in a labeled clad.",
     default=MAX_LEN_TO_LABEL_DFLT,
 )
 # @click.option(
@@ -103,123 +204,26 @@ from dram2.utils.globals import FASTAS_CONF_TAG
     default=False,
     help="Keep the tempory directory where these trees are kept",
 )
-# @click.option(
-#     "-f",
-#     "--force",
-#     is_flag=True,
-#     show_default=True,
-#     default=False,
-# )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help= "Skip the normal checks on the dram project_config and just try to use the annotations and genes provided"
+)
 # @click.option(
 #     "--output_dir",
 #     default="./",
 #     help="Don't place uncertain genes, place all of them",
 # )
-def get_annotations_and_genes_path(
-    project_config: dict,
-    annotations: Optional[Path],
-    genes: Optional[Path],
-    force: bool,
-    output_dir: Path,
-) -> tuple[Path, Path | list]:
-    if annotations is not None:
-        if not force:
-            raise DramUsageError(
-                "You must use the --force flag if you pass an annotations and don't use an output directory with a project config file in it. This is to be shure you know what you are doing, and know that normal checks will be skiped."
-            )
-        if genes is None:
-            raise DramUsageError(
-                "You must use the --genes option if you pass an annotations file. The genes dir is used for phylo_genetic placement."
-            )
-        return annotations, genes
-    if genes is not None:
-        raise DramUsageError(
-            "You must use the --annotations option to point to an annotations file if you pass an genes instead of use an output directory with a project config file in it."
-        )
-    if (annotation_run := get_past_annotation_run(project_config)) is None:
-        raise DramUsageError(
-            "The project_config dose not exist or you have not annotated. Have you called genes and annotations? You must at least annotate with KOfam or KEGG in order to run this script."
-        )
-
-    if (
-        db_error := check_for_annotations(
-            [set(["kegg"]), set(["kofam"])], annotation_run
-        )
-    ) is not None:
-        raise DramUsageError(db_error)
-    relative_annotation_path: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
-    relative_genes_path: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
-    if relative_annotation_path is None:
-        raise DramUsageError(
-            "There is no annotations.tsv recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory dose not contain the result of "
-            "a successful annotation.\n"
-            "Run `dram2 get_status` to see if annotations have been run on this dram directory "
-            "or if it is valid at all. "
-        )
-    if relative_genes_path is None:
-        raise DramUsageError(
-            "There is no annotations.tsv recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory dose not contain the result of "
-            "a successful annotation or DRAM2 called genes.\n"
-        )
-    annotations_path = output_dir / relative_annotation_path
-    genes_list: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
-    if genes_list is None:
-        raise DramUsageError("There are no called genes in the cofig file")
-
-    if not annotations_path.exists():
-        raise DramUsageError(
-            f"The path to annotations exists but it dose not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
-        )
-    if force:
-        logging.warning(
-            "Skipping the normal checks for needed annotations "
-            "because the force flag was passed."
-        )
-    else:
-        if (
-            db_error := check_for_annotations(
-                [DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET], annotation_run
-            )
-        ) is not None:
-            raise DramUsageError(db_error)
-
-    return annotations_path, genes_list
-
-
-DEFAULT_COMBINED_GENES_NAME = "genes.faa"
-from Bio import SeqIO
-from collections.abc import Iterator
-
-
-def rename_fastas(fastas) -> Iterator:
-    for fasta in fastas:
-        with open(fasta.faa, "w") as faa_feed:
-            for record in SeqIO.parse(faa_feed, "fasta"):
-                record.id = f"{fasta.name}_{record.id}"
-                yield record
-
-
-def combine_genes(
-    genes_list: list,
-    output_dir: Path,
-    genes_out_path_name: str | Path = DEFAULT_COMBINED_GENES_NAME,
-) -> Path:
-    fastas = [Fasta.import_strings(output_dir, *j) for j in genes_list]
-    if isinstance(genes_out_path_name, str):
-        genes_out: Path = output_dir / genes_out_path_name
-    else:
-        genes_out: Path = output_dir / genes_out_path_name
-    seqs = [i for i in rename_fastas(fastas)]
-    with open(genes_out, "w") as faa_feed:
-        SeqIO.write(seqs, faa_feed, "fasta")
-    return genes_out
-
-
-TREE_TAG: str = "phylo_trees"
-
-
+@click.option(
+    "--use_tree",
+    multiple=True,
+    default=[t.name for t in TREES],
+    type=click.Choice([t.name for t in TREES], case_sensitive=False),
+    help="Specifiy exactly which trees to use. This argument can be used multiple times, but for now there is only one option.",
+)
 @click.pass_context
 def phylo_tree_cmd(
     ctx: click.Context,
@@ -230,19 +234,25 @@ def phylo_tree_cmd(
     force: bool,
     max_len_to_label,
     min_dif_len_ratio,
+    use_tree: list[str]
 ):
     """
     Philogenetic trees to DRAM
     ___
 
-    Some genes can perform more than one function, phyloginy offers a system to identifie what the metibolic function an abiguase gene is perfoming.
+    Some genes can perform more than one function, phyloginy offers a system 
+    to identifie what the metibolic function an abiguase gene is perfoming.
 
-    In order to use this command you must first complete the falowing for all genes in your project:
-    - Call the Genes with `dram2 call`
-    - annotate the genes with`dram2 annotate using `dram2 annotate` be shure you use the fallowing database:
+    In order to use this command you must first complete the falowing for
+    all genes in your project:
+
+    - Call the Genes with `dram2 call` (and don’t remove the genes directory!!)
+    - annotate the genes with`dram2 annotate using `dram2 annotate` be 
+    shure you use the fallowing database:
         - KEGG or KOfam
 
-    Note that at the moment NXR/NAR is the only tree active but PMOA/AMOA is in the works.
+    Note that at the moment NXR/NAR is the only tree active but PMOA/AMOA is
+    in the works.
 
     """
     context: DramContext = ctx.obj
@@ -250,18 +260,33 @@ def phylo_tree_cmd(
     output_dir: Path = context.get_output_dir()
     cores: int = context.cores
     project_config: dict = context.get_project_config()
+    dram_config: dict = context.get_dram_config(logger)  # FIX
     try:
-        annotations, genes_path_list = get_annotations_and_genes_path(
-            project_config, annotations, genes, force, output_dir
+        genes_list: Optional[list] = project_config.get(FASTAS_CONF_TAG)
+        annotation_run: Optional[dict] = get_past_annotation_run(project_config)
+        annotations_path, genes_path_list = get_annotations_and_genes_path(
+            annotation_run, genes_list, annotations, genes, force, output_dir, logger
         )
-        if isinstance(genes_path_list, list):
-            genes_fasta: Path = combine_genes(genes_path_list, output_dir)
-        else:
-            genes_fasta: Path = genes_path_list
         run_id: str = get_time_stamp_id(TREE_TAG)
-        tree_names = phylo_tree(
-            annotations=annotations,
-            gene_fasta=genes_fasta,
+        db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
+        if annotation_run is None and not force:
+            raise DramUsageError(
+                "There is no project_config or it is missing the data from a"
+                " annotation run, but you have not used the force flag to skip"
+                " checks. We can't check the annotations with out the"
+                " annotation run data. If you know what you are doing you can"
+                " use the force flag to continue without checks"
+            )
+        elif annotation_run is not None and not force:
+            dbs_we_have_ano = set(annotation_run[USED_DBS_TAG])
+            db_kits_with_ids = [i for i in db_kits_with_ids if i.name in dbs_we_have_ano]
+        else:
+            logger.warning("Skipping the normal checks because of the force flag")
+        db_kits = [i(dram_config, logger) for i in db_kits_with_ids]
+        trees = [t for t in TREES if t.name in use_tree]
+        tree_names, tree_paths = phylo_tree(
+            annotations_path=annotations_path,
+            gene_fasta_list=genes_path_list,
             output_dir=output_dir,
             logger=logger,
             # annotate_all =  annotate_all,
@@ -270,9 +295,20 @@ def phylo_tree_cmd(
             # force=force,
             max_len_to_label=max_len_to_label,
             min_dif_len_ratio=min_dif_len_ratio,
+            db_kits=db_kits,
+            trees=trees
         )
-        tree_names
-        project_config.update({TREE_TAG: {run_id: {"names": tree_names}}})
+        if TREE_TAG in project_config:
+            project_config[TREE_TAG].update({
+                LATEST_TREE_RUN_TAG: run_id,
+                run_id: {i:j for i, j in zip(tree_names, tree_paths)}
+            })
+        else:
+            project_config.update({TREE_TAG: {
+                LATEST_TREE_RUN_TAG: run_id,
+                run_id: {i:j for i, j in zip(tree_names, tree_paths)}
+                                              }})
+        context.set_project_config(project_config)
 
     except Exception as e:
         logger.error(e)

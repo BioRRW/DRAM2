@@ -84,66 +84,9 @@ DBKIT_TAG = "db_kits"
 SETUP_NOTES_TAG = "setup_notes"
 CUSTOM_FASTA_DB_TYPE = "custom_fasta"
 CUSTOM_HMM_DB_TYPE = "custom_HMM"
-
-
-def run_mmseqs_profile_search(
-    query_db,
-    pfam_profile,
-    output_loc,
-    logger,
-    output_prefix="mmpro_results",
-    db_handler=None,
-    threads=10,
-) -> pd.DataFrame:
-    """Use mmseqs to run a search against pfam, currently keeping all hits and not doing any extra filtering"""
-    tmp_dir = path.join(output_loc, "tmp")
-    output_db = path.join(output_loc, "%s.mmsdb" % output_prefix)
-    run_process(
-        [
-            "mmseqs",
-            "search",
-            query_db,
-            pfam_profile,
-            output_db,
-            tmp_dir,
-            "-k",
-            "5",
-            "-s",
-            "7",
-            "--threads",
-            str(threads),
-        ],
-        logger,
-    )
-    output_loc = path.join(output_loc, "%s_output.b6" % output_prefix)
-    run_process(
-        ["mmseqs", "convertalis", query_db, pfam_profile, output_db, output_loc],
-        logger,
-    )
-    pfam_results = pd.read_csv(
-        output_loc, sep="\t", header=None, names=BOUTFMT6_COLUMNS
-    )
-    if pfam_results.shape[0] > 0:
-        pfam_dict = dict()
-        if db_handler is not None:
-            pfam_descriptions = db_handler.get_descriptions(
-                set(pfam_results.tId), "%s_description" % output_prefix
-            )
-        else:
-            pfam_descriptions = {}
-        for gene, pfam_frame in pfam_results.groupby("qId"):
-            if len(pfam_descriptions) < 1:
-                pfam_dict[gene] = "; ".join(pfam_frame.tId)
-            else:
-                pfam_dict[gene] = "; ".join(
-                    [
-                        "%s [%s]" % (pfam_descriptions[ascession], ascession)
-                        for ascession in pfam_frame.tId
-                    ]
-                )
-        return pd.DataFrame(pfam_dict, index=[f"{output_prefix}_hits"]).T
-    else:
-        return pd.DataFrame(columns=[f"{output_prefix}_hits"])
+QUERY_PREFIX="query"
+TARGET_PREFIX="target"
+HMM_SCAN_MAX_THREADS = 2
 
 
 def process_reciprocal_best_hits(
@@ -185,12 +128,12 @@ def get_reciprocal_best_hits(
     query_db,
     target_db,
     logger,
-    output_dir=".",
-    query_prefix="query",
-    target_prefix="target",
-    bit_score_threshold=60,
-    rbh_bit_score_threshold=350,
-    threads=10,
+    output_dir:str,
+    bit_score_threshold:int,
+    rbh_bit_score_threshold:int,
+    threads,
+    query_prefix:str=QUERY_PREFIX,
+    target_prefix:str=QUERY_PREFIX,
 ):
     """Take results from best hits and use for a reciprocal best hits search"""
     # TODO: Make it take query_target_db as a parameter
@@ -241,14 +184,14 @@ def get_reciprocal_best_hits(
     )
 
     return get_best_hits(
-        target_db_filt,
-        query_db,
-        logger,
-        output_dir,
-        target_prefix,
-        query_prefix,
-        rbh_bit_score_threshold,
-        threads,
+        query_db=target_db_filt,
+        target_db=query_db,
+        logger=logger,
+        output_dir=output_dir,
+        bit_score_threshold=rbh_bit_score_threshold,
+        query_prefix =target_prefix,
+        target_prefix=query_prefix,
+        threads = threads,
     )
 
 
@@ -275,10 +218,10 @@ def do_blast_style_search(
     target_db,
     working_dir,
     logger,
-    db_name="database",
-    bit_score_threshold=60,
-    rbh_bit_score_threshold=350,
-    threads=10,
+    db_name,
+    bit_score_threshold:int,
+    rbh_bit_score_threshold:int,
+    threads:int,
 ):
     """A convenience function to do a blast style reciprocal best hits search"""
     # Get kegg hits
@@ -288,10 +231,10 @@ def do_blast_style_search(
         target_db,
         logger,
         working_dir,
-        "gene",
-        db_name,
         bit_score_threshold,
         threads,
+        "gene",
+        db_name,
     )
     if stat(forward_hits).st_size == 0:
         return pd.DataFrame(columns=[f"{db_name}_hit"])
@@ -301,14 +244,13 @@ def do_blast_style_search(
         target_db,
         logger,
         working_dir,
-        "gene",
-        db_name,
         bit_score_threshold,
         rbh_bit_score_threshold,
         threads,
+        "gene",
+        db_name,
     )
     hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
-    logger.info("Getting descriptions of hits from %s" % (db_name))
     # if "%s_description" % db_name in db_handler.get_database_names():
     #     header_dict = db_handler.get_descriptions(
     #         hits["%s_hit" % db_name], "%s_description" % db_name
@@ -321,8 +263,8 @@ def make_mmseqs_db(
     fasta_loc,
     output_loc,
     logger,
+    threads,
     create_index=True,
-    threads=10,
 ):
     """Takes a fasta file and makes a mmseqs2 database for use in blast searching and hmm searching with mmseqs2,"""
     run_process(
@@ -336,7 +278,6 @@ def make_mmseqs_db(
             logger,
         )
 
-
 def run_hmmscan(
     genes_faa: str,
     db_loc: str,
@@ -344,8 +285,10 @@ def run_hmmscan(
     output_loc: str,
     formater: Callable,
     logger: logging.Logger,
-    threads: int = 2,
+    threads: int,
 ):
+    if threads > HMM_SCAN_MAX_THREADS:
+        logger.warning(f"Something has gone wrong for {db_name}. It is trying to use hmmscan with {threads} threads which is sub-optimal as hmmscan can only make use of {HMM_SCAN_MAX_THREADS} threads.")
     output = path.join(output_loc, f"{db_name}_results.unprocessed.b6")
     run_process(
         ["hmmsearch", "--domtblout", output, "--cpu", str(threads), db_loc, genes_faa],
@@ -378,12 +321,12 @@ def parse_hmmsearch_domtblout(file):
 def get_best_hits(
     query_db: Union[str, Path],
     target_db: Union[str, Path],
-    logger,
-    output_dir: Union[str, Path] = ".",
-    query_prefix="query",
-    target_prefix="target",
-    bit_score_threshold=60,
-    threads=10,
+    logger: logging.Logger,
+    output_dir: Union[str, Path],
+    bit_score_threshold,
+    threads: int,
+    query_prefix =QUERY_PREFIX,
+    target_prefix=TARGET_PREFIX,
 ):
     """Uses mmseqs2 to do a blast style search of a query db against a target db, filters to only include best hits
     Returns a file location of a blast out format 6 file with search results
@@ -482,22 +425,17 @@ def process_custom_hmm_db_cutoffs(
     return {custom_hmm_db_name[i]: j for i, j in enumerate(custom_hmm_db_cutoffs_loc)}
 
 
-def get_basic_descriptions(hits, header_dict, db_name):
-    """Get viral gene full descriptions based on headers (text before first space)"""
-    hit_list = list()
-    description = list()
-    for hit in hits["%s_hit" % db_name]:
-        header = header_dict[hit]
-        hit_list.append(hit)
-        description.append(header)
-    new_df = pd.DataFrame(
-        [hit_list, description],
-        index=["%s_id" % db_name, "%s_hit" % db_name],
-        columns=hits.index,
-    )
-    return pd.concat(
-        [new_df.transpose(), hits.drop("%s_hit" % db_name, axis=1)], axis=1, sort=False
-    )
+def get_basic_descriptions(hits:pd.DataFrame, header_dict:dict[str, str], db_name:str) -> pd.DataFrame:
+    """
+    Get viral gene full descriptions based on headers (text before first space)
+    """
+    descriptions: pd.Series = hits[f"{db_name}_hit"].apply(
+                lambda x: None
+                if x is None
+                else header_dict[x]
+            )
+    descriptions.name = f"{db_name}_description"
+    return pd.DataFrame(descriptions)
 
 
 def get_sig_row(row, evalue_lim: float = 1e-15):
@@ -604,7 +542,7 @@ class DBKit(ABC):
     run_set_up = False  # impliment later the ability to setup on the fly
     keep_tmp: bool = False
     has_genome_summary: bool = False
-    can_get_ids:bool = True
+    can_get_ids: bool = True
 
     # For updating a counter
     fastas_to_annotate: int = 0
@@ -624,7 +562,7 @@ class DBKit(ABC):
         self.db_version: str = db_version
         self.citation: str = citation
 
-    def __init__(self, config: dict, logger:logging.Logger):
+    def __init__(self, config: dict, logger: logging.Logger):
         self.logger = logger
         if (
             config.get(DBKIT_TAG) is not None
@@ -640,10 +578,9 @@ class DBKit(ABC):
         ):
             raise ValueError(
                 "The data folder path is not none and is not a absolute path. "
-                "That should not be posible if it was corectly loaded. Are you "
+                "That should not be possible if it was correctly loaded. Are you "
                 "doing your own development?"
             )
-        self.load_dram_config()
 
     @classmethod
     def download(cls):
@@ -670,9 +607,7 @@ class DBKit(ABC):
             )
         if self.show_percent_of_fastas_done and (
             (self.fastas_to_annotate // self.fastas_annotated) * 100
-        ) >= (
-            self.step_percent_of_fastas_done + self.percent_of_fastas_done
-        ):
+        ) >= (self.step_percent_of_fastas_done + self.percent_of_fastas_done):
             self.percent_of_fastas_done += self.step_percent_of_fastas_done
             self.logger.info(
                 f"Still annotating gene FASTAs with {self.formal_name}, {self.percent_of_fastas_done}% done."
@@ -753,7 +688,7 @@ class DBKit(ABC):
 
         """
         if (
-            self.config.get(required_file) is None 
+            self.config.get(required_file) is None
             or self.config[required_file].get(FILE_LOCATION_TAG) is None
         ):
             if not self.run_set_up:
@@ -796,6 +731,12 @@ class DBKit(ABC):
     def setup(self):
         pass
 
+    def get_descriptions(self, annotation):
+        self.logger.debug(
+            f"The get_descriptions function is not separate for the DB {self.name}. This is less efficient than if it is separate and will get in the way of future optimization."
+        )
+        return pd.DataFrame()
+
     def get_setup_notes(self) -> dict:
         notes = self.config.get(SETUP_NOTES_TAG)
         if notes is None:
@@ -817,7 +758,8 @@ class DBKit(ABC):
         # "fasta_paths": gene_fasta_paths,
     ):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
-        self.working_dir: Path = working_dir
+        self.working_dir: Path = working_dir / self.name
+        self.working_dir.mkdir(exist_ok=True, parents=True)
         self.output_dir: Path = output_dir
         self.bit_score_threshold: int = bit_score_threshold
         self.rbh_bit_score_threshold: int = rbh_bit_score_threshold
@@ -911,17 +853,17 @@ class DBKit(ABC):
     #     pass
 
     @abstractmethod
-    def search(self, fasta:Fasta):
-        pass
-
-    @abstractmethod
-    def get_descriptions(self):
+    def search(self, fasta: Fasta):
         pass
 
     def get_ids(self, annotations: pd.Series) -> list:
         main_id = f"{self.name}_id"
         if main_id in annotations:
-            return  [annotations[main_id]]
+            return [annotations[main_id]]
+        if main_id not in annotations:
+            self.logger.debug(f"Expected {main_id} to be in annotations,  but it was not found")
+        elif not pd.isna(annotations[main_id]):
+            return [annotations[main_id]]
         return []
 
 
@@ -991,7 +933,6 @@ class FastaKit(DBKit):
         }
 
 
-
 class HmmKit(DBKit):
 
     name = "custom_hmm_db"
@@ -1036,9 +977,6 @@ class HmmKit(DBKit):
             logger=self.logger,
         )
         return annotatons
-
-    def get_descriptions(self):
-        pass
 
     def get_settings(self) -> dict:
         return {

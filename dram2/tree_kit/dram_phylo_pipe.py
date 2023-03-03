@@ -2,7 +2,11 @@
 This program add profiles based on phylogentic trees into dram. The key to this process is pplacer which places leaves into pre-exitsting trees
 
 NOTE pplacer uses about 1/4 of the memory when placing on a FastTree tree as compared to a RAxML tree inferred with GTRGAMMA. If your reads are short and in a fixed region, the memory used by pplacer v1.1 alpha08 (or later) scales with respect to the total number of non-gap columns in your query alignment. You can also make it use less memory (and run faster) by cutting down the size of your reference tree.
-TODO switch to FastTree
+
+TODO Allow this to use the genes directory instead of this
+TODO Update the clade data type to be more representitiv
+TODO Maybe switch to FastTree -- or don't
+TODO Make database check tree specific
 """
 
 # import tempfile
@@ -13,47 +17,50 @@ TODO switch to FastTree
 # from pyvis.network import Network
 # import networkx as nx
 import os
-from importlib.resources import files
+from collections.abc import Iterator
 from collections import namedtuple
 from functools import partial
+
 import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
-from dram2.tree_kit.pplacer import DramTree
-from dram2.utils.utils import run_process
-from skbio import write as write_sq
-from skbio import read as read_sq
 from Bio import Phylo as phy
 from Bio.Phylo.BaseTree import Clade
 from Bio.Phylo.Newick import Tree
-from dram2.utils.utils import Fasta, DramUsageError
+from Bio import SeqIO
 from pathlib import Path
 
-from dram2.annotate import (
-    get_annotation_ids_by_row,
-    DB_KITS,
-    get_all_annotation_ids,
-    get_past_annotation_run,
-    ANNOTATION_FILE_TAG,
-    check_for_annotations,
-    USED_DBS_TAG,
-    DISTILLATION_MIN_SET,
-    DISTILLATION_MIN_SET_KEGG,
-)
+from dram2.annotate import get_annotation_ids_by_row, DBSETS_COL
+from dram2.tree_kit.pplacer import DramTree
+from dram2.utils.utils import run_process, Fasta
+from dram2.db_kits.utils import DBKit
+
+DEFAULT_COMBINED_GENES_NAME = "genes.faa"
 
 
+def read_rename_fasta(fasta: Fasta) -> Iterator:
+    if fasta.faa is None or not fasta.faa.exists():
+        raise ValueError("Missing faa error")
+    with open(fasta.faa, "r") as faa_feed:
+        for record in SeqIO.parse(faa_feed, "fasta"):
+            record.id = f"{fasta.name}_{record.id}"
+            yield record
 
-data_path = files('dram2.tree_kit').joinpath('data')
-NXR_NAR_TREE = DramTree(
-    name="nxr_nar",
-    pplacer_profile=os.path.join(data_path, "nxr_nar", "nxr_nar.refpkg"),
-    target_ids=["K11180", "dsrA", "dsrB", "K11181"],
-    target_dbs=["K11180", "dsrA", "dsrB", "K11181"],
-    reference_seq=os.path.join(data_path, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"),
-    gene_mapping_path=os.path.join(data_path, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
-    color_mapping_path=os.path.join(data_path, "nxr_nar", "color_map.tsv")
-)
-TREES = [NXR_NAR_TREE]
+
+def combine_genes(
+    genes_list: list,
+    output_dir: Path,
+    work_dir: Path,
+    genes_out_path_name: str | Path = DEFAULT_COMBINED_GENES_NAME,
+) -> Path:
+    fastas = [Fasta.import_strings(output_dir, *j) for j in genes_list]
+    genes_out: Path = work_dir / genes_out_path_name
+    with open(genes_out, "w") as faa_feed:
+        for fasta in fastas:
+            SeqIO.write([i for i in read_rename_fasta(fasta)], faa_feed, "fasta")
+    return genes_out
+
+
 UNPLACE_LABEL = "UNPLACEABLE"
 
 # pplacer/guppy columns in one place for reference
@@ -69,37 +76,56 @@ UNPLACE_PREFIX: str = "Can't be placed:"
 
 
 def phylo_tree(
-    annotations: Path,
-    gene_fasta: Path,
+    annotations_path: Path,
+    gene_fasta_list: Path | list,
     output_dir: Path,
     logger: logging.Logger,
     # annotate_all: bool,
-    keep_temp: bool ,
+    keep_temp: bool,
     cores: int,
     # force: bool,
     max_len_to_label: float,
     min_dif_len_ratio: float,
-) -> list[str]:
-    tree = NXR_NAR_TREE
+    db_kits: list[DBKit],
+    trees: list[DramTree],
+) -> tuple[list[str], list[str]]:
     logger.info("Start phylogenetic tree disambiguation")
 
     logger.info("Processing annotations")
-    annotations = pd.read_csv(annotations, sep="\t", index_col=0)
-    annotation_ids = get_annotation_ids_by_row(annotations, [db for db in DB_KITS if db.name == 'kegg' or db.name == 'kofam'])
-    with TemporaryDirectory(dir=output_dir, prefix="tmp_") as work_dir:
-        for tree in TREES:
+    annotations = pd.read_csv(annotations_path, sep="\t", index_col=0)
+    annotation_ids: pd.Series = get_annotation_ids_by_row(annotations, db_kits)[
+        DBSETS_COL
+    ]
+    tree_paths = []
+    with TemporaryDirectory(dir=output_dir, prefix="tmp_") as work_dir_str:
+        work_dir: Path = Path(work_dir_str)
+        if isinstance(gene_fasta_list, list):
+            gene_fasta: Path = combine_genes(gene_fasta_list, output_dir, work_dir)
+        else:
+            gene_fasta: Path = gene_fasta_list
+        for tree in trees:
+            # For now we need to combine_genes if they are seperate. it would be supper cool if we did not.
             logger.info(f"Performing phylogenetic disambiguation with tree {tree.name}")
             tree.set_logger(logger)
             logger.info(f"Made temporary files in {work_dir}")
+            ids_keep = set(
+                annotation_ids[
+                    annotation_ids.apply(lambda x: len(x.intersection(tree.target_ids )) > 0)
+                ].index
+            )
+            if len(ids_keep) < 1:
+                logger.info(f"No enigmatic genes where found relating to {tree.name}. Skipping this tree.")
+                tree_paths += [None]
+                continue
             trimed_fa = extract_enigmatic_genes(
-                annotation_ids, gene_fasta, work_dir, tree.target_ids, logger
+                ids_keep, gene_fasta, work_dir, logger
             )
             logger.info("Placing enigmatic genes")
             jplace_file = tree.pplacer_place_sequences(
-                trimed_fa, work_dir, threads=cores
+                trimed_fa.as_posix(), work_dir_str, threads=cores
             )
-            treeph = read_phtree(jplace_file, work_dir, logger)
-            edpl = read_edpl(jplace_file, work_dir, logger)
+            treeph = read_phtree(jplace_file, work_dir_str, logger)
+            edpl = read_edpl(jplace_file, work_dir_str, logger)
             known_terminals, placed_terminals = color_known_termininals(
                 treeph, annotations, tree.mapping
             )
@@ -114,43 +140,42 @@ def phylo_tree(
             )
             logger.info("Writing output, to {output_dir.as_posix()}")
             write_files(
-                tree.name, tree_df, treeph, jplace_file, output_dir, work_dir, keep_temp
+                tree.name,
+                tree_df,
+                treeph,
+                jplace_file,
+                output_dir,
+                work_dir_str,
+                keep_temp,
             )
+            tree_paths += [f"{tree.name}_tree_data.tsv"]
             logger.info(end_message(tree_df, tree.name))
-    tree_names = [tree.name for tree in TREES]
-    return tree_names
-
-
+    tree_names = [tree.name for tree in trees]
+    return tree_names, tree_paths
 
 
 def extract_enigmatic_genes(
-    annotation_ids: pd.Series,
-    gene_fasta: str,
-    work_dir: str,
-    target_ids: set,
+    ids_keep: set[str],
+    gene_fasta: Path,
+    work_dir: Path,
     logger: logging.Logger,
-) -> str:
+) -> Path:
     """
-    :param annotation_ids: annotations from dram run
+    :param ids_keep: Enigamtic ids from annotations from dram run
     :param gene_fasta: faa from dram run
     :param work_dir: Temp files here
-    :param target_ids: ID set needing phylo info, used to filter genes
     :param logger: Standard DRAM logger
     :returns: The path to the ambiguous genes in a fasta file
 
     Takes in a fasta file of genes and a list of ids in the dram annotation, and returns a filtered fasta to match.
     """
     logger.info("Finding enigmatic genes")
-    output_fasta = os.path.join(work_dir, "trim.faa")
-    ids_keep = annotation_ids[
-        annotation_ids.apply(lambda x: len(x.intersection(target_ids)) > 0)
-    ]
-    output_fasta_generator = (
-        i
-        for i in read_sq(gene_fasta, format="fasta")
-        if i.metadata["id"] in ids_keep.index
-    )
-    write_sq(output_fasta_generator, format="fasta", into=output_fasta)
+    output_fasta = work_dir / "trim.faa"
+    with open(gene_fasta, "r") as faa_feed, open(output_fasta, "w") as out_faa:
+        output_fasta_generator = (
+            i for i in SeqIO.parse(faa_feed, "fasta") if i.id in ids_keep
+        )
+        SeqIO.write(output_fasta_generator, out_faa, "fasta")
     return output_fasta
 
 
@@ -191,7 +216,7 @@ def find_all_nearest(
             )
 
 
-def color_known_termininals(treeph, annotations: pd.DataFrame, mapping:pd.DataFrame):
+def color_known_termininals(treeph, annotations: pd.DataFrame, mapping: pd.DataFrame):
     terminals = treeph.get_terminals()
     known_terminals = [i for i in terminals if (i.name in mapping.index)]
     placed_terminals = [i for i in terminals if (i.name in annotations.index)]
@@ -474,27 +499,37 @@ def make_df_of_tree(
 def write_files(
     tree_name: str,
     tree_df: pd.DataFrame,
-    treeph: Tree,
-    jplace_file: str,
+    treeph: Tree | None,
+    jplace_file: str | None,
     output_dir: Path,
     work_dir: str,
     keep_temp: bool,
 ):
+    """
+    Write all the Tree files
+    ________________
+
+
+    FIX THIS
+    """
     tree_df.to_csv(os.path.join(output_dir, f"{tree_name}_tree_data.tsv"), sep="\t")
-    phy.write(
-        treeph,
-        os.path.join(output_dir, f"{tree_name}_labeled_tree.xml"),
-        "phyloxml",
-    )
-    os.rename(
-        jplace_file,
-        os.path.join(output_dir, f"{tree_name}.jplace"),
-    )
+    if treeph is not None:
+        phy.write(
+            treeph,
+            os.path.join(output_dir, f"{tree_name}_labeled_tree.xml"),
+            "phyloxml",
+        )
+    if jplace_file is not None:
+        os.rename(
+            jplace_file,
+            os.path.join(output_dir, f"{tree_name}.jplace"),
+        )
     if keep_temp:
         os.rename(
             work_dir,
             os.path.join(output_dir, f"{tree_name}_working_dir"),
         )
+
 
 
 def end_message(tree_df: pd.DataFrame, tree_name: str) -> str:
