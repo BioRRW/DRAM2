@@ -5,11 +5,12 @@ from urllib.request import urlopen, urlretrieve
 from urllib.error import HTTPError
 import pandas as pd
 import logging
+
 # from os import getenv
 from typing import Optional
 from pathlib import Path
-# import json
 
+# import json
 
 
 # def load_config(alt_location:Path, logger: logging.Logger):
@@ -32,11 +33,13 @@ from pathlib import Path
 #     config['config_location'] = location
 #     return config
 
+
 class DramUsageError(Exception):
     "Raised when dram is not used corectly, usally it means you are missing a step"
     pass
 
-def get_package_path(local_path:Path):
+
+def get_package_path(local_path: Path):
     """
     Locate the package data or non python files
 
@@ -45,6 +48,7 @@ def get_package_path(local_path:Path):
     """
     abs_snake_path = Path(__file__).parent.parent.absolute() / local_path
     return abs_snake_path
+
 
 def download_file(url, logger, output_file=None, verbose=True):
     if verbose:
@@ -85,6 +89,7 @@ def get_all_annotation_ids(data, logger):
     data.apply(list)
     out = Counter(chain(*data.values))
     return out
+
 
 def export_posible_path(
     path: Optional[Path], relative_path: Optional[Path] = None
@@ -141,6 +146,7 @@ class Fasta:
         )
         return ob
 
+
 def import_posible_path(
     path: Optional[str], relative_path: Optional[Path] = None
 ) -> Optional[Path]:
@@ -150,7 +156,6 @@ def import_posible_path(
     if relative_path is None:
         return out_path.absolute()
     return (relative_path / out_path).absolute()
-
 
 
 def run_process(
@@ -232,6 +237,3 @@ def get_ordered_uniques(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x) or pd.isna(x))]
-
-
-

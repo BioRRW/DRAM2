@@ -9,6 +9,7 @@ import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
 from dram2.utils.utils import run_process
+from multiprocessing import cpu_count
 
 QUERY_TMP_NAME = "query"
 
@@ -77,7 +78,7 @@ class DramTree:
                 "--out-dir",
                 working_dir,
                 "-j",
-                str(threads),
+                str(min(10, threads)),
             ],
             self.logger,
         )
@@ -92,4 +93,15 @@ One day we may want to be able to make these profiles
 taxit_comand= ['taxit', 'create', '-l', '16s_rRNA', '-P', 'nxr_nar.refpkg',
  '--aln-fasta', '$NXR_NAR_FAA', '--tree-stats',
  './RAxML_info.nxr_nar_raxml', '--tree-file', './nxr_nar.tre']
+
+import subprocess
+results = subprocess.run(
+            "pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 100",
+            check=True,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 10 
 """

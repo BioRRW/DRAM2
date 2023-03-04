@@ -1,4 +1,8 @@
 """
+KEGG DBKit
+==========
+
+This sub packege holds the data releated to kegg. 
 
 """
 

@@ -61,7 +61,7 @@ Iron Reduction	IronReduction	IronReductionGenes&ETC50
 	IronReductionGenes	mtrCAB|fe>omcF|fe>omcS|fe>omcZ|fe>DFE_operons|fe>FmnA
 	mtrCAB	fe>MtrA&fe>MtrB_TIGR03509&fe>MtrC_TIGR03507
 	DFE_operons	fe>DFE_0448|fe>DFE_0449|fe>DFE_0450|fe>DFE_0451|fe>DFE_0461|fe>DFE_0462|fe>DFE_0463|fe>DFE_0464|fe>DFE_0465|
-N reducer	Nreducer	ETC50&[NitrateReductase|NitriteReductase|NitricOxideReductase|NitrousOxideReductase]&nxr_nar>nxr
+N reducer	Nreducer	ETC50&[NitrateReductase|NitriteReductase|NitricOxideReductase|NitrousOxideReductase]&nxr_nar>narGNreducer
 Fumarate Reduction	FumarateReduction	atleast:1:FumarateReductionParts
 	FumarateReductionParts	"K00244,K00245,K00246,K00247"
 Tetrathionate Reduction	TetrathionateReduction	[1ofttrrs&1ofttrabc]|2ofttrabc
