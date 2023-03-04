@@ -259,7 +259,9 @@ def evaluate_cmd(
             rules_tsv: Path = RULES_TSV_PATH
         if (tree_conf := project_config.get(TREE_TAG)) is not None:
             tree_dict = tree_conf[tree_conf[LATEST_TREE_RUN_TAG]]
-            tree_paths:dict[str, None | Path] = {i: (None if j is None else output_dir / j) for i, j in tree_dict.items()}
+            tree_paths: dict[str, None | Path] = {
+                i: (None if j is None else output_dir / j) for i, j in tree_dict.items()
+            }
         else:
             tree_paths = {}
 
@@ -278,12 +280,12 @@ def evaluate_cmd(
             tree_paths=tree_paths,
             logger=logger,
             cores=cores,
-            database=database
+            database=database,
         )
-        if TREE_TAG in project_config:
-            project_config[TREE_TAG].update({run_id: {"names": tree_names}})
-        else:
-            project_config.update({TREE_TAG: {run_id: {"names": tree_names}}})
+        # if TREE_TAG in project_config:
+        #     project_config[ADD__TAG].update({run_id: {"names": tree_names}})
+        # else:
+        #     project_config.update({TREE_TAG: {run_id: {"names": tree_names}}})
 
     except Exception as e:
         logger.error(e)
@@ -357,7 +359,7 @@ def evaluate(
     tree_paths: dict[str, Path],
     logger: logging.Logger,
     cores: int,
-    database: list[DBKit]
+    database: list[DBKit],
 ):
     """
     Using a DRAM annotations file make a table of adjectives.
@@ -374,12 +376,9 @@ def evaluate(
         the only option at this time is pgtb for positive genes that are on true bugs.
     """
 
-    annotations = Annotations(annotations_tsv.absolute().as_posix(), db_kits= database)
+    annotations = Annotations(annotations_tsv.absolute().as_posix(), db_kits=database)
     rules = RuleParser(rules_tsv, adjectives=set(adjectives))
-    tree_data: dict[str, pd.Series] = {
-        i: (pd.Series() if j is None else pd.read_csv(j, sep="\t", index_col=0)[i])
-        for i, j in tree_paths.items()
-    }
+    tree_data: dict[str, pd.Series] = { i: (pd.Series() if j is None else pd.read_csv(j, sep="\t", index_col=0)) for i, j in tree_paths.items() }
     adjectives = rules.check_genomes(annotations, logger, tree_data)
     if debug_ids_by_fasta_to_tsv is not None:
         annotations.ids_by_fasta.to_csv(debug_ids_by_fasta_to_tsv, sep="\t")
