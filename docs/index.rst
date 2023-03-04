@@ -7,10 +7,21 @@
 Welcome to the DRAM2 Docs!
 =========================================
 
-DRAM2 docs I will add more here soon
+You are reading the official documentation for DRAM22 (Distilled and Refined Annotation of Metabolism, Version 2) a tool for annotating metagenomic assembled genomes. DRAM2 annotates MAGs  using a set of :ref:`databases<database_info>` including custom user databases. DRAM2 is run in two stages. First an annotation step to assign database identifiers to gene, and then a distill step to curate these annotations into useful functional categories. Additionally, viral contigs are further analyzed during to identify potential AMGs. This is done via assigning an auxiliary score and flags representing the confidence that a gene is both metabolic and viral.
 
-.. drawio-image:: figs/dram2_iceberg.drawio
-   :format: png
+For more detail on how the Science of DRAM2 works please see our `paper <>`_ or
+read .
+
+For information on how DRAM is changing, please read the most recent `release notes <https://github.com/WrightonLabCSU/DRAM/releases/latest>`_.
+
+DRAM2 Development Note
+----------------------
+
+At this time, DRAM2 is only available internally
+The DRAM development team is actively working on DRAM2. We do not anticipate adding any additional functionality to DRAM, i.e. DRAM1. Features requested for DRAM1 will be added to DRAM2, to the best of our ability and as appropriate.
+
+
+
 
 .. toctree::
   :caption: Getting Started
@@ -18,53 +29,38 @@ DRAM2 docs I will add more here soon
   :hidden:
   :maxdepth: 1
 
-  getting_started/setup_dram2
-  getting_started/configure_dram2
-  getting_started/most_basic_comands
+  getting_started/setup_configure_dram2
+  getting_started/basic_use
+  getting_started/dram1_to_dram2
+  getting_started/commands
   getting_started/example_use_case
 
 .. toctree::
-  :caption: Raw Annotatator
-  :name: raw_annotation
+  :caption: Science Guide
+  :name: commands
   :hidden:
   :maxdepth: 1
 
-  raw_annotation/what_how
-  raw_annotation/how_use
-  raw_annotation/examples
-  raw_annotation/FAQ
+  science/scientific_overview
+  science/database
 
 .. toctree::
-  :caption: Adjective Generator
-  :name: adjectivs
+  :caption: Command Guide
+  :name: commands
   :hidden:
   :maxdepth: 1
 
-  adjectivs/what_how
-  adjectivs/how_use
-  adjectivs/examples
-  adjectivs/FAQ
-
-.. toctree::
-  :caption: Phyo-Tree Explorer
-  :name: phylo_trees
-  :hidden:
-  :maxdepth: 1
-
-  phylo_trees/what_how
-  phylo_trees/how_use
-  phylo_trees/examples
-  phylo_trees/FAQ
+  commands/dram2
 
 .. toctree::
   :caption: Developer Documentaition
   :name: dev
   :hidden:
-  :maxdepth: 1
+  :maxdepth: 2
 
-  dev/amg_summary
-  dev/annotate
+  dev/docs
   dev/call_genes
+  dev/annotate
   dev/db_builder
   dev/db_kits
   dev/distill
