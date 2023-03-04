@@ -18,11 +18,13 @@ The point of this document
 
 As you know we are migrating to DRAM2 and that will work differently to DRAM1, I hope better. This document is intended to get new users in the Wrighton lab ready to use DRAM2 having already experienced DRAM1. The DRAM2 Documentation will be different to new users as compared to those who have already used DRAM2, but you still may get something out of it, so feel free to look at it [HERE](link). This document will focus mostly on the differences and new features in DRAM2, and less on how DRAM2 works fundamentally.
 
-As you look over this document, notice that DRAM2 differs from DRAM1 in these key ways
- * It has a project config that can store run data. This is used for checking and lets us skip most commands.
- * it has more steps than DRAM1, but each step is similar
- * DRAM-v is not part of DRAM2, it may be in the future but not yet.
- * There is only one compound DRAM2 which lets you use all sub commands.
+As you look over this document, notice that DRAM2 differs from DRAM1 in these key ways:
+
+ * It has a project config that can store run data. This is used for checking, and lets us skip most arguments.
+ * It has more steps than DRAM1, but each step is simpler.
+ * DRAM-v is not part of DRAM2, it may be in the future, but not yet.
+ * There is only one command `dram2` which lets you use all sub commands.
+ * Only DRAM2 has Adjectives and Phylogenetic Trees
 
 
 Preview
@@ -54,9 +56,9 @@ Explore the help
 
 With any new program, it is good to explore the help. The DRAM2 help is a lot larger compared to the dram1 and really needs a good checking in order to validate. The DRAM2 command line structure is very hierarchical, much more than DRAM2, so here are some things I think will explain that best.
 
-* DRAM2 has one main command aka dram2 so no matter what you want to do with DRAM2 it starts with dram2 as apposed to DRAM.py and DRAM-setup.py
-* You provide general/universal arguments to dram2 and then specific arguments to the dram2 sub commands. That should be clear as we go through the help.
-* This will take just a moment to explore, just notice the différance between options and the
+ * DRAM2 has one main command aka dram2 so no matter what you want to do with DRAM2 it starts with dram2 as apposed to DRAM.py and DRAM-setup.py
+ * You provide general/universal arguments to dram2 and then specific arguments to the dram2 sub commands. That should be clear as we go through the help.
+ * This will take just a moment to explore, just notice the différance between options and the
 
 First, let's look at the overview:
 
