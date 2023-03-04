@@ -1,7 +1,8 @@
+Quick Command Refrance
 .. yet another sphinx documentation file
 
 
-.. _phylo_trees:
+.. _phylo_trees-how_use:
 
 How do I Use it in DRAM2
 ===========================
@@ -11,13 +12,12 @@ The process of used by phylogentic Tree Explorer in DRAM2 is outlined in the ove
 That figure includes the inputs and outputs of the tool in adition to the process that runs the tool. We will refrance the process coverd in that past
 
 Input Output, and Commands
-==========================
-
+--------------------------
 
 
 
 TODO
-========
+---
 
  - Integrate into dram2 comandline
  - Finalize tests and examples
