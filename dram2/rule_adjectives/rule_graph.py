@@ -114,7 +114,7 @@ def ko_func(ko: str, annotations):
 
 
 def tree_func(tree_data, tr: str, genome):
-    return tree_data[genome] == tr
+    return genome in tree_data and tr in tree_data.iloc[genome]
 
 
 def sulfur_func(so: str, annotations):
@@ -239,6 +239,7 @@ class RuleParser:
             self.G.add_edge(parent, nodeid)
             return
         for tree_name in [NXR_NAR_TREE.name, AMOA_PMOA_TREE.name]:
+            
             if re.match(rf"^{tree_name}>[0-9A-z]+$", logic):
                 nodeid = logic.removeprefix(f"{tree_name}>")
                 self.G.add_node(
@@ -502,7 +503,7 @@ class RuleParser:
             case "ko":
                 return self.G.nodes[node]["function"](node, annotations)
             case NXR_NAR_TREE.name:
-                return tree_func(self.tree_data[NXR_NAR_TREE.name], node, genome_name)
+                return tree_func(self.tree_data[NXR_NAR_TREE.name]['labels'], node, genome_name)
             case AMOA_PMOA_TREE.name:
                 return tree_func(self.tree_data[AMOA_PMOA_TREE.name], node, genome_name)
             case "camper":

@@ -5,6 +5,7 @@ import logging
 import pandas as pd
 from tempfile import TemporaryDirectory
 from dram2.utils.utils import run_process
+from multiprocessing import cpu_count
 
 QUERY_TMP_NAME = "query"
 
@@ -17,16 +18,22 @@ class DramTree:
         reference_seq: str,
         gene_mapping_path: str,
         color_mapping_path: str,
-        target_dbs: list[set['str']],
-        target_ids: list['str'],
+        target_dbs: list[set["str"]],
+        target_ids: list["str"],
     ):
         self.name = name
         self.pplacer_profile = pplacer_profile
         self.reference_seq = reference_seq
         self.gene_mapping = pd.read_csv(gene_mapping_path, sep="\t", index_col=0)
         self.color_mapping = pd.read_csv(color_mapping_path, sep="\t", index_col=0)
-        self.mapping = pd.merge(self.gene_mapping, self.color_mapping, left_on='call', right_index=True, how='outer')
-    # tree.mapping['call'].unique()
+        self.mapping = pd.merge(
+            self.gene_mapping,
+            self.color_mapping,
+            left_on="call",
+            right_index=True,
+            how="outer",
+        )
+        # tree.mapping['call'].unique()
         self.target_ids = set(target_ids)
         self.target_dbs = target_dbs
 
@@ -34,9 +41,7 @@ class DramTree:
         self.logger = logger
 
     def _align(self, fasta, working_dir):
-        """
-
-        """
+        """ """
         self.logger.info("Aligning sequences with MAFFT")
         # The file at the end of the output_path have extention 'fasta'!
         output_path = os.path.join(working_dir, f"{QUERY_TMP_NAME}.fasta")
@@ -69,7 +74,7 @@ class DramTree:
                 "--out-dir",
                 working_dir,
                 "-j",
-                str(threads),
+                str(min(10, threads)),
             ],
             self.logger,
         )
@@ -84,4 +89,15 @@ One day we may want to be able to make these profiles
 taxit_comand= ['taxit', 'create', '-l', '16s_rRNA', '-P', 'nxr_nar.refpkg', 
  '--aln-fasta', '$NXR_NAR_FAA', '--tree-stats', 
  './RAxML_info.nxr_nar_raxml', '--tree-file', './nxr_nar.tre']
+
+import subprocess
+results = subprocess.run(
+            "pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 100",
+            check=True,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 10 
 """

@@ -122,7 +122,7 @@ def phylo_tree(
             )
             logger.info("Placing enigmatic genes")
             jplace_file = tree.pplacer_place_sequences(
-                trimed_fa.as_posix(), work_dir_str, threads=cores
+                trimed_fa.as_posix(), work_dir.absolute().as_posix(), threads=cores
             )
             treeph = read_phtree(jplace_file, work_dir_str, logger)
             edpl = read_edpl(jplace_file, work_dir_str, logger)
@@ -468,7 +468,7 @@ def clade_info_to_series(
             place_info = f"{PROXIMITY_INFO_PREFIX} the closes labeled gene was {first.end.name}, at distance {first.len}, the nearest counter label was {second.end.label} on gene {second.end.name} at distance {second.len}"
     return pd.DataFrame(
         {
-            f"{tree_name}_labels": label,
+            f"labels": label,
             f"distance_to_nearest_label": dist,
             f"difference_to_nearest_alt_label": delta,
             f"{tree_name}_placement_info": place_info,
