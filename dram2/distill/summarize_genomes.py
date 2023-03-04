@@ -1,6 +1,6 @@
 """
 DRAM Distillate
-_______________
+---------------
 
 This is the script that distills the genomes from the annotations step.
 It requires annotations and the dram distillation step
@@ -52,7 +52,7 @@ SUMMARIZE_METABOLISM_TAG: str = "summarize_metabolism"
 MAKE_GENOME_STATS_TAG: str = "make_genome_stats"
 MAKE_PRODUCT_TAG: str = "make_product"
 PRODUCT_TAG = "product"
-DISTILLATE_MODUALS: tuple[str, str, str] = (
+DISTILLATE_MODULES: tuple[str, str, str] = (
     SUMMARIZE_METABOLISM_TAG,
     MAKE_GENOME_STATS_TAG,
     MAKE_PRODUCT_TAG,
@@ -144,11 +144,11 @@ LOCATION_TAG = "location"
 def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logger):
     """
     Paths in the config can be complicated. Here is a function that will get
-    you the absolute path, the relative path,  or whatever. specifically for
+    you the absolute path, the relative path, or whatever. Specifically for
     distillate sheets This should be more
     formalized and the config
 
-    should actualy be maniged in its own structure. With a data file class
+    should actually be managed in its own structure. With a data file class
     that can use this function.
     """
     if (
@@ -166,7 +166,7 @@ def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logge
             dram_data_folder: Optional[str] = config.get(DRAM_DATAFOLDER_TAG)
             if dram_data_folder is None:
                 raise DramUsageError(
-                    f"In the DRAM2 config File, the path {form_tag} is relive and the {DRAM_DATAFOLDER_TAG} is not set!"
+                    f"In the DRAM2 config File, the path {form_tag} is a relative path and the {DRAM_DATAFOLDER_TAG} is not set!"
                 )
             sheet_path = Path(dram_data_folder) / sheet_path
         if not sheet_path.exists():
@@ -178,7 +178,7 @@ def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logge
                 f" {DRAM_DATAFOLDER_TAG} variable in the config"
                 f" like:\n"
                 f" {DRAM_DATAFOLDER_TAG}: the/path/to/my/file"
-                f" If you are useing full paths and not the"
+                f" If you are using full paths and not the"
                 f" {DRAM_DATAFOLDER_TAG} you may want to revue the"
                 f" Configure Dram section of the documentation to"
                 f" make sure your config will work with dram."
@@ -424,7 +424,7 @@ def make_genome_stats(
                     row.append("%s present" % sixteens.shape[0])
                     has_rrna.append(False)
         if trna_frame is not None:
-            # TODO: remove psuedo from count?
+            # TODO: remove pseudo from count?
             row.append(trna_frame.loc[trna_frame[groupby_column] == genome].shape[0])
         if "assembly quality" in columns and trna_frame is not None:
             if (
@@ -993,7 +993,7 @@ def get_past_annotations(
     if annotation_run is None:
         raise DramUsageError(
             "There is no annotations recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory dose not contain the result of "
+            "It must be the case that the DRAM directory does not contain the result of "
             "a successful annotation call.\n"
             "Run `dram2 -o this_dram_dir get_status` to see if annotations have been run on this dram directory "
             "or if it is valid at all. "
@@ -1007,7 +1007,7 @@ def get_past_annotations(
     if relative_annotation_path is None or annotation_run is None:
         raise dramusageerror(
             "There is no annotations.tsv recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory dose not contain the result of "
+            "It must be the case that the DRAM directory does not contain the result of "
             "a successful annotation call.\n"
             "Run `dram2 get_status` to see if annotations have been run on this dram directory "
             "or if it is valid at all. "
@@ -1020,7 +1020,7 @@ def get_past_annotations(
     annotations_path = output_dir / relative_annotation_path
     if not annotations_path.exists():
         raise DramUsageError(
-            f"The path to annotations exists but it dose not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
+            f"The path to annotations exists but it does not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
         )
     if force:
         logging.warning(
@@ -1106,7 +1106,7 @@ def distill(
     dram_config: dict,
     # not from context
     annotations_tsv_path: Optional[Path],
-    moduals: tuple[str, str, str],
+    modules: tuple[str, str, str],
     force: bool,
     trna_path: Optional[Path],
     rrna_path: Optional[Path],
@@ -1133,7 +1133,7 @@ def distill(
     if annotations_tsv_path is not None:
         if not force:
             raise ValueError(
-                "You need to pass the -f/--force flag also, inorder to bypass the checks, that would rely on the project config, in order to ensure that you "
+                "You need to pass the -f/--force flag also, in order to bypass the checks, that would rely on the project config, in order to ensure that you "
             )
         logger.warning("You are u")
         annotations = pd.read_csv(annotations_tsv_path, sep="\t", index_col=0)
@@ -1158,8 +1158,8 @@ def distill(
     annotation_ids_by_row: pd.dataframe = get_annotation_ids_by_row(
         annotations, db_kits
     )
-    modual_set: set[str] = set(moduals)
-    if MAKE_GENOME_STATS_TAG in modual_set:
+    module_set: set[str] = set(modules)
+    if MAKE_GENOME_STATS_TAG in module_set:
         genome_stats_path = output_dir / "genome_stats.tsv"
         make_genome_stats_file(
             genome_stats_path,
@@ -1169,7 +1169,7 @@ def distill(
             logger,
             groupby_column,
         )
-    if SUMMARIZE_METABOLISM_TAG in modual_set:
+    if SUMMARIZE_METABOLISM_TAG in module_set:
         # load the base summary form from config of package data
         genome_summary_form = get_distillate_sheet(
             GENOME_SUMMARY_FORM_TAG, dram_config, logger
@@ -1201,7 +1201,7 @@ def distill(
             groupby_column,
             show_gene_names,
         )
-    if MAKE_PRODUCT_TAG in modual_set:
+    if MAKE_PRODUCT_TAG in module_set:
         module_steps_form = get_distillate_sheet(
             MODULE_STEPS_FORM_TAG, dram_config, logger
         )
@@ -1225,7 +1225,7 @@ def distill(
             make_big_html,
         )
 
-        # NOTE: We don't document the html because it is not used as input and we can't grantee it gets made
+        # NOTE: We don't document the html because it is not used as input and we can't guarantee it gets made
     return fastas, genome_stats_path, metabolism_summary_output_path, product_tsv_output
 
 
@@ -1395,3 +1395,4 @@ os.system("rm -r ./test_15soil/distillation")
 os.system("DRAM.py distill -i ./test_15soil/annotations.tsv -o ./test_15soil/distillation")
 
 """
+

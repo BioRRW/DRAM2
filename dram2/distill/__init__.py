@@ -1,6 +1,6 @@
 """
 DRAM Distillate
-_______________
+---------------
 
 This is the script that distills the genomes from the annotations step.
 It requires annotations and the dram distillation step
@@ -22,7 +22,7 @@ from dram2.distill.summarize_genomes import (
     DEFAULT_GENOMES_PER_PRODUCT,
     DEFAULT_SHOW_DISTILLATE_GENE_NAMES,
     GENOMES_PRODUCT_LIMIT,
-    DISTILLATE_MODUALS,
+    DISTILLATE_MODULES,
     DB_KITS,
     LOCATION_TAG,
 )
@@ -42,14 +42,14 @@ COMMAND_NAME = "distill"
 @click.option(
     "--annotations_tsv_path",
     type=click.Path(exists=True, path_type=Path),
-    help="Location of an annotations_tsv. You don't need to use this option if you are using the output_dir for dram with a project_config. If you use this option, you must also use the force flag to bypass the saffegards that prevent you from runing distill with insuficiant data",
+    help="Location of an annotations.tsv. You don't need to use this option if you are using the output_dir for dram with a project config. If you use this option, you must also use the force flag to bypass the safeguards that prevent you from running distill with insufficient data",
 )
 @click.option(
     "-m",
-    "--moduals",
-    help="What distillate moduals to run. It can be timeconsuming to run all the distillate moduals for all projects.",
-    type=click.Choice(DISTILLATE_MODUALS, case_sensitive=False),
-    default=DISTILLATE_MODUALS,
+    "--modules",
+    help="What distillate module to run. It can be time consuming to run all the distillate module for all projects.",
+    type=click.Choice(DISTILLATE_MODULES, case_sensitive=False),
+    default=DISTILLATE_MODULES,
     multiple=True,
 )
 @click.option(
@@ -63,18 +63,18 @@ COMMAND_NAME = "distill"
 #    default=DEFAULT_GROUPBY_COLUMN,
 #    help="Column from the annotations tsv to group as organism units",
 # )
-# These arguments are only for the Metabolisum Summary, and the Genome Summary
+# These arguments are only for the Metabolism Summary, and the Genome Summary
 @click.option(
     "--rrna_path",
     type=click.Path(exists=True, path_type=Path),
-    help="rRNA output from a dram RNA script. You don't need to explisitly give this path if you are using an output_dir from dram with a project_config file. The rRNA run will be automaticaly detected if you have a project_config file.",
+    help="rRNA output from a dram RNA script. You don't need to explicitly give this path if you are using an output_dir from dram with a project config file. The rRNA run will be automatically detected if you have a project config file.",
 )
 @click.option(
     "--trna_path",
     type=click.Path(exists=True, path_type=Path),
-    help="tRNA output from a dram annotation. You don't need to explisitly give this path if you are using an output_dir from dram with a project_config file. The tRNA run will be automaticaly detected if you have a project_config file.",
+    help="tRNA output from a dram annotation. You don't need to explicitly give this path if you are using an output_dir from dram with a project_config file. The tRNA run will be automatically detected if you have a project config file.",
 )
-# These arguments are only for the Metabolisum Summary
+# These arguments are only for the Metabolism Summary
 @click.option(
     "--show_gene_names",
     is_flag=True,
@@ -86,7 +86,7 @@ COMMAND_NAME = "distill"
     multiple=True,
     default=None,
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
-    help="Specifiy exactly which db specific distilate to use. If you know what you are doing it may be useful to force the output of the program. If you already annotated with a database that has a acociated distillate file eg:methel and still have your project config there should be no need for this command. If you use this command you should have a good idea what you are doing and use the force comand also.",
+    help="Specify exactly which db specific distillate to use. If you know what you are doing it may be useful to force the output of the program. If you already annotated with a database that has an associated distillate file eg:methyl and still have your project config, there should be no need for this command. If you use this command, you should have a good idea what you are doing and use the force command also.",
 )
 @click.option(
     "--custom_summary_form",
@@ -111,16 +111,16 @@ COMMAND_NAME = "distill"
     "--make_big_html",
     is_flag=True,
     help=f"It is felt that if the number of genomes is over {GENOMES_PRODUCT_LIMIT} "
-    "that product may be of limited use becouse of the size and the number of html "
+    "that product may be of limited use because of the size and the number of html "
     "files that will be made. In order to avoid the "
-    "large amout of time it will take to make these distilates it makes sense to just make the product html",
+    "large amount of time it will take to make these distillates it makes sense to just make the product html",
 )
 # TODO let the product html be make from the product itself
 @click.pass_context
 def distill_cmd(
     ctx: click.Context,
     annotations_tsv_path: Optional[Path],
-    moduals: tuple[str, str, str],
+    modules: tuple[str, str, str],
     force: bool,
     # groupby_column: str,
     trna_path: Optional[Path],
@@ -133,15 +133,15 @@ def distill_cmd(
 ):
     """
     DRAM Distillate
-    ___
+    ---
 
-    This command can generate three outputs. The user can select the files they want to make with the -m/--moduals options, by by default it generates all of them.
+    This command can generate three outputs. The user can select the files they want to make with the -m/--module options, by default it generates all of them.
 
     The output files are:
 
     - The genome_summary.xlsx which contains a summary of metabolisms present in each genome. It gives gene by gene information across various metabolisms for every genome in your dataset.
      - The genome_statistics.tsv file contains all measures required by the MIMAG about each fasta used as input.
-     - The product.html and product.tsv allow the user to understaned the metabolic protential of each MAG or Colection at a glance. The product.html is an interactive html that allows users to hover over each box to see what genes prompted the box color (Example here) and was manually curated to consider alternate genes for pathways and single processes. This heat map allows the user to quickly profile ecosystem relevant processes across hundreds of genomes. The product.tsv provides the same information in a tsv format. If you have many FASTA's your product html may be split into may output files.
+     - The product.html and product.tsv allow the user to understand the metabolic potential of each MAG or Collection at a glance. The product.html is an interactive html that allows users to hover over each box to see what genes prompted the box color (Example here) and was manually curated to consider alternate genes for pathways and single processes. This heat map allows the user to quickly profile ecosystem relevant processes across hundreds of genomes. The product.tsv provides the same information in a tsv format. If you have many FASTA's your product html may be split into many output files.
 
     """
     context: DramContext = ctx.obj
@@ -163,9 +163,8 @@ def distill_cmd(
             output_dir=output_dir,
             project_config=project_config,
             dram_config=dram_config,
-            # Argurmentsfrom=#Argurmentsfromtthiss,ubcommad
             annotations_tsv_path=annotations_tsv_path,
-            moduals=moduals,
+            modules=modules,
             force=force,
             # groupby_column=groupby_column,
             trna_path=trna_path,
@@ -213,3 +212,4 @@ def distill_cmd(
 
 def path_str_for_project_config(output_dir, out_path: Optional[Path]) -> Optional[str]:
     return out_path if out_path is None else out_path.relative_to(output_dir).as_posix()
+
