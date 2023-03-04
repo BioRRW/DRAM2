@@ -28,6 +28,7 @@ class DramTree:
         self.mapping = pd.merge(self.gene_mapping, self.color_mapping, left_on='call', right_index=True, how='outer')
     # tree.mapping['call'].unique()
         self.target_ids = set(target_ids)
+        self.target_dbs = target_dbs
 
     def set_logger(self, logger: logging.Logger):
         self.logger = logger

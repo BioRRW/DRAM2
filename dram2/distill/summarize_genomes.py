@@ -34,7 +34,6 @@ from dram2.annotate import (
     get_annotation_ids_by_row,
     get_all_annotation_ids,
     DB_KITS,
-    get_all_annotation_ids,
     get_past_annotation_run,
     ANNOTATION_FILE_TAG,
     check_for_annotations,
@@ -907,7 +906,7 @@ def fill_product_dfs(
     )
 
     # make ETC frame
-    etc_coverage_df = make_etc_coverage_df(etc_module_df, annotations, groupby_column)
+    etc_coverage_df = make_etc_coverage_df(etc_module_df, annotation_ids_by_row, groupby_column)
 
     # make functional frame
     function_df = make_functional_df(

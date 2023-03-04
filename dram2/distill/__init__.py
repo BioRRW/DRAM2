@@ -176,7 +176,6 @@ def distill_cmd(
             make_big_html=make_big_html,
             use_db_distilate=use_db_distilate,
         )
-        breakpoint()
         new_project_config = {
             "latest": run_id,
             run_id: {

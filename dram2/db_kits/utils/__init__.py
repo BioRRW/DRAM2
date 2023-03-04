@@ -84,8 +84,8 @@ DBKIT_TAG = "db_kits"
 SETUP_NOTES_TAG = "setup_notes"
 CUSTOM_FASTA_DB_TYPE = "custom_fasta"
 CUSTOM_HMM_DB_TYPE = "custom_HMM"
-QUERY_PREFIX="query"
-TARGET_PREFIX="target"
+QUERY_PREFIX = "query"
+TARGET_PREFIX = "target"
 HMM_SCAN_MAX_THREADS = 2
 
 
@@ -128,12 +128,12 @@ def get_reciprocal_best_hits(
     query_db,
     target_db,
     logger,
-    output_dir:str,
-    bit_score_threshold:int,
-    rbh_bit_score_threshold:int,
+    output_dir: str,
+    bit_score_threshold: int,
+    rbh_bit_score_threshold: int,
     threads,
-    query_prefix:str=QUERY_PREFIX,
-    target_prefix:str=QUERY_PREFIX,
+    query_prefix: str = QUERY_PREFIX,
+    target_prefix: str = QUERY_PREFIX,
 ):
     """Take results from best hits and use for a reciprocal best hits search"""
     # TODO: Make it take query_target_db as a parameter
@@ -189,9 +189,9 @@ def get_reciprocal_best_hits(
         logger=logger,
         output_dir=output_dir,
         bit_score_threshold=rbh_bit_score_threshold,
-        query_prefix =target_prefix,
+        query_prefix=target_prefix,
         target_prefix=query_prefix,
-        threads = threads,
+        threads=threads,
     )
 
 
@@ -219,36 +219,36 @@ def do_blast_style_search(
     working_dir,
     logger,
     db_name,
-    bit_score_threshold:int,
-    rbh_bit_score_threshold:int,
-    threads:int,
+    bit_score_threshold: int,
+    rbh_bit_score_threshold: int,
+    threads: int,
 ):
     """A convenience function to do a blast style reciprocal best hits search"""
     # Get kegg hits
     logger.info("Getting forward best hits from %s" % db_name)
     forward_hits = get_best_hits(
-        query_db,
-        target_db,
-        logger,
-        working_dir,
-        bit_score_threshold,
-        threads,
-        "gene",
-        db_name,
+        query_db=query_db,
+        target_db=target_db,
+        logger=logger,
+        output_dir=working_dir,
+        bit_score_threshold=bit_score_threshold,
+        query_prefix="gene",
+        target_prefix=db_name,
+        threads=threads,
     )
     if stat(forward_hits).st_size == 0:
         return pd.DataFrame(columns=[f"{db_name}_hit"])
     logger.info("Getting reverse best hits from %s" % db_name)
     reverse_hits = get_reciprocal_best_hits(
-        query_db,
-        target_db,
-        logger,
-        working_dir,
-        bit_score_threshold,
-        rbh_bit_score_threshold,
-        threads,
-        "gene",
-        db_name,
+        query_db=query_db,
+        target_db=target_db,
+        logger=logger,
+        output_dir=working_dir,
+        bit_score_threshold=bit_score_threshold,
+        rbh_bit_score_threshold=rbh_bit_score_threshold,
+        threads=threads,
+        query_prefix="gene",
+        target_prefix=db_name,
     )
     hits = process_reciprocal_best_hits(forward_hits, reverse_hits, db_name)
     # if "%s_description" % db_name in db_handler.get_database_names():
@@ -278,6 +278,7 @@ def make_mmseqs_db(
             logger,
         )
 
+
 def run_hmmscan(
     genes_faa: str,
     db_loc: str,
@@ -288,7 +289,9 @@ def run_hmmscan(
     threads: int,
 ):
     if threads > HMM_SCAN_MAX_THREADS:
-        logger.warning(f"Something has gone wrong for {db_name}. It is trying to use hmmscan with {threads} threads which is sub-optimal as hmmscan can only make use of {HMM_SCAN_MAX_THREADS} threads.")
+        logger.warning(
+            f"Something has gone wrong for {db_name}. It is trying to use hmmscan with {threads} threads which is sub-optimal as hmmscan can only make use of {HMM_SCAN_MAX_THREADS} threads."
+        )
     output = path.join(output_loc, f"{db_name}_results.unprocessed.b6")
     run_process(
         ["hmmsearch", "--domtblout", output, "--cpu", str(threads), db_loc, genes_faa],
@@ -325,7 +328,7 @@ def get_best_hits(
     output_dir: Union[str, Path],
     bit_score_threshold,
     threads: int,
-    query_prefix =QUERY_PREFIX,
+    query_prefix=QUERY_PREFIX,
     target_prefix=TARGET_PREFIX,
 ):
     """Uses mmseqs2 to do a blast style search of a query db against a target db, filters to only include best hits
@@ -425,15 +428,15 @@ def process_custom_hmm_db_cutoffs(
     return {custom_hmm_db_name[i]: j for i, j in enumerate(custom_hmm_db_cutoffs_loc)}
 
 
-def get_basic_descriptions(hits:pd.DataFrame, header_dict:dict[str, str], db_name:str) -> pd.DataFrame:
+def get_basic_descriptions(
+    hits: pd.DataFrame, header_dict: dict[str, str], db_name: str
+) -> pd.DataFrame:
     """
     Get viral gene full descriptions based on headers (text before first space)
     """
     descriptions: pd.Series = hits[f"{db_name}_hit"].apply(
-                lambda x: None
-                if x is None
-                else header_dict[x]
-            )
+        lambda x: None if x is None else header_dict[x]
+    )
     descriptions.name = f"{db_name}_description"
     return pd.DataFrame(descriptions)
 
@@ -861,7 +864,9 @@ class DBKit(ABC):
         if main_id in annotations:
             return [annotations[main_id]]
         if main_id not in annotations:
-            self.logger.debug(f"Expected {main_id} to be in annotations,  but it was not found")
+            self.logger.debug(
+                f"Expected {main_id} to be in annotations,  but it was not found"
+            )
         elif not pd.isna(annotations[main_id]):
             return [annotations[main_id]]
         return []

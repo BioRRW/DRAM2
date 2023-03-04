@@ -9,7 +9,7 @@ import click
 import logging
 from pathlib import Path
 from pkg_resources import resource_filename
-import collections
+from collections import Counter
 from skbio.io import read as read_sequence, write as write_sequence
 from dram2.utils.utils import Fasta, run_process, import_posible_path, DramUsageError
 from dram2.utils.globals import FASTAS_CONF_TAG
@@ -383,13 +383,13 @@ def get_fasta_names_dirs(
             all_fasta_names += old_fasta_names
         duplicated = [
             item
-            for item, count in collections.Counter(all_fasta_names).items()
+            for item, count in Counter(all_fasta_names).items()
             if count > 1
         ]
         if len(duplicated) > 0:
             logger.debug(f"duplicated names: {','.join(duplicated)}")
             raise DramUsageError(
-                f"Genome file names must be unique. There are {len(duplicated)} name/s that appear twice in this search."
+                f"Genome file names must be unique. There is/are {len(duplicated)} name/s that appear twice in this search."
             )
         # make tmp_dirs
         p.map(partial(mkdir, working_dir=working_dir), fasta_names)

@@ -35,7 +35,7 @@ NXR_NAR_TREE = DramTree(
     name="nxr_nar",
     pplacer_profile=os.path.join(DATA_PATH, "nxr_nar", "nxr_nar.refpkg"),
     target_ids=["K11180", "dsrA", "dsrB", "K11181"],
-    target_dbs=[{"kegg"}, {"kofam"}],
+    target_dbs=[{"kegg", "sulfur"}, {"kofam", "sulfur"}],
     reference_seq=os.path.join(
         DATA_PATH, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"
     ),
@@ -73,7 +73,7 @@ def get_annotations_and_genes_path(
     elif annotation_run is not None:
         if (
             db_error := check_for_annotations(
-                [{'kofam'}, {"kegg"}], annotation_run
+                NXR_NAR_TREE.target_dbs, annotation_run
             )
         ) is not None:
             raise DramUsageError(db_error)

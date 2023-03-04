@@ -204,8 +204,20 @@ def make_mmseqs_db_for_fasta(fasta: Fasta, logger: logging.Logger, threads:int) 
 def log_file_path():
     pass
 
+def has_dup_fasta_name(fastas:list[Fasta], logger:logging.Logger) -> int:
+    duplicated = [
+        item
+        for item, count in Counter(
+            [i.name for i in fastas]
+        ).items()
+        if count > 1
+    ]
+    if len(duplicated) > 0:
+        logger.debug(f"duplicated names: {', '.join(duplicated)}")
+        return len(duplicated)
+    return 0
 
-def get_all_fastas(
+def get_all_fastas( 
     gene_fasta_paths: list[Path],
     # genes_runs: Optional[dict], # may need this some day
     called_fastas: Optional[dict],
@@ -216,11 +228,24 @@ def get_all_fastas(
     logger: logging.Logger,
     force: bool,
 ):
-    fastas: list[Fasta] = []
-    fastas += [path_to_gene_fastas(i, output_dir / DEFAULT_GENES_FILE) for i in gene_fasta_paths]
+    gene_fasta_obs:list[Fasta] = [path_to_gene_fastas(i, output_dir / DEFAULT_GENES_FILE) for i in gene_fasta_paths]
+    # get the precalled genes
     if called_fastas is not None:
-        fastas += [Fasta.import_strings(output_dir, *j) for j in called_fastas]
-        [j for j in called_fastas]
+        called_fastas_obs:list[Fasta] = [Fasta.import_strings(output_dir, *j) for j in called_fastas]
+        # now we check these for dups
+        if (dup_count:= has_dup_fasta_name(called_fastas_obs, logger)) > 0:
+            raise DramUsageError(
+            f"Genome file names must be unique. There is/are {dup_count} name/s that appear twice in called genes."
+        )
+        
+    # Combine
+    fastas = gene_fasta_obs + called_fastas_obs
+    # Stop the user duping the fastas that were called
+    if (dup_count := has_dup_fasta_name(fastas, logger)) > 0:
+        raise DramUsageError(
+        f"Genome file names must be unique. There is/are {dup_count} name/s that appear in both the called genes passed, and the called genes already in the output_dir."
+    )
+
     if annotation_run is not None:
         db_inter = set(
             annotation_run[USED_DBS_TAG]
@@ -237,7 +262,7 @@ def get_all_fastas(
                 )
             else:
                 raise DramUsageError(
-                    f"You are trying re-annotating genes with database they were already annotated with: {db_inter}. You need to use the force flag '-f' in order to do this."
+                    f"You are trying to re-annotate {len(fasta_inter)} of {len(fastas)} FASTAs with databases they were already annotated with: {db_inter}. You need to use the force flag '-f' in order to do this. If you use that flag the past annotations with these databases be replaced."
                 )
     return fastas
 
