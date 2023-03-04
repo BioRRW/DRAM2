@@ -1,8 +1,5 @@
 sphinx >=3
 sphinxcontrib-napoleon
-sphinxcontrib-drawio
-mkdocs-drawio-exporter
-drawio
 sphinx-argparse
 sphinx_rtd_theme
 docutils

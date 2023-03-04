@@ -1,29 +1,53 @@
 """
+===============================
 Annotate Called Genes with DRAM
-==================
+===============================
 
-Main control point for the annotation process, and the main way to access the annotations.tsv or what ever it becomes. When we say that is the main control point of the annotation process we mean that it calls all the available objects in the dram2.db_kits name space. And orchestrates them to make the annotations file currently a tsv. as the origin of the annotations tsv it is also in the best position to parse the annotations.tsv in order to get gene_ids used in other processes, and to check if the annotations are available 
+Main control point for the annotation process, and the main way to access the
+annotations.tsv or whatever it becomes. When we say that is the main control
+point of the annotation process, we mean that it calls all the available objects
+in the dram2.db_kits name space. And orchestrates them to make the annotations
+file, currently a tsv. As the origin of the annotations TSV it is also in the
+best position to parse the annotations.tsv in order to get gene IDs used in
+other processes, and to check if the annotations are available.
 
-This is the second or first step of any pipeline and I would argue it is the heart of DRAM.  
+This is the second or first step of any pipeline and I would argue it is the
+heart of DRAM.
 
 TODO
- - make the annotated FASTA its own function
- -  Fix the header verbosity to be a separate option in the annotated fasta
- - Distillate sheets is part of the config, drop it. The sheets should be updated with the dram version so they do not get out of sink with the code.
+ - make the annotated FASTA its own function.
+    -  Fix the header verbosity to be a separate option in the annotated FASTA.
+ - Distillate sheets are part of the config, drop it. The sheets should be
+   updated with the dram version, so they do not get out of sync with the code.
  - add ability to take into account multiple best hits as in old_code.py
  - add silent mode
  - add abx resistance genes
- - in annotated gene faa checkout out ko id for actual kegg gene id
- - Add ability to build dbs on first run
- - Set the working dir separate from output
+ - in annotated gene faa, checkout out ko_id for actual KEGG gene id
+ - Add ability to download DBss on first run
+ - Set the working-dir separate from output
  - replace the tsv with something faster, maybe a parquet
-
-
 """
+
+import importlib
+import pkgutil
+import logging
 from multiprocessing import Pool
 from functools import partial, reduce
+from pathlib import Path
+from typing import Sequence, Optional
+from shutil import rmtree
+from itertools import chain
+from collections import Counter
+from pkg_resources import resource_filename
 
-# from itertools import chain
+import click
+import pandas as pd
+
+from dram2 import db_kits as db_kits
+from dram2.call_genes import DEFAULT_GENES_FILE
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
+from dram2.utils.utils import Fasta, DramUsageError
+from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.cli.context import (
     DramContext,
     DEFAULT_KEEP_TMP,
@@ -31,30 +55,6 @@ from dram2.cli.context import (
     __version__,
 )
 
-import logging
-from pathlib import Path
-
-from shutil import rmtree
-import pandas as pd
-from pkg_resources import resource_filename
-import importlib
-import pkgutil
-import dram2.db_kits as db_kits
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
-from dram2.utils.utils import Fasta, DramUsageError
-from dram2.utils.globals import FASTAS_CONF_TAG
-from itertools import chain
-from collections import Counter
-
-from dram2.call_genes import DEFAULT_GENES_FILE
-from typing import Sequence, Optional
-from datetime import datetime
-
-# from dram2.utils.globals import
-
-import click
-
-from pkg_resources import resource_filename
 
 for i in pkgutil.iter_modules(db_kits.__path__, db_kits.__name__ + "."):
     importlib.import_module(i.name)
@@ -75,8 +75,26 @@ FASTA_COL = "fasta"
 GENE_ID_COL = "gene_ids"
 DISTILLATION_MIN_SET_KEGG = {"kegg", "dbcan", "pfam", "heme", "peptidase"}
 DISTILLATION_MIN_SET = {"kofam", "dbcan", "pfam", "heme", "peptidase"}
-ADJECTIVES_SET = {"kofam", "dbcan", "pfam", "heme", "peptidase", "sulfur", "camper", "FeGenie"}
-ADJECTIVES_SET_KEGG = {"kegg", "dbcan", "pfam", "heme", "peptidase", "sulfur", "camper", "FeGenie"}
+ADJECTIVES_SET = {
+    "kofam",
+    "dbcan",
+    "pfam",
+    "heme",
+    "peptidase",
+    "sulfur",
+    "camper",
+    "FeGenie",
+}
+ADJECTIVES_SET_KEGG = {
+    "kegg",
+    "dbcan",
+    "pfam",
+    "heme",
+    "peptidase",
+    "sulfur",
+    "camper",
+    "FeGenie",
+}
 DBSETS_COL = "db_id_sets"
 DBSETS = {
     "mini": DISTILLATION_MIN_SET,
@@ -87,23 +105,23 @@ DBSETS = {
     # "adjectives_full": {},
     # "adjectives_full_kegg": {},
 }
-# def check_columns(data, db_kits, logger):
-# functions = {i:j for i,j in ID_FUNCTION_DICT.items() if i in data.columns}
-# missing = [i for i in ID_FUNCTION_DICT if i not in data.columns]
-# logger.info("Note: the following id fields "
-#             f"were not in the annotations file and are not being used: {missing},"
-#             f" but these are {list(functions.keys())}")
 
 
-def get_annotation_ids_by_row(
-    data: pd.DataFrame, db_kits: list
-) -> pd.DataFrame:
+def get_annotation_ids_by_row(data: pd.DataFrame, db_kits: list) -> pd.DataFrame:
     # if groupby_column is not None:
     #     data.set_index(groupby_column, inplace=True)
     return data.assign(
-        **{DBSETS_COL: lambda x: [
-            {i for j in (k for k in db_kits if k.can_get_ids) for i in j.get_ids(x) if not pd.isna(i)} for _, x in data.iterrows()
-        ]}
+        **{
+            DBSETS_COL: lambda x: [
+                {
+                    i
+                    for j in (k for k in db_kits if k.can_get_ids)
+                    for i in j.get_ids(x)
+                    if not pd.isna(i)
+                }
+                for _, x in data.iterrows()
+            ]
+        }
     )
 
 
@@ -116,14 +134,12 @@ def get_config_loc():
     return Path(resource_filename("dram2.utils", "CONFIG"))
 
 
-
-
 def check_for_annotations(
     annotation_sets: list[set[str]], annotation_run: dict
 ) -> Optional[str]:
     """
-    Check for required sets of annotations inteligently
-    ___________________________________________________
+    Check for required sets of annotations intelligently
+    ----------------------------------------------------
     """
     dbs_we_have = set(annotation_run[USED_DBS_TAG])
     you_need = [{j for j in i if j not in dbs_we_have} for i in annotation_sets]
@@ -171,21 +187,23 @@ def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
     return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
 
 
-def make_mmseqs_db_for_fasta(fasta: Fasta, logger: logging.Logger, threads:int) -> Fasta:
+def make_mmseqs_db_for_fasta(
+    fasta: Fasta, logger: logging.Logger, threads: int
+) -> Fasta:
     if fasta.mmsdb is not None and fasta.mmsdb.exists():
         return fasta
     if fasta.tmp_dir is None:
         raise ValueError(
             "Some how a fasta was passed to the function that makes mmseqs "
             "databases which did not have an associated temporary directory in "
-            "which to put that mmseqs-db. Pleas kindly file a bug report on "
+            "which to put that mmseqs-db. Please kindly file a bug report on "
             "GitHub. This indicates that the developer probably made a mistake"
         )
     if fasta.faa is None:
         raise ValueError(
             "Some how a fasta was passed to the function that makes mmseqs "
             "databases which did not have an associated faa directory in which "
-            "to put that mmseqs-db. Pleas kindly file a bug report on GitHub. "
+            "to put that mmseqs-db. Please kindly file a bug report on GitHub. "
             "This indicates that the developer probably made a mistake"
         )
     fasta.tmp_dir.mkdir(exist_ok=True, parents=True)
@@ -204,22 +222,20 @@ def make_mmseqs_db_for_fasta(fasta: Fasta, logger: logging.Logger, threads:int) 
 def log_file_path():
     pass
 
-def has_dup_fasta_name(fastas:list[Fasta], logger:logging.Logger) -> int:
+
+def has_dup_fasta_name(fastas: list[Fasta], logger: logging.Logger) -> int:
     duplicated = [
-        item
-        for item, count in Counter(
-            [i.name for i in fastas]
-        ).items()
-        if count > 1
+        item for item, count in Counter([i.name for i in fastas]).items() if count > 1
     ]
     if len(duplicated) > 0:
         logger.debug(f"duplicated names: {', '.join(duplicated)}")
         return len(duplicated)
     return 0
 
-def get_all_fastas( 
+
+def get_all_fastas(
     gene_fasta_paths: list[Path],
-    # genes_runs: Optional[dict], # may need this some day
+    # genes_runs: Optional[dict], # may need this someday
     called_fastas: Optional[dict],
     annotation_run: Optional[dict],
     working_dir: Path,
@@ -228,23 +244,28 @@ def get_all_fastas(
     logger: logging.Logger,
     force: bool,
 ):
-    gene_fasta_obs:list[Fasta] = [path_to_gene_fastas(i, output_dir / DEFAULT_GENES_FILE) for i in gene_fasta_paths]
+    gene_fasta_obs: list[Fasta] = [
+        path_to_gene_fastas(i, output_dir / DEFAULT_GENES_FILE)
+        for i in gene_fasta_paths
+    ]
     # get the precalled genes
     if called_fastas is not None:
-        called_fastas_obs:list[Fasta] = [Fasta.import_strings(output_dir, *j) for j in called_fastas]
+        called_fastas_obs: list[Fasta] = [
+            Fasta.import_strings(output_dir, *j) for j in called_fastas
+        ]
         # now we check these for dups
-        if (dup_count:= has_dup_fasta_name(called_fastas_obs, logger)) > 0:
+        if (dup_count := has_dup_fasta_name(called_fastas_obs, logger)) > 0:
             raise DramUsageError(
-            f"Genome file names must be unique. There is/are {dup_count} name/s that appear twice in called genes."
-        )
-        
+                f"Genome file names must be unique. There is/are {dup_count} name/s that appear twice in called genes."
+            )
+
     # Combine
     fastas = gene_fasta_obs + called_fastas_obs
     # Stop the user duping the fastas that were called
     if (dup_count := has_dup_fasta_name(fastas, logger)) > 0:
         raise DramUsageError(
-        f"Genome file names must be unique. There is/are {dup_count} name/s that appear in both the called genes passed, and the called genes already in the output_dir."
-    )
+            f"Genome file names must be unique. There is/are {dup_count} name/s that appear in both the called genes passed, and the called genes already in the output_dir."
+        )
 
     if annotation_run is not None:
         db_inter = set(
@@ -258,11 +279,11 @@ def get_all_fastas(
         if len(db_inter) > 0:
             if force:
                 logger.warning(
-                    f"You are re-annotating {len(fasta_inter)} of {len(fastas)} FASTAs with databases they were already annotated with: {db_inter}. The past annotations with these databases be replaced."
+                    f"You are re-annotating {len(fasta_inter)} of {len(fastas)} FASTAs with databases they were already annotated with: {db_inter}. The past annotations with these databases will be replaced."
                 )
             else:
                 raise DramUsageError(
-                    f"You are trying to re-annotate {len(fasta_inter)} of {len(fastas)} FASTAs with databases they were already annotated with: {db_inter}. You need to use the force flag '-f' in order to do this. If you use that flag the past annotations with these databases be replaced."
+                    f"You are trying to re-annotate {len(fasta_inter)} of {len(fastas)} FASTAs with databases they were already annotated with: {db_inter}. You need to use the force flag '-f' in order to do this. If you use that flag the past annotations with these databases will be replaced."
                 )
     return fastas
 
@@ -297,9 +318,10 @@ def make_new_project_config(
     keep_tmp: bool,
 ) -> dict:
     """
+    ----------------------
     TODO:
-        Remove db_path
-        The extra argument is for peoples custom dbs it should be updated at some point
+        Remove db path
+        The extra argument is for people's custom DBs it should be updated at some point
     Args:
         old_project_config:
         run_id:
@@ -387,7 +409,7 @@ def annotate(
     # get assembly locations
     # make mmseqs_dbs
     working_dir.mkdir(exist_ok=True)
-    # make a seperate testable function for these two
+    # make a separate testable function for these two
     genes_runs: Optional[dict] = project_config.get("genes_called")
     called_fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
     past_annotation_run = get_past_annotation_run(project_config)
@@ -403,7 +425,7 @@ def annotate(
         force,
     )
     logger.info(f"Started annotation with databases: {','.join(use_db)}")
-    # initsalize all used databases
+    # initialize all used databases
     databases = [i(dram_config, logger) for i in DB_KITS if i.name in set(use_db)]
     if len(fastas) < 1:
         raise DramUsageError(
@@ -414,12 +436,12 @@ def annotate(
     # fasta = [make_mmseqs_db_for_fasta(i, logger=logger, threads=cores_for_sub_process) for i in fastas]
 
     if cores > len(fastas):
-        cores_for_sub_process:int = cores
-        cores_for_maping:int = 1
+        cores_for_sub_process: int = cores
+        cores_for_maping: int = 1
     else:
-        cores_for_sub_process:int = 1
-        cores_for_maping:int = cores
-    
+        cores_for_sub_process: int = 1
+        cores_for_maping: int = cores
+
     with Pool(cores_for_maping) as p:
         fastas = p.map(
             partial(
@@ -499,7 +521,7 @@ def annotate(
     # could be a match statement
     if past_annotation_run is not None and ANNOTATION_FILE_TAG in past_annotation_run:
         logger.info(
-            "Found past annotations in project config, DRAM will atempt to merge new annotations"
+            "Found past annotations in project config, DRAM will attempt to merge new annotations"
         )
         past_annotations = pd.read_csv(
             output_dir / past_annotation_run[ANNOTATION_FILE_TAG],
@@ -512,7 +534,7 @@ def annotate(
         # The only case we update past dbs
     elif force and annotation_tsv.exists():
         logger.info(
-            "Found past annotations in the output path, DRAM will atempt to force-fully merge new annotations"
+            "Found past annotations in the output path, DRAM will attempt to force-fully merge new annotations"
         )
         past_annotations = pd.read_csv(
             annotation_tsv,
@@ -529,7 +551,7 @@ def annotate(
         for i in genes_runs.values():
             i["annotated"] = True
     if not keep_tmp:
-        logger.info(f"Removing the tempory directory: {working_dir}.")
+        logger.info(f"Removing the temporary directory: {working_dir}.")
         rmtree(working_dir)
     return make_new_project_config(
         project_config,
@@ -577,7 +599,7 @@ def merge_past_annotations(
     )
     if len(all_annotations) != max(len(past_annotations_merge), len(new_annotations)):
         logger.critical(
-            "The old and new annotations files may not have merge correctly! Check the new"
+            "The old and new annotation files may not have merged correctly! Check the new"
             " annotations file for errors. Did you use the correct genes.faa for your annotations?"
         )
     all_annotations = pd.concat([all_annotations, past_annotations_appened])
@@ -603,19 +625,19 @@ def merge_past_annotations(
     multiple=True,
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
-    help="Specifiy exactly which dbs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 -o output/dir annotate --use_db fegenie --use_db camper`, the options avalible are in this help.",
+    help="Specify exactly which DBs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 -o output/dir annotate --use_db fegenie --use_db camper`, the options available are in this help.",
 )
 @click.option(
     "--bit_score_threshold",
     type=int,
     default=60,
-    help="minimum bitScore of search to retain hits",
+    help="minimum bit score of search to retain hits",
 )
 @click.option(
     "--rbh_bit_score_threshold",
     type=int,
     default=350,
-    help="minimum bitScore of reverse best hits to retain hits",
+    help="minimum bit score of reverse best hits to retain hits",
 )
 @click.option(
     "--custom_fasta_db_name",
@@ -628,7 +650,7 @@ def merge_past_annotations(
     multiple=True,
     type=click.Path(exists=True, path_type=Path),
     help="Location of fastas to annotate against, can be used multiple times but"
-    "must match nubmer of custom_db_name's",
+    "must match number of custom_db_name's",
 )
 @click.option(
     "--custom_hmm_db_name",
@@ -639,8 +661,8 @@ def merge_past_annotations(
     "--custom_hmm_db_loc",
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
-    help="Location of hmms to annotate against, can be used multiple times but"
-    "must match nubmer of custom_hmm_name's",
+    help="Location of HMMs to annotate against, can be used multiple times but"
+    "must match number of custom_hmm_name's",
 )
 @click.option(
     "--custom_hmm_db_cutoffs_loc",
@@ -652,14 +674,14 @@ def merge_past_annotations(
 @click.option(
     "--tempory_dir",
     type=click.Path(path_type=Path),
-    help="Location of the tempory file where the annotations will be stored, this file will still be deleaded at the end of the annotation process if the keep_tmp flag is not set.",
+    help="Location of the temporary file where the annotations will be stored, this file will still be defeated at the end of the annotation process if the keep tmp flag is not set.",
 )
 # @click.option(
 #     "--make_new_faa",
 #     default=DEFAULT_KEEP_TMP,
-#     help="If true the output directory will have a new genes.faa file with the"
-#     " anotation information apended to the headers. If false this file will not"
-#     " be made and time will be saved. If not specified the value will be set"
+#     help="If true, the output directory will have a new genes.faa file with the"
+#     " annotation information appended to the headers. If false, this file will not"
+#     " be made and time will be saved. If not specified, the value will be set"
 #     " based on other arguments.",
 # )
 @click.option(
@@ -693,13 +715,13 @@ def annotate_cmd(
 ):
     """
     Annotate Genes with Gene Database
-    ___
+    ---
 
     Get gene identifiers from a set of databases and format them for
-    other DRAM2 analysis tools. To use this tool your genes should already called.
+    other DRAM2 analysis tools. To use this tool, your genes should already be called.
 
 
-    The annotaion process depends on the users selection. You can use the --use_db argument to
+    The annotation process depends on the user's selection. You can use the --use_db argument to
     select a set of databases, or use the use_dbset argument to use a pre-configured set of databases.
 
     """
@@ -756,11 +778,11 @@ def annotate_cmd(
 @click.command("list_databases")
 def list_databases():
     """
-    List avalible database
-    ___
+    List available database
+    ---
 
 
-    This is a simple tool to list the databases that are available to use in dram commands, mostly annotations. This includes both annotations formal name, the key that idenfies it to dram, awaise lower case and all one word, and the citation if it extists.
+    This is a simple tool to list the databases that are available to use in dram commands, mostly annotations. This includes both annotations' formal name, the key that identifies it to dram, always lowercase and all one word, and the citation if it exists.
     """
     for i in DB_KITS:
         print(

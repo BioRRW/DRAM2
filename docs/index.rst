@@ -56,7 +56,7 @@ The DRAM development team is actively working on DRAM2. We do not anticipate add
   :caption: Developer Documentaition
   :name: dev
   :hidden:
-  :maxdepth: 2
+  :maxdepth: 0
 
   dev/docs
   dev/call_genes

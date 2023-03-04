@@ -1,4 +1,11 @@
+
+===============================
+Annotate Called Genes with DRAM
+===============================
+
 .. automodule:: dram2.annotate
-    :members:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
