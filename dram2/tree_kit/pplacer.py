@@ -1,4 +1,8 @@
-""""""
+"""
+=================
+Tools For PPlacer
+=================
+"""
 import os
 import json
 import logging
@@ -17,16 +21,22 @@ class DramTree:
         reference_seq: str,
         gene_mapping_path: str,
         color_mapping_path: str,
-        target_dbs: list[set['str']],
-        target_ids: list['str'],
+        target_dbs: list[set["str"]],
+        target_ids: list["str"],
     ):
         self.name = name
         self.pplacer_profile = pplacer_profile
         self.reference_seq = reference_seq
         self.gene_mapping = pd.read_csv(gene_mapping_path, sep="\t", index_col=0)
         self.color_mapping = pd.read_csv(color_mapping_path, sep="\t", index_col=0)
-        self.mapping = pd.merge(self.gene_mapping, self.color_mapping, left_on='call', right_index=True, how='outer')
-    # tree.mapping['call'].unique()
+        self.mapping = pd.merge(
+            self.gene_mapping,
+            self.color_mapping,
+            left_on="call",
+            right_index=True,
+            how="outer",
+        )
+        # tree.mapping['call'].unique()
         self.target_ids = set(target_ids)
         self.target_dbs = target_dbs
 
@@ -34,16 +44,14 @@ class DramTree:
         self.logger = logger
 
     def _align(self, fasta, working_dir):
-        """
-
-        """
+        """ """
         self.logger.info("Aligning sequences with MAFFT")
-        # The file at the end of the output_path have extention 'fasta'!
+        # The file at the end of the output path has the extension 'fasta'!
         output_path = os.path.join(working_dir, f"{QUERY_TMP_NAME}.fasta")
         if os.path.exists(output_path):
             self.logger.warn(
                 f"The alignment file {output_path} already "
-                "exists, so the program is being cald twice in "
+                "exists, so the program is being called twice in "
                 "the same working directory."
             )
         run_process(
@@ -81,7 +89,7 @@ class DramTree:
 """
 One day we may want to be able to make these profiles
 
-taxit_comand= ['taxit', 'create', '-l', '16s_rRNA', '-P', 'nxr_nar.refpkg', 
- '--aln-fasta', '$NXR_NAR_FAA', '--tree-stats', 
+taxit_comand= ['taxit', 'create', '-l', '16s_rRNA', '-P', 'nxr_nar.refpkg',
+ '--aln-fasta', '$NXR_NAR_FAA', '--tree-stats',
  './RAxML_info.nxr_nar_raxml', '--tree-file', './nxr_nar.tre']
 """

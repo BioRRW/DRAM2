@@ -10,7 +10,7 @@ from itertools import chain
 from dram2.annotate import get_annotation_ids_by_row, DB_KITS
 from dram2.db_kits.utils import DBKit
 
-ID_SET:set[str] = {"sulphur", "kegg   ", "kofam  ", "pfam   ", "camper ", "fegenie"}
+ID_SET:set[str] = {"sulfur", "kegg   ", "kofam  ", "pfam   ", "camper ", "fegenie"}
 SULFUR_ID = 'sulfur_id'
 FEGENIE_ID = 'fegenie_id'
 COLUMN_SET= {
@@ -29,19 +29,8 @@ COLUMN_SET= {
 }
 
 
-# def get_ids_from_annotations_by_row(data):
-#     missing = [i for i in FUNCTION_DICT if i not in data.columns]
-#     functions = {i:j for i,j in FUNCTION_DICT.items() if i in data.columns}
-#     print("Note: the following id fields "
-#           f"were not in the annotations file and are not being used: {missing},"
-#           f" but these are {list(functions.keys())}")
-#     out = data.apply(lambda x: {i for k, v in functions.items() if not pd.isna(x[k])
-#                           for i in v(str(x[k])) if not pd.isna(i)}, axis=1)
-#     return out
-
-
 def get_ids_from_annotation(frame):
-    print('geting ids from annotations')
+    print('getting ids from annotations')
     return Counter(chain(*frame.apply(get_ids_from_row, axis=1).values))
 
 
@@ -74,3 +63,4 @@ class Annotations():
         annot_ids = pd.DataFrame(annot_ids['db_id_sets'].apply(list))
         annot_ids.columns=['annotations']
         self.ids_by_row = annot_ids
+

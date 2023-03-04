@@ -1,10 +1,10 @@
 """
-This program add profiles based on phylogentic trees into dram. The key to this process is pplacer which places leaves into pre-exitsting trees
+This program adds profiles based on phylogenetic trees into dram. The key to this process is pplacer which places leaves into pre-existing trees
 
 NOTE pplacer uses about 1/4 of the memory when placing on a FastTree tree as compared to a RAxML tree inferred with GTRGAMMA. If your reads are short and in a fixed region, the memory used by pplacer v1.1 alpha08 (or later) scales with respect to the total number of non-gap columns in your query alignment. You can also make it use less memory (and run faster) by cutting down the size of your reference tree.
 
 TODO Allow this to use the genes directory instead of this
-TODO Update the clade data type to be more representitiv
+TODO Update the clade data type to be more representative
 TODO Maybe switch to FastTree -- or don't
 TODO Make database check tree specific
 """
@@ -104,22 +104,24 @@ def phylo_tree(
         else:
             gene_fasta: Path = gene_fasta_list
         for tree in trees:
-            # For now we need to combine_genes if they are seperate. it would be supper cool if we did not.
+            # For now we need to combine genes if they are separate. It would be super cool if we did not.
             logger.info(f"Performing phylogenetic disambiguation with tree {tree.name}")
             tree.set_logger(logger)
             logger.info(f"Made temporary files in {work_dir}")
             ids_keep = set(
                 annotation_ids[
-                    annotation_ids.apply(lambda x: len(x.intersection(tree.target_ids )) > 0)
+                    annotation_ids.apply(
+                        lambda x: len(x.intersection(tree.target_ids)) > 0
+                    )
                 ].index
             )
             if len(ids_keep) < 1:
-                logger.info(f"No enigmatic genes where found relating to {tree.name}. Skipping this tree.")
+                logger.info(
+                    f"No enigmatic genes were found relating to {tree.name}. Skipping this tree."
+                )
                 tree_paths += [None]
                 continue
-            trimed_fa = extract_enigmatic_genes(
-                ids_keep, gene_fasta, work_dir, logger
-            )
+            trimed_fa = extract_enigmatic_genes(ids_keep, gene_fasta, work_dir, logger)
             logger.info("Placing enigmatic genes")
             jplace_file = tree.pplacer_place_sequences(
                 trimed_fa.as_posix(), work_dir_str, threads=cores
@@ -161,7 +163,7 @@ def extract_enigmatic_genes(
     logger: logging.Logger,
 ) -> Path:
     """
-    :param ids_keep: Enigamtic ids from annotations from dram run
+    :param ids_keep: Enigmatic ids from annotations from dram run
     :param gene_fasta: faa from dram run
     :param work_dir: Temp files here
     :param logger: Standard DRAM logger
@@ -197,7 +199,7 @@ def read_phtree(
         capture_stdout=True,
     )
     treeph = phy.read(placed_tree_file, format="newick")
-    # Combine gene maping and color maping into an omni maping file
+    # Combine gene mapping and color mapping into an omni mapping file
     return treeph
 
 
@@ -233,13 +235,13 @@ def read_edpl(
     logger: logging.Logger,
 ):
     """
-    There are not as many options for certainty as first thought but is in any case I will for now go with the EDPL.
+    There are not as many options for certainty as first thought, but in any case I will for now go with the EDPL.
 
-    So the deal with uncertainty is that it may only mean something if the distance to the contrary node is smaller than some ratio of the edpl. Of cores, it is not clear if the distance is would even be distributed equally along all paths.
+    So the deal with uncertainty is that it may only mean something if the distance to the contrary node is smaller than some ratio of the EDPL. Of cores, it is not clear if the distances would even be distributed equally along all paths.
 
-    In any case, there is no reason to think that these values are not a measure of uncertainty, and the user will probability have use for them but it may mean that in the future we provide additional pplacer output.
+    In any case, there is no reason to think that these values are not a measure of uncertainty, and the user will probably have use for them but it may mean that in the future we provide additional pplacer output.
 
-    The best solutution and one that we could cirtanly acheave, is to use pplacer to place and then
+    The best solution and one that we could certainly achieve, is to use pplacer to place and then
 
 
     I think [the manual](http://matsen.github.io/pplacer/generated_rst/guppy_edpl.html#guppy-edpl) describes it best, and it says this with EDPL:
@@ -248,7 +250,7 @@ def read_edpl(
 
         The EDPL metric is one way of resolving this problem by considering the distances between the possible placements for a given query. It works as follows. Say the query bounces around to the different placement positions according to their posterior probability; i.e. the query lands with location one with probability p_1, location two with probability p_2, and so on. Then the EDPL value is simply the expected distance it will travel in one of those bounces (if you don’t like probabilistic language, it’s simply the average distance it will travel per bounce when allowed to bounce between the placements for a long time with their assigned probabilities). Here’s an example, with three hypothetical locations for a given query sequence:
 
-    The [pplacer paper]() has even more to say. It will discus the use of place vis which is a tool that will most likely make its whay into our work also.
+    The [pplacer paper]() has even more to say. It will discuss the use of place vis which is a tool that will most likely make its way into our work also.
 
         Quantifying uncertainty in placement location
 
@@ -272,15 +274,15 @@ def read_edpl(
     edpl = pd.read_csv(placed_edpl_file, names=["gene", "edpl"])
     return edpl
     # = phy.read(placed_edpl_file, format="newick")
-    # Combine gene maping and color maping into an omni maping file
+    # Combine gene mapping and color mapping into an omni mapping file
     # return t
 
 
 """
 from this, I want to get:
     names for each of the clades in the figure
-    labels for each known clade, unkown clade
-    distace to the next node
+    labels for each known clade, unknown clade
+    distance to the next node
 """
 
 
@@ -361,8 +363,8 @@ def get_clade_info(clade, tree: DramTree):
     """
     label the clades for the default tree
 
-    Uses breath first search to find all monolithic clades, and multiple clade.
-    After this all clades will have a color and all clade will have a label.
+    Uses breadth first search to find all monolithic clades, and multiple clades.
+    After this all clades will have a color and all clades will have a label.
 
     :param clade:
     :param tree:
@@ -371,7 +373,7 @@ def get_clade_info(clade, tree: DramTree):
     if len(childs := list(clade)) == 0:  # The clade is a terminal node
         if (
             clade.name is None
-        ):  # Needs to raise error, unamed terminals should be imposible
+        ):  # Needs to raise error, unnamed terminals should be impossible
             raise ValueError("Terminal clade without name")
         if (
             clade.name not in tree.mapping.index
@@ -419,17 +421,17 @@ def color_paths_by_location(treeph):
 
 
 def pull_labes_from_tree():
-    """this may not be usefull"""
+    """this may not be useful"""
     pass
 
 
 """
 Notes:
-   the to_networkx comand works but it can get complicated this may be needed later
-       for example phy.to_networkx(phy.read("color_tree_branch.xml", "newick"))
-   This makes a tree that is totaly unreadable
+   the to_networkx command works, but it can get complicated this may be needed later
+       for example, phy.to_networkx(phy.read("color_tree_branch.xml", "newick"))
+   This makes a tree that is totally unreadable
        phy.draw_ascii(treeph)
-    Need to condider offering a way to output the visualizations from pplacer
+    Need to consider offering a way to output the visualizations from pplacer
 
 # make a test set soon
 tree = NXR_NAR_TREE
@@ -443,7 +445,7 @@ def clade_info_to_series(
     clade: Clade, tree_name: str, max_len_to_label: float, min_dif_len_ratio: float
 ) -> pd.DataFrame:
     """
-    Note that we use labeled nodes for distace, so the distace is not to the root of a clade but to its nearest endpoint in such a clade this could have un-expected conciquences but it means that we ground our choices in known genes and not in emergent behavure of clades and the lableing algorithm.
+    Note that we use labeled nodes for distance, so the distance is not to the root of a clade but to its nearest endpoint in such a clade this could have unexpected consequences, but it means that we ground our choices in known genes and not in emergent behavior of clades and the labeling algorithm.
 
     """
     delta: float = None
@@ -454,7 +456,7 @@ def clade_info_to_series(
     else:
         if (dist := clade.nearest[0].len) > max_len_to_label:
             label = UNPLACE_LABEL
-            place_info = f"{UNPLACE_PREFIX} The distance to the nearest labeled node, is {dist}, which is more than {max_len_to_label} (the max_len_to_label filter)."
+            place_info = f"{UNPLACE_PREFIX} The distance to the nearest labeled node is {dist}, which is more than {max_len_to_label} (the max_len_to_label filter)."
         elif (
             delta := clade.nearest[0].len / clade.nearest[1].len - 1
         ) > min_dif_len_ratio:
@@ -507,7 +509,7 @@ def write_files(
 ):
     """
     Write all the Tree files
-    ________________
+    ---------------_
 
 
     FIX THIS
@@ -529,7 +531,6 @@ def write_files(
             work_dir,
             os.path.join(output_dir, f"{tree_name}_working_dir"),
         )
-
 
 
 def end_message(tree_df: pd.DataFrame, tree_name: str) -> str:

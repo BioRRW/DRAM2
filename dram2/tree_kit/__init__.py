@@ -56,6 +56,7 @@ AMOA_PMOA_TREE = DramTree(
 TREES = [NXR_NAR_TREE]
 LATEST_TREE_RUN_TAG: str = "latest"
 
+
 def get_annotations_and_genes_path(
     annotation_run: Optional[dict],
     genes_list: Optional[list],
@@ -63,7 +64,7 @@ def get_annotations_and_genes_path(
     genes: Optional[Path],
     force: bool,
     output_dir: Path,
-    logger: logging.Logger
+    logger: logging.Logger,
 ) -> tuple[Path, Path | list]:
     if force:
         logger.warning(
@@ -72,21 +73,19 @@ def get_annotations_and_genes_path(
         )
     elif annotation_run is not None:
         if (
-            db_error := check_for_annotations(
-                NXR_NAR_TREE.target_dbs, annotation_run
-            )
+            db_error := check_for_annotations(NXR_NAR_TREE.target_dbs, annotation_run)
         ) is not None:
             raise DramUsageError(db_error)
     else:
         raise DramUsageError(
-            "The project_config dose not exist or you have not annotated. \n"
+            "The project_config does not exist, or you have not annotated. \n"
             "Have you called genes and annotations?\n\n You must at least annotate"
             " with KOfam or KEGG in order to run this script.\n\nIf you have done"
-            " the steps but dont have a project_config for whatever reason then "
+            " the steps but don't have a project_config for whatever reason then "
             "you can use the force option to skip this check."
         )
     if isinstance(annotations, Path):
-        annotation_to_use:Path = annotations
+        annotation_to_use: Path = annotations
     elif annotation_run is None:
         raise DramUsageError(
             "There is no project_config in the output directory and no"
@@ -100,13 +99,13 @@ def get_annotations_and_genes_path(
             raise DramUsageError(
                 "There is no annotations.tsv recorded in the project_config "
                 "provided.\n\nIt must be the case that the DRAM directory"
-                " dose not contain the result of a successful annotation, "
+                " does not contain the result of a successful annotation, "
                 " because it was not run or it was moved."
                 # "\nRun `dram2 get_status` to see if annotations have been "
                 # "run on this dram directory or if it is valid at all. "
             )
         else:
-            annotation_to_use: Path = output_dir /annotation_to_use_str
+            annotation_to_use: Path = output_dir / annotation_to_use_str
     if isinstance(genes, Path):
         return annotation_to_use, genes
     elif isinstance(genes_list, list):
@@ -118,6 +117,7 @@ def get_annotations_and_genes_path(
             "\nIf your output directory has no project config file,"
             " you must use the --genes option to point to a genes.faa."
         )
+
 
 @click.command("phylotree")
 # @click.version_option(__version__)
@@ -177,7 +177,7 @@ def get_annotations_and_genes_path(
     " the nearest differently labeled gene for a placed gene to adopt that"
     " label. This does not apply to genes labeled based on placement in a"
     " labeled clad. So if the first distance is d1 and the second longer"
-    " distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the paced gene will"
+    " distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the placed gene will"
     " fail to be labeled.",
     default=MIN_DIF_LEN_RATIO_DFLT,
 )
@@ -202,7 +202,7 @@ def get_annotations_and_genes_path(
     is_flag=True,
     show_default=True,
     default=False,
-    help="Keep the tempory directory where these trees are kept",
+    help="Keep the temporary directory where pplacer files and other intermediaries are.",
 )
 @click.option(
     "-f",
@@ -210,7 +210,7 @@ def get_annotations_and_genes_path(
     is_flag=True,
     show_default=True,
     default=False,
-    help= "Skip the normal checks on the dram project_config and just try to use the annotations and genes provided"
+    help="Skip the normal checks on the dram project_config and just try to use the annotations and genes provided.",
 )
 # @click.option(
 #     "--output_dir",
@@ -222,7 +222,7 @@ def get_annotations_and_genes_path(
     multiple=True,
     default=[t.name for t in TREES],
     type=click.Choice([t.name for t in TREES], case_sensitive=False),
-    help="Specifiy exactly which trees to use. This argument can be used multiple times, but for now there is only one option.",
+    help="Specify exactly which trees to use. This argument can be used multiple times, but for now there is only one option.",
 )
 @click.pass_context
 def phylo_tree_cmd(
@@ -234,22 +234,22 @@ def phylo_tree_cmd(
     force: bool,
     max_len_to_label,
     min_dif_len_ratio,
-    use_tree: list[str]
+    use_tree: list[str],
 ):
     """
-    Philogenetic trees to DRAM
-    ___
+    Phylogenetic trees to DRAM
+    ---
 
-    Some genes can perform more than one function, phyloginy offers a system 
-    to identifie what the metibolic function an abiguase gene is perfoming.
+    Some genes can perform more than one function, phylogeny offers a system
+    to identify what the metabolic function, an ambiguous gene is performing.
 
-    In order to use this command you must first complete the falowing for
+    In order to use this command, you must first complete the following for
     all genes in your project:
 
     - Call the Genes with `dram2 call` (and don’t remove the genes directory!!)
-    - annotate the genes with`dram2 annotate using `dram2 annotate` be 
-    shure you use the fallowing database:
-        - KEGG or KOfam
+    - annotate the genes with`dram2 annotate using `dram2 annotate` be
+    shure you use the following database:
+        - Sulfur and KEGG or KOfam
 
     Note that at the moment NXR/NAR is the only tree active but PMOA/AMOA is
     in the works.
@@ -273,13 +273,15 @@ def phylo_tree_cmd(
             raise DramUsageError(
                 "There is no project_config or it is missing the data from a"
                 " annotation run, but you have not used the force flag to skip"
-                " checks. We can't check the annotations with out the"
-                " annotation run data. If you know what you are doing you can"
+                " checks. We can't check the annotations without the"
+                " annotation run data. If you know what you are doing, you can"
                 " use the force flag to continue without checks"
             )
         elif annotation_run is not None and not force:
             dbs_we_have_ano = set(annotation_run[USED_DBS_TAG])
-            db_kits_with_ids = [i for i in db_kits_with_ids if i.name in dbs_we_have_ano]
+            db_kits_with_ids = [
+                i for i in db_kits_with_ids if i.name in dbs_we_have_ano
+            ]
         else:
             logger.warning("Skipping the normal checks because of the force flag")
         db_kits = [i(dram_config, logger) for i in db_kits_with_ids]
@@ -296,18 +298,24 @@ def phylo_tree_cmd(
             max_len_to_label=max_len_to_label,
             min_dif_len_ratio=min_dif_len_ratio,
             db_kits=db_kits,
-            trees=trees
+            trees=trees,
         )
         if TREE_TAG in project_config:
-            project_config[TREE_TAG].update({
-                LATEST_TREE_RUN_TAG: run_id,
-                run_id: {i:j for i, j in zip(tree_names, tree_paths)}
-            })
+            project_config[TREE_TAG].update(
+                {
+                    LATEST_TREE_RUN_TAG: run_id,
+                    run_id: {i: j for i, j in zip(tree_names, tree_paths)},
+                }
+            )
         else:
-            project_config.update({TREE_TAG: {
-                LATEST_TREE_RUN_TAG: run_id,
-                run_id: {i:j for i, j in zip(tree_names, tree_paths)}
-                                              }})
+            project_config.update(
+                {
+                    TREE_TAG: {
+                        LATEST_TREE_RUN_TAG: run_id,
+                        run_id: {i: j for i, j in zip(tree_names, tree_paths)},
+                    }
+                }
+            )
         context.set_project_config(project_config)
 
     except Exception as e:

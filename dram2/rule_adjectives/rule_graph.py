@@ -157,7 +157,7 @@ class RuleParser:
             for i in self.data.index
         }
         selfidx = 0
-        self.set_adjectives(adjectives)  # automaticaly parses
+        self.set_adjectives(adjectives)  # automatically parses
 
     def set_adjectives(self, adjectives: set = None):
         adj_names = set(self.data["name"].dropna().values)
@@ -184,7 +184,7 @@ class RuleParser:
             if nodeid in self.G.nodes:
                 if parent:
                     self.G.add_edge(parent, nodeid)
-                return  # if there are successors dont double dip
+                return  # if there are successors, don't double dip
             self.G.add_node(
                 nodeid, display=nodeid, type="name", function=self.name_func, genomes={}
             )
@@ -326,9 +326,9 @@ class RuleParser:
                 self.dot.node(
                     node,
                     f"{self.G.nodes[node]['display']} {count} of {total}",
-                    color="grey",
+                    color="gray",
                 )
-                self.dot.edge(parent, node, color="grey")
+                self.dot.edge(parent, node, color="gray")
                 return
             case "inGenomeCount":
                 return
@@ -372,7 +372,7 @@ class RuleParser:
                     for genome in self.annot.ids_by_fasta.index:
                         self.plot_adj_genome(output_folder, adj, genome, show_steps)
             case _:
-                raise ValueError("There was an error in ploting the genomes.")
+                raise ValueError("There was an error in plotting the genomes.")
 
     def cycle_evaluate(self, node, genome_name: str, annotations: set):
         steps = [
@@ -544,7 +544,7 @@ class RuleParser:
                 if arg_dict["comp"] == "gt":
                     return int(arg_dict["val"]) > sum(data[arg_dict["col"]])
                 else:
-                    raise ValueError("NoT fully implimented")
+                    raise ValueError("NOT fully implemented")
             case "columncontains":
                 data = self.annot.data.loc[genome_name]
                 arg_dict = self.G.nodes[node]["args"]
@@ -583,7 +583,7 @@ def get_annot_data_for_positive_genes(annotations, fasta_names, positive_leaves)
         .copy()
         .apply(lambda x: set(x["annotations"]), axis=1)
     )
-    # Check for count based positves
+    # Check for count based positives
     additiv_cols = {
         j
         for i in positive_leaves.values()
@@ -642,3 +642,4 @@ def get_positive_genes(rules, annotations, adjectives_dat):
     gene_adj = gene_adj[gene_adj["positive_ids"].apply(len) > 0]
     gene_adj["positive_ids"] = gene_adj["positive_ids"].apply(lambda x: ",".join(x))
     return gene_adj
+
