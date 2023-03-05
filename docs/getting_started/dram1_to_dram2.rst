@@ -26,7 +26,6 @@ As you look over this document, notice that DRAM2 differs from DRAM1 in these ke
  * There is only one command `dram2` which lets you use all sub commands.
  * Only DRAM2 has Adjectives and Phylogenetic Trees
 
-
 Preview
 -------
 
@@ -105,8 +104,8 @@ The 15 soil genomes are a good place to start for dram. You could call all of th
 
 Before we move on I want to talk about this command, which we are not running.  There are so many things to cover here.
 
-#. The commands that get passed to dram2 are universal and work with all dram2 sub-commands, but you don't pass those to the sub commands. So `dram2 call -0 soil/test1` would not work. The reverse is also true, you don't pass an option to dram2 that goes to the sub commands, so `dram2 --prodigal_mode train call -0 soil/test1` would not work.
-#. Additionally, `dram2 call` and `dram2 annotate` allow for a list of arguments after all the options. In both cases these are lists of FASTAs only one is for called FASTAs and the other is for uncalled FASTAs. Arguments are different from options in that they have no flags like no `-f` or `--flag`, they can't be followed by options and,  in this case, there can be as many arguments as you want. Before, the path to FASTA files had to be a string. That was ok, but it was confusing at times to use a normal file path instead.
+  #. The commands that get passed to dram2 are universal and work with all dram2 sub-commands, but you don't pass those to the sub commands. So `dram2 call -0 soil/test1` would not work. The reverse is also true, you don't pass option to dram2 that go to the sub commands so `dram2 --prodigal_mode train call -0 soil/test1` would not work.  
+  #. Additionally, `dram2 call` and `dram2 annotate` allow for a list of arguments after all the options. In both cases these are lists of fastas only one is for called fastas and the other is for uncalled fastas. Arguments are different from options in that they have no flags like no `-f` or `--flag`, they can't be fallowed by options and,  in this case, there can be as many arguments as you want. Before, the path to FASTA files had to be a string. That was ok, but it was confusing at times use a normal file path instead.   
 
 Notice the output is specified by a -o. and it is passed to the dram2 command before the call command runs, the same with the -c command that tells dram the most cores it needs are 2.
 In the past, DRAM confused people by having them pass a string to call genes with a python command. So now we let bash handle this. This should be safer and result in less errors.
