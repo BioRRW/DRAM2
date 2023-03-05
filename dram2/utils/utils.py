@@ -10,29 +10,6 @@ import logging
 from typing import Optional
 from pathlib import Path
 
-# import json
-
-
-# def load_config(alt_location:Path, logger: logging.Logger):
-#     """If all_loc is none the """
-#     if alt_location is not None:
-#         location = alt_location
-#     elif (envioment_location := Path(getenv('DRAM_CONFIG_LOCATION'))) is not None:
-#         location = envioment_location
-#     elif (user_location := (Path.home() / '.config' / 'dram2bio'/ 'config')).exists():
-#         location = user_location
-#     elif (global_location := Path("/etc", "dram2bio", "config")).exists():
-#         location = global_location
-#     else:
-#         logger.info(f"No config found any config that is created will go to {user_location}")
-#         config = {}
-#         config['config_location'] = user_location
-#         return config
-#     logger.info(f"Loading config from: {location}")
-#     config = json.loads(open(location).read())
-#     config['config_location'] = location
-#     return config
-
 
 class DramUsageError(Exception):
     "Raised when dram is not used corectly, usally it means you are missing a step"

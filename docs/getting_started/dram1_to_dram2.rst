@@ -39,6 +39,12 @@ Before we start I want to just lay out the simplest form of the pipeline that we
        	-o soil/dram1_out \
        	--use_camper --use_fegenie --use_sulfur
 
+
+
+Grab an Example Directory
+------------------------
+
+
 Activate the Environment
 ------------------------
 
@@ -51,7 +57,13 @@ So run the command below, and we can get started testing this release candidate.
    source /opt/Miniconda2/miniconda2/bin/activate DRAM2BETA
 
 
-Explore the help
+Just a quick not on the setup. The DRAM2 config dose not live with DRAM2. The
+global config on zenith is at `/ect/dram_config.yaml`. You as a user can make a
+file in you home directories config file ~/.config/dram_config.yaml and that
+will replace the global one for you only. We are not going to get into this much
+but you should know, because that is a big change.
+
+Explore The help
 ----------------
 
 With any new program, it is good to explore the help. The DRAM2 help is a lot larger compared to the dram1 and really needs a good checking in order to validate. The DRAM2 command line structure is very hierarchical, much more than DRAM2, so here are some things I think will explain that best.
