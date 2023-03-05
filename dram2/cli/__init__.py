@@ -28,7 +28,7 @@ from dram2.utils.globals import DEFAULT_FORCE, DEFAULT_OUTPUT_DIR
 
 from datetime import datetime
 
-DEFAULT_VERBOSE = 3  # maps to logging levels
+DEFAULT_VERBOSE = 4  # maps to logging levels
 
 
 

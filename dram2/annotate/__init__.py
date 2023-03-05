@@ -83,7 +83,8 @@ ADJECTIVES_SET = {
     "peptidase",
     "sulfur",
     "camper",
-    "FeGenie",
+    "methyl",
+    "fegenie",
 }
 ADJECTIVES_SET_KEGG = {
     "kegg",
@@ -93,7 +94,8 @@ ADJECTIVES_SET_KEGG = {
     "peptidase",
     "sulfur",
     "camper",
-    "FeGenie",
+    "methyl",
+    "fegenie",
 }
 DBSETS_COL = "db_id_sets"
 DBSETS = {
@@ -258,6 +260,8 @@ def get_all_fastas(
             raise DramUsageError(
                 f"Genome file names must be unique. There is/are {dup_count} name/s that appear twice in called genes."
             )
+    else:
+        called_fastas_obs:list[Fasta] = []
 
     # Combine
     fastas = gene_fasta_obs + called_fastas_obs

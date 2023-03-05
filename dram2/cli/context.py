@@ -184,15 +184,15 @@ class DramContext(object):
 
         # conver verbosity to log levels
         match self.verbose:
-            case 0:
-                level = logging.CRITICAL # numaric level = 50
             case 1:
-                level = logging.ERROR # numaric level = 40
+                level = logging.CRITICAL # numaric level = 50
             case 2:
-                level = logging.WARNING # numaric level = 30
+                level = logging.ERROR # numaric level = 40
             case 3:
-                level = logging.INFO # numaric level = 20
+                level = logging.WARNING # numaric level = 30
             case 4:
+                level = logging.INFO # numaric level = 20
+            case 5:
                 level = logging.DEBUG # numaric level = 10
             case _:
                 level = logging.DEBUG# numaric level = 0

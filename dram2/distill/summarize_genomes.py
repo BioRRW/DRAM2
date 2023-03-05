@@ -906,7 +906,9 @@ def fill_product_dfs(
     )
 
     # make ETC frame
-    etc_coverage_df = make_etc_coverage_df(etc_module_df, annotation_ids_by_row, groupby_column)
+    etc_coverage_df = make_etc_coverage_df(
+        etc_module_df, annotation_ids_by_row, groupby_column
+    )
 
     # make functional frame
     function_df = make_functional_df(
@@ -1041,47 +1043,45 @@ def get_past_annotations(
 def get_dbkit_genome_summary_forms(
     annotation_run: Optional[dict],
     dram_config: dict,
+    logger:logging.Logger,
     force: bool,
     use_db_distilate: Optional[list],
 ) -> list[Path]:
-    db_kits_with_distilate = [
-        i for i in DB_KITS if i.selectable and i.has_genome_summary
+
+    db_kits_with_distilate: list[DBKit] = [
+        i(dram_config, logger) for i in DB_KITS if i.selectable and i.has_genome_summary
     ]
-    if annotation_run is None and use_db_distilate is None:
-        return []
-    elif annotation_run is not None and use_db_distilate is None:
-        dbs = set(annotation_run[USED_DBS_TAG])
-        dist_paths = [
-            i(dram_config).get_genome_summary()
-            for i in db_kits_with_distilate
-            if i.name in dbs
-        ]
-        return [i.get_genome_summary() for i in dist_paths]
-    elif annotation_run is not None and use_db_distilate is not None and not force:
-        dbs = set(annotation_run[USED_DBS_TAG])
-        missing = [i for i in use_db_distilate if i not in annotation_run]
-        if len(missing) > 0:
-            raise DramUsageError(
-                "There are databases missing for the distillate selected, the missing databases are: {missing}"
-            )
-        dist_paths = [
-            i(dram_config).get_genome_summary()
+
+    if force and use_db_distilate is not None:
+        return [
+            i.get_genome_summary()
             for i in db_kits_with_distilate
             if i.name in use_db_distilate
         ]
-        return [i.get_genome_summary() for i in dist_paths]
-    elif annotation_run is None and use_db_distilate is not None and force:
-        logging.debug("Skipping normal checks for annotations")
-        dist_paths = [
-            i(dram_config).get_genome_summary()
+
+    # Get the list of annotations
+    annotation_dbs = (
+        set() if annotation_run is None else set(annotation_run[USED_DBS_TAG])
+    )
+
+    if force:
+        return [
+            i.get_genome_summary()
             for i in db_kits_with_distilate
-            if i.name in use_db_distilate
+            if i.name in annotation_dbs
         ]
-        return [i.get_genome_summary() for i in dist_paths]
-    else:
-        raise ValueError(
-            "The developer failed to support the use case for get_dbkit_genome_summary_forms, contact the developer"
-        )
+    if len(use_db_distilate) > 0:
+        return [
+            i.get_genome_summary()
+            for i in db_kits_with_distilate
+            if i.name in annotation_dbs and i.name in use_db_distilate
+        ]
+
+    return [
+        i.get_genome_summary()
+        for i in db_kits_with_distilate
+        if i.name in annotation_dbs 
+    ]
 
 
 def test_get_dbkit_genome_summary_forms():
@@ -1094,7 +1094,6 @@ def test_get_dbkit_genome_summary_forms():
 
         def search(self):
             pass
-
     get_dbkit_genome_summary_forms({USED_DBS_TAG: "test"}, {}, True, set(), {"test"})
 
 
@@ -1180,7 +1179,7 @@ def distill(
                 [genome_summary_form, pd.read_csv(custom_summary_form, sep="\t")]
             )
         db_kit_forms = get_dbkit_genome_summary_forms(
-            annotation_run, dram_config, force, use_db_distilate
+            annotation_run, dram_config, logger, force, use_db_distilate
         )
         # Merge base, custom,  and db_kit summary forms into one
         genome_summary_form = pd.concat(
@@ -1395,4 +1394,3 @@ os.system("rm -r ./test_15soil/distillation")
 os.system("DRAM.py distill -i ./test_15soil/annotations.tsv -o ./test_15soil/distillation")
 
 """
-

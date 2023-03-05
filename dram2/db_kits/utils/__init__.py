@@ -289,7 +289,7 @@ def run_hmmscan(
     threads: int,
 ):
     if threads > HMM_SCAN_MAX_THREADS:
-        logger.warning(
+        logger.debug(
             f"Something has gone wrong for {db_name}. It is trying to use hmmscan with {threads} threads which is sub-optimal as hmmscan can only make use of {HMM_SCAN_MAX_THREADS} threads."
         )
     output = path.join(output_loc, f"{db_name}_results.unprocessed.b6")
