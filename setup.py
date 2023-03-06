@@ -21,7 +21,8 @@ setup(
     long_description_content_type="text/markdown",  # Optional (see note above)
     package_data={
         "dram2.rule_adjectives": ["rules.tsv"],
-        "dram2.tree_kit": ["data", "dram_trees"],
+        "dram2.tree_kit": ["data", "nxr_nar", "nxr-nar-tree-mapping.tsv"],
+        "dram2.tree_kit": ["data", "pmoa_amoa", "pmoa_amoa-tree-mapping.tsv"],
         "dram2.distill": ["data", "amg_database.tsv"],
         "dram2.distill": ["data", "etc_module_database.tsv"],
         "dram2.distill": ["data", "genome_summary_form.tsv"],
