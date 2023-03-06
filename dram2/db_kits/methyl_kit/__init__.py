@@ -1,3 +1,11 @@
+"""
+Do methyl actions
+
+TODO:
+add the package data for distillate
+
+"""
+
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
