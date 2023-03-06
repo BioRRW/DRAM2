@@ -8,7 +8,7 @@ db_kits:
     methyl:
       mmsdb:
         location: /home/Database/DRAM/methyl/methylotrophy.mmsdb
-      distillate:
+      genome_summary_form:
         location: /home/Database/DRAM/methyl/methylotrophy_distillate.tsv
     sulfur:
       hmmdb:
