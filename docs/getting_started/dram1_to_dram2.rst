@@ -148,12 +148,12 @@ So `dram2 call -o` would not work. The reverse is also true: you don't pass an o
 Additionally, `dram2 call` has a list of arguments after all the options for FASTAs. In DRAM1, the wild card path to FASTA files had to be a string. That was ok, but it was confusing at times. DRAM2 uses a normal file path instead.
 
 If you have FASTAs that can't be referenced with a regular expression, you can just add the paths one after another:
-'bb
+
 .. code-block:: bash
 
    dram2 -vv -o soil/test1 -c 2 call \
-      ./input_fasta_files/Cytophaga_hutchinsonii_ATCC_33406.fasta \
-      ./input_fasta_files/Dechloromonas_aromatica_RCB.fasta
+     ./input_fasta_files/Cytophaga_hutchinsonii_ATCC_33406.fasta \
+     ./input_fasta_files/Dechloromonas_aromatica_RCB.fasta
 
 Note: multi-processing is on the FASTA level, so only two cores are needed.
 
@@ -231,10 +231,10 @@ Phylogenetic trees are more or less completely unique to DRAM2 and are used to d
 
 For our purposes here, we can simplify the process of this tool to a basic summary. The idea is that for each phylogenetic tree configured, this tool will:
 
-   .# Load in the pre-labeled tree and list of associated gene ids.
-   .# Filter genes to those needing clarification.
-   .# Label genes that fall into clades that all share the same label.
-   .# Label additional genes based on proximity.
+   *  Load in the pre-labeled tree and list of associated gene ids.
+   *  Filter genes to those needing clarification.
+   *  Label genes that fall into clades that all share the same label.
+   *  Label additional genes based on proximity.
 
 .. code-block:: bash
 
