@@ -15,7 +15,7 @@ The world will be very grateful for the time you take to look over this document
 The Point of This Document
 --------------------------
 
-As you know, we are migrating to DRAM2, which should be an improvement on DRAM1. Documentation will be different for new users as compared to those who have already used DRAM1. This document is intended to get DRAM1 users in the Wrighton lab ready to use DRAM2, and will focus mostly on its differences and new features, and less on how it works fundamentally.
+As you know, we are migrating to DRAM2, which should be an improvement on DRAM1. Documentation will be different for new users as compared to those who have already used DRAM1. This document is intended to get DRAM1 users in the Wrighton lab ready to use DRAM2, and will focus mostly on differences and new features, and less on how it works fundamentally.
 
 As you look over this document, notice that DRAM2 differs from DRAM1 in these key ways:
 
@@ -43,8 +43,8 @@ Is the same as:
 
 .. code-block:: bash
 
-   source /opt/Miniconda2/miniconda2/bin/activate DRAM2BETA
-   dram2 -o from_fasta -c 2 call \
+  source /opt/Miniconda2/miniconda2/bin/activate DRAM2BETA
+  dram2 -o from_fasta -c 2 call \
       ./input_fasta_files/*.fasta
   dram2 -o from_fasta -c 30 annotate \
         --use_dbset mini_kegg
@@ -52,7 +52,7 @@ Is the same as:
 Grab an Example Directory
 ------------------------
 
-The 15 soil genomes are a good place to start. We could call all the soil genomes, but that would take too long, even for this limited example. Calling genes, and some other tools, are now using multiprocessing, but there is still a lot more work to do. So I selected two of those genomes and put them in a directory along with the steps complete so you can jump in.
+The 15 soil genomes used in the DRAM1 paper are a good place to start. We could call all the soil genomes, but that would take too long, even for this limited example. Calling genes, and some other tools, are now using multiprocessing, but there is still a lot more work to do. So I selected two of those genomes and put them in a directory along with the steps complete so you can jump in.
 
 Just copy the directory into a good working location on zenith.
 
@@ -74,8 +74,8 @@ Run the command below, and we can get started testing this release candidate.
 
 
 Just a quick note on the setup. The DRAM2 config does not live with DRAM2. The
-global config on zenith is at `/etc/dram_config.yaml`. You as a user can make a
-file in your home directories config file ~/.config/dram_config.yaml and that
+global config on zenith is at ``/etc/dram_config.yaml``. You as a user can make a
+file in your home directories config file ``~/.config/dram_config.yaml`` and that
 will replace the global one for you only. We are not going to get into this much,
 but you should know because that is a big change.
 
@@ -83,11 +83,11 @@ but you should know because that is a big change.
 DRAM2 Command Structure
 -------------------------------
 
-The DRAM2 command line structure is hierarchical in that DRAM2 has one main command, aka `dram2` and no matter what you want to do, it starts with `dram2`, as opposed to DRAM.py and DRAM-setup.py. You provide general/universal options  to `dram2`, and then specific options to the dram2 sub commands.
+The DRAM2 command line structure is hierarchical in that DRAM2 has one main command, aka ``dram2`` and no matter what you want to do, it starts with ``dram2``, as opposed to DRAM.py and DRAM-setup.py. You provide general/universal options  to ``dram2``, and then specific options to the DRAM2 sub commands.
 
-It is, in this specific case, necessary to draw a distinction between command line options and command line arguments. For our purposes, options are anything specified by a flag like `--do_this` or  `--use_this <value>`, and arguments are positional at the end of a command.
+It is, in this specific case, necessary to draw a distinction between command line options and command line arguments. For our purposes, options are anything specified by a flag like ``--do_this`` or  ``--use_this <value>``, and arguments are positional at the end of a command.
 
-Thus, the structure of a typical dram2 command is::
+Thus, the structure of a typical DRAM2 command is::
 
    dram2 <general_options> <sub_command> <sub_command_options> <arguments>
 
@@ -97,7 +97,7 @@ This should become clearer as we go through the help.
 Explore the Help
 ----------------
 
-With any new program, it is good to explore the help. The DRAM2 help is a lot larger compared to the DRAM1 and really needs a good checking in order to validate.
+With any new program, it is good to explore the help. The DRAM2 help is a lot larger compared to DRAM1 and really needs a good checking in order to validate.
 
 First, let's look at the overview:
 
@@ -119,7 +119,7 @@ The first step to any DRAM project is probably calling genes.
 Call Genes, and Start a Project
 -------------------------------
 
-In DRAM1, calling genes was part of the annotation process, but now it is done with the call command, and the annotation process only works on already-called genes. This adds a step but makes the process a lot simpler for a layperson to follow.
+In DRAM1, calling genes was part of the annotation process, but now it is done with the ``call`` command, and the annotation process only works on already-called genes. This adds a step but makes the process a lot simpler for a layperson to follow.
 
 First, please read the help and make sure you understand it. We will reiterate some of what it says in the next section, however.
 
@@ -140,12 +140,12 @@ In the past, DRAM confused people by having them pass a string to call genes wit
 Recall the notes about commands above.
 ^^^^^^^^^
 
-Notice the output is specified by a `-o` and is passed to the dram2 command before the call command runs, the same with the -c command that tells dram the most cores it needs are 2.
-The commands that get passed to `dram2` are universal and work with all `dram2` sub-commands, but you don't pass them after the sub-commands.
+Notice the output is specified by a ``-o`` and is passed to the dram2 command before the call command runs, the same with the ``-c`` command that tells dram the most cores it needs are 2.
+The commands that get passed to ``dram2`` are universal and work with all ``dram2`` sub-commands, but you don't pass them after the sub-commands.
 
-So `dram2 call -o` would not work. The reverse is also true: you don't pass an option to dram2 that goes to the sub-commands, so `dram2 --prodigal_mode train call -0 soil/test1` would not work.
+So ``dram2 call -o`` would not work. The reverse is also true: you don't pass an option to ``dram2`` that goes to the sub-commands, so ``dram2 --prodigal_mode train call -0 soil/test1`` would not work.
 
-Additionally, `dram2 call` has a list of arguments after all the options for FASTAs. In DRAM1, the wild card path to FASTA files had to be a string. That was ok, but it was confusing at times. DRAM2 uses a normal file path instead.
+Additionally, ``dram2 call`` has a list of arguments after all the options for FASTAs. In DRAM1, the wild card path to FASTA files had to be a string. That was ok, but it was confusing at times. DRAM2 uses a normal file path instead.
 
 If you have FASTAs that can't be referenced with a regular expression, you can just add the paths one after another:
 
@@ -181,7 +181,7 @@ To demonstrate a phylogenetic NXR-NAR tree, we need to have some specific genes 
 
   dram2 -o called_annotated -c 30 annotate --use_dbset adjectives_kegg ./input_faa_files/*
 
-Calling annotations can be done with a `db_set`, as seen above, but it can also be done with the `use_db` flag individually. The one above would take a long time, but you can use these smaller databases to get a taste of annotations.
+Calling annotations can be done with a ``db_set``, as seen above, but it can also be done with the ``--use_db`` flag individually. The one above would take a long time, but you can use these smaller databases to get a taste of annotations.
 
 .. code-block:: bash
 
@@ -203,7 +203,7 @@ Distillation
 
 Distillation has not changed much compared to annotations. There are some exciting changes that will happen someday, but distillation is not yet the focus.
 
-You will find that you can now select to only run some parts of the distillate. The output will include the CAMPER and Methyl sheets if annotations contain CAMPER or Methyl ids, and distill is now integrated with the history checker.
+You will find that you can now select to only run some parts of the distillate. The output will include the ``CAMPER`` and ``Methyl`` sheets if annotations contain CAMPER or Methyl ids, and ``distill`` is now integrated with the history checker.
 
 .. code-block:: bash
 
@@ -213,14 +213,14 @@ You will find that you can now select to only run some parts of the distillate. 
 A Side Note On History Checks
 -------------------
 
-If you try to run one of the `dram2 annotate` commands again, it will error by design; you have already done these databases, so DRAM2 will not let you waste time or make a mistake by redoing them. You can still do so by using the force flag.
+If you try to run one of the ``dram2 annotate`` commands again, it will error by design; you have already annotated with these databases, so DRAM2 will not let you waste time or make a mistake by redoing them. You can still do so by using the force flag (``-f``).
 
 .. code-block:: bash
 
   dram2 -o called_annotated -c 30 annotate --use_db methyl
   dram2 -o called_annotated -c 30 annotate -f --use_db methyl
 
-If you call the genes for a FASTA but do not annotate it with the required databases, distill will give you an error, informing you of exactly what you are missing. The `phylotree` and `adjectives` commands will do the same. The force flag will once again allow you to continue, however ill-advised.
+If you call the genes for a FASTA but do not annotate it with the required databases, distill will give you an error, informing you of exactly what you are missing. The ``phylotree`` and ``adjectives`` commands will do the same. The force flag will once again allow you to continue, however ill-advised.
 
 Phylogenetic Trees
 -------------------
@@ -238,7 +238,7 @@ For our purposes here, we can simplify the process of this tool to a basic summa
 
 .. code-block:: bash
 
-   dram2 -o called_annotated  phylotree
+   dram2 -o called_annotated phylotree
 
 This process depends on Annotation, and Adjectives now depend on this process. Unfortunately, we only have the NXR/NAR tree available in this test, but AMOA/PMOA is coming soon
 
@@ -263,7 +263,7 @@ The figure above shows a very simplified view of how rule-based Genome Adjective
 A Side Note on Verboseness
 -------------
 
-Many would not know about the -v AKA verbose option in DRAM1 because it made little difference. In DRAM2 we were able to attatch this option to the logging feature and give it a significant upgrade. The level is determined by the number of `v`'s passed to the `dram2` command.  There are 5 levels of verbosity which map onto the logging levels: 1=Critical, 2=Error, 3=Warning, 4=Info, 5=Debug. 5/Debug is the most informative, and 1/Critical only tells you the most serious errors.
+Many would not know about the ``-v`` AKA verbose option in DRAM1 because it made little difference. In DRAM2 we were able to attatch this option to the logging feature and give it a significant upgrade. The level is determined by the number of ``v``'s passed to the ``dram2`` command.  There are 5 levels of verbosity which map onto the logging levels: 1=Critical, 2=Error, 3=Warning, 4=Info, 5=Debug. 5/Debug is the most informative, and 1/Critical only tells you the most serious errors.
 
 You will learn more about how DRAM2 works and what is left to do with information in this annotation run.
 
