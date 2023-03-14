@@ -1,5 +1,5 @@
 """
-The Comandline interface
+he Comandline interface
 ========================
 
 One file to centralize all DRAM commands

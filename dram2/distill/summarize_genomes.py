@@ -22,7 +22,7 @@ import numpy as np
 from dram2.utils.globals import FASTAS_CONF_TAG
 
 from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
-from dram2.utils.utils import (
+from dram2.utils import (
     get_ordered_uniques,
     DramUsageError,
     Fasta,

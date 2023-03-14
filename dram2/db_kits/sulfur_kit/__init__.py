@@ -1,15 +1,23 @@
-from os import path, mkdir
-from glob import glob
+"""
+=============
+Sulfer DB Kit
+=============
+
+"""
+
 import tarfile
 import logging
-import pandas as pd
-from numpy import any
+from glob import glob
+from os import path, mkdir
 from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
-from dram2.utils.utils import run_process
+
+from numpy import any
+import pandas as pd
+
+from dram2.utils import run_process, Fasta
 from dram2.db_kits.utils import get_sig_row, DBKit, run_hmmscan
-from dram2.utils.utils import Fasta
 
 
 VERSION = "1.0"
@@ -104,6 +112,8 @@ class SulfurKit(DBKit):
     formal_name: str = NAME_FORMAL
     version: str = ""
     citation: str = CITATION
+    max_threads:int = 2
+
 
     def setup(self):
         pass

@@ -1,15 +1,11 @@
 from os import path, stat
 import re
-import tarfile
-from shutil import move, rmtree
-from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process
+from dram2.utils import download_file, run_process, Fasta
 from dram2.db_kits.utils import (
     run_hmmscan,
     DBKit,
     get_sig_row,
 )
-from dram2.utils.utils import Fasta
 
 
 from pathlib import Path
@@ -159,6 +155,7 @@ class dbCANKit(DBKit):
 
     name = "dbcan"
     formal_name: str = "dbCAN"
+    max_threads:int = 2
     version: str = VERSION
     citation: str = CITATION
     date: str = DATE

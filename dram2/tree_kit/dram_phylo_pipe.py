@@ -32,7 +32,7 @@ from pathlib import Path
 
 from dram2.annotate import get_annotation_ids_by_row, DBSETS_COL
 from dram2.tree_kit.pplacer import DramTree
-from dram2.utils.utils import run_process, Fasta
+from dram2.utils import run_process, Fasta
 from dram2.db_kits.utils import DBKit
 
 DEFAULT_COMBINED_GENES_NAME = "genes.faa"

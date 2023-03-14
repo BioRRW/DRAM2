@@ -2,14 +2,15 @@
 Count Heme Regulatory Motifs
 ----------------------------
 
-This
+This counts the Heme instances in each gene. Super simple and easy.
 """
 from typing import Optional
-from dram2.db_kits.utils import DBKit
-from dram2.utils.utils import Fasta
 import pandas as pd
 from skbio import read as read_sequence
 from Bio import SeqIO
+
+from dram2.db_kits.utils import DBKit
+from dram2.utils import Fasta
 
 MOTIF="(C..CH)"
 

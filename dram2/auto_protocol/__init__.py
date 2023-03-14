@@ -1,4 +1,8 @@
-
+"""
+===============
+Auto Protocalls
+===============
+"""
 import click
 from dram2.cli.context import DramContext, __version__
 

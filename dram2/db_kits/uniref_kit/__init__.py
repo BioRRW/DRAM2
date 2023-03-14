@@ -1,19 +1,29 @@
+
+"""
+============
+Uniref DBKit
+============
+
+"""
+
+
 import re
 
 # from dram2.utils.utils import download_file, run_process
+
+from pathlib import Path
+import logging
+
+import pandas as pd
+from sqlalchemy import Column, String
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+
+from dram2.utils import Fasta
 from dram2.db_kits.utils import (
     DBKit,
     do_blast_style_search,
     get_basic_descriptions,
 )
-from dram2.utils.utils import Fasta
-
-from pathlib import Path
-import logging
-import pandas as pd
-
-from sqlalchemy import Column, String
-from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 UNIREF_CITATION = (
     "Y. Wang, Q. Wang, H. Huang, W. Huang, Y. Chen, P. B. McGarv"

@@ -1,17 +1,14 @@
 
 import pytest
 import logging
-from dram2.utils.context import DramContext
-from dram2.utils.utils import setup_logger
-from dram2.utils.command_line import dram2
-
 from pathlib import Path
-
-from dram2.db_kits.utils import Fasta
-from dram2.annotate import annotate, make_mmseqs_db_for_fasta
-from click.testing import CliRunner
-from dram2.db_kits.kofam_kit import KOfamKit 
 import pandas as pd
+from click.testing import CliRunner
+
+from dram2.cli.context import DramContext 
+from dram2.cli import dram2
+from dram2.db_kits.utils import Fasta
+from dram2.db_kits.kofam_kit import KOfamKit 
 
 
 @pytest.fixture()
@@ -23,7 +20,7 @@ def dram_context(tmpdir):
         log_file_path=tmpdir / "log",
         output_dir=tmpdir / "out1",
         keep_tmp=False,
-        verbose=0,
+        verbose=int(3),
     )
     return dram_context
 @pytest.fixture()
@@ -35,7 +32,7 @@ def dram_context_bad(tmpdir):
         log_file_path=tmpdir / "log",
         output_dir=tmpdir / "out1",
         keep_tmp=False,
-        verbose=0,
+        verbose=3,
     )
     return dram_context
 
@@ -43,7 +40,6 @@ def dram_context_bad(tmpdir):
 @pytest.fixture()
 def logger(tmpdir):
     logger = logging.getLogger("test_log")
-    setup_logger(logger)
     return logger
 
 
@@ -64,7 +60,6 @@ def db_args_dict(logger, tmpdir):
     working_dir = Path(tmpdir) / "working"
     working_dir.mkdir()
     db_args = {
-        "logger": logger,
         "output_dir": tmpdir,
         "working_dir": working_dir,
         "bit_score_threshold": 1,
@@ -77,7 +72,7 @@ def db_args_dict(logger, tmpdir):
     }
     return db_args
 
-def test_check_setup_fail(dram_context_bad, db_args_dict):
+def test_check_setup_fail(dram_context_bad, logger):
     with pytest.raises(
         FileNotFoundError,
         match=(
@@ -87,7 +82,7 @@ def test_check_setup_fail(dram_context_bad, db_args_dict):
             r" point to it. The easy fix is to set the*"
         ),
     ):
-        kit = KOfamKit(dram_context_bad.get_dram_config(), db_args_dict)
+        kit = KOfamKit(dram_context_bad.get_dram_config(logger), logger)
 
 
 

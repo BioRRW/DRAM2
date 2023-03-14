@@ -1,7 +1,7 @@
 import re
 
 from dram2.db_kits.utils import do_blast_style_search, DBKit
-from dram2.utils.utils import Fasta
+from dram2.utils import Fasta
 import logging
 import pandas as pd
 

@@ -9,28 +9,21 @@ This sub packege holds the data releated to kegg.
 from os import path, stat
 import tarfile
 from shutil import move, rmtree
-from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process
-from dram2.db_kits.utils import (
-    make_mmseqs_db,
-    sig_scores,
-    run_hmmscan,
-    get_best_hits,
-    BOUTFMT6_COLUMNS,
-    DBKit,
-    get_sig_row,
-)
-from dram2.utils.utils import Fasta
+from glob import glob
 
 from pathlib import Path
 from functools import partial
 import logging
 import pandas as pd
-from typing import Optional
 
-from sqlalchemy import Column, String
-from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
+from dram2.utils import download_file, run_process, merge_files, Fasta
+from dram2.db_kits.utils import (
+    sig_scores,
+    run_hmmscan,
+    DBKit,
+    get_sig_row,
+)
 
 CITATION = (
     "T. Aramaki, R. Blanc-Mathieu, H. Endo, K. Ohkubo, M. Kanehisa"
@@ -38,11 +31,61 @@ CITATION = (
     'nt based on profile hmm and adaptive score threshold," Bioin'
     "formatics, vol. 36, no. 7, pp. 2251–2252, 2020."
 )
+def process_kofam_hmm(
+        kofam_profile_tar_gz:Path,
+        output_dir:Path, 
+        logger: logging.Logger
+        ) -> dict:
+    kofam_profiles = output_dir /'kofam_profiles'
+    kofam_profiles.mkdir()
+    run_process(['tar',
+                 '-xzf',
+                 kofam_profile_tar_gz.absolute().as_posix(), 
+                 '-C',
+                 kofam_profiles.absolute().as_posix()],
+                logger)
+    merged_kofam_profiles = path.join(output_dir, 'kofam_profiles.hmm')
+    merge_files(glob((kofam_profiles /'profiles'/'*.hmm').as_posix()), 
+                merged_kofam_profiles)
+    run_process(['hmmpress', '-f', merged_kofam_profiles], logger)
+    logger.info('KOfam database processed')
+    return {'kofam_hmm': merged_kofam_profiles}
+
+
+def download_kofam_ko_list(
+        output_dir:Path, 
+        logger: logging.Logger
+        ) -> Path:
+    kofam_ko_list_gz = output_dir / 'kofam_ko_list.tsv.gz'
+    url = 'ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz'
+    url_http = 'https://www.genome.jp/ftp/db/kofam/ko_list.gz'
+    download_file(url, kofam_ko_list_gz.as_posix(), logger, alt_urls=[url_http])
+    return kofam_ko_list_gz
+
+def download_kofam_hmm(output_dir:Path, logger:logging.Logger):
+    kofam_profile_tar_gz = path.join(output_dir, 'kofam_profiles.tar.gz')
+    url = 'ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz'
+    url_http = 'https://www.genome.jp/ftp/db/kofam/profiles.tar.gz'
+    download_file(url, kofam_profile_tar_gz, logger, alt_urls=[url_http])
+    return kofam_profile_tar_gz
+
+
+
+def process_kofam_ko_list(
+        kofam_ko_list_gz:Path, 
+        output_dir:Path, 
+        logger: logging.Logger
+        ) -> dict:
+    # TODO: fix this so that it is gunzipped to the path
+    kofam_ko_list = path.join(output_dir, 'kofam_ko_list.tsv')
+    run_process(['gunzip', '-c', kofam_ko_list_gz], logger, save_output=kofam_ko_list)
+    logging.info('KOfam ko list processed')
+    return {'kofam_ko_list': kofam_ko_list}
 
 
 def kofam_hmmscan_formater(
     hits: pd.DataFrame,
-    hmm_info_path: str = None,
+    hmm_info_path: Path,
     use_dbcan2_thresholds: bool = False,
     top_hit: bool = True,
 ):
@@ -74,6 +117,7 @@ def kofam_hmmscan_formater(
 class KOfamKit(DBKit):
     name = "kofam"
     formal_name: str = "KOfam"
+    max_threads:int = 2
     citation: str = CITATION
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:

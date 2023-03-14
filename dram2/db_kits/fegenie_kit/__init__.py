@@ -8,11 +8,11 @@ from functools import partial
 from shutil import rmtree, copyfileobj, move
 from itertools import count
 from dram2.db_kits.utils import make_mmseqs_db, run_hmmscan, get_sig_row, DBKit
-from dram2.utils.utils import Fasta
 
-from dram2.utils.utils import (
+from dram2.utils import (
     download_file,
     run_process,
+    Fasta
 )
 
 
@@ -164,6 +164,7 @@ class FeGenieKit(DBKit):
     formal_name: str = NAME_FORMAL
     version: str = VERSION
     citation: str = CITATION
+    max_threads:int = 2
 
     def setup(self):
         pass
@@ -172,10 +173,10 @@ class FeGenieKit(DBKit):
         self.hmm = self.get_config_path('hmmdb')
         self.cutoffs = self.get_config_path('cutoffs')
 
-    def search(self, fasta):
+    def search(self, fasta:Fasta):
         self.logger.info(f"Annotating genes with {NAME_FORMAL}.")
         return run_hmmscan(
-            genes_faa=fasta.faa,
+            genes_faa=fasta.faa.as_posix(),
             db_loc=self.hmm.as_posix(),
             db_name=NAME,
             threads=self.threads,

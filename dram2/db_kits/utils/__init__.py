@@ -1,4 +1,11 @@
-"General utils for database objects including the template class"
+"""
+================
+DBKits Utilities
+================
+
+
+General utils for database objects including the template class
+"""
 from abc import ABC, abstractmethod
 from os import path, stat
 from typing import Callable, Union
@@ -9,8 +16,7 @@ import logging
 
 import pandas as pd
 
-from dram2.utils.utils import run_process, Fasta
-
+from dram2.utils import run_process, Fasta
 
 HMMSCAN_ALL_COLUMNS = [
     "query_id",
@@ -453,7 +459,6 @@ def get_sig_row(row, evalue_lim: float = 1e-15):
         return False
 
 
-# TODO decide if we need use_hmmer_thresholds:bool=False
 def generic_hmmscan_formater(
     hits: pd.DataFrame,
     db_name: str,
@@ -515,6 +520,7 @@ def sig_scores(hits: pd.DataFrame, score_db: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+
 class DBKit(ABC):
     """
     DBKit Abstract Class
@@ -529,6 +535,7 @@ class DBKit(ABC):
     formal_name: str = ""
     search_type: str = "unknown"
     citation: str = "This database has no citation"
+    max_threads:int = -1
     logger: logging.Logger
     working_dir: Path
     bit_score_threshold: int

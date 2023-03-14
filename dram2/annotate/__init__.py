@@ -45,8 +45,8 @@ import pandas as pd
 
 from dram2 import db_kits as db_kits
 from dram2.call_genes import DEFAULT_GENES_FILE
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
-from dram2.utils.utils import Fasta, DramUsageError
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db 
+from dram2.utils import DramUsageError, Fasta
 from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.cli.context import (
     DramContext,
@@ -456,22 +456,23 @@ def annotate(
 
     db_args = {
         # "fasta_paths": gene_fasta_paths,
-        "output_dir": output_dir,
-        "working_dir": working_dir,
-        "bit_score_threshold": bit_score_threshold,
-        "rbh_bit_score_threshold": rbh_bit_score_threshold,
-        "kofam_use_dbcan2_thresholds": kofam_use_dbcan2_thresholds,
-        "threads": cores,
-        "force": force,
-        "extra": extra,
-        "db_path": db_path,  # where to store dbs on the fly
-        "keep_tmp": keep_tmp,
     }
 
     # add argument for annotations
     for i in databases:
         i.load_dram_config()
-        i.set_args(**db_args)
+        i.set_args(
+                output_dir = output_dir,
+                working_dir = working_dir,
+                bit_score_threshold = bit_score_threshold,
+                rbh_bit_score_threshold = rbh_bit_score_threshold,
+                kofam_use_dbcan2_thresholds = kofam_use_dbcan2_thresholds,
+                threads = cores,
+                force = force,
+                extra = extra,
+                db_path = db_path,  # where to store dbs on the fly
+                keep_tmp = keep_tmp,
+                )
 
     # update the config
     if write_config:

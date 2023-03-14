@@ -3,7 +3,7 @@ from typing import Optional
 import tarfile
 from shutil import move, rmtree
 from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process, get_package_path, Fasta
+from dram2.utils import download_file, run_process, get_package_path, Fasta
 from dram2.db_kits.utils import (
     make_mmseqs_db,
     run_hmmscan,
@@ -171,6 +171,7 @@ class CamperKit(DBKit):
         return genome_summary_form
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
+        self.logger.info("CAMPER has a hmmer seach step with limited threads in the future this issue will be resolved")
         if fasta.name is None:
             raise ValueError('A fasta file needs a name')
         self.logger.debug(f"Annotating {fasta.name} with {self.formal_name}.")
@@ -254,10 +255,6 @@ class CamperKit(DBKit):
         :param verbose: TODO replace with logging setting
         :returns: Path to tar
         """
-        raise NotImplementedError(
-            "Your request depends on a feature that has not yet been implimented.\n",
-            "More specify, CAMPER is not public at time of writing so cant be Downloaded",
-        )
         if version is None:
             version = cls.version
         camper_database = path.join(temporary, f"CAMPER_{version}.tar.gz")

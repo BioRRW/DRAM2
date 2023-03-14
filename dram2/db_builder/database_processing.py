@@ -14,7 +14,7 @@ from skbio import read as read_sequence
 from skbio import write as write_sequence
 
 from dram2.utils.database_handler import DatabaseHandler
-from dram2.utils.utils import (
+from dram2.utils import (
     run_process,
     make_mmseqs_db,
     download_file,

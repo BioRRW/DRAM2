@@ -12,7 +12,7 @@ from dram2.cli.context import (
     get_time_stamp_id,
 )
 from dram2.annotate import ANNOTATIONS_TAG
-from dram2.utils.utils import Fasta, DramUsageError
+from dram2.utils import Fasta, DramUsageError
 from dram2.annotate import (
     get_past_annotation_run,
     DB_KITS,

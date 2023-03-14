@@ -1,23 +1,27 @@
-from os import path, stat
+"""
+==========
+Pfam DBKit
+==========
+
+"""
+import re
 import tarfile
+from os import path, stat
 from shutil import move, rmtree
-from dram2.db_kits.fegenie_kit import process
-from dram2.utils.utils import download_file, run_process
+from pathlib import Path
+from functools import partial
+import logging
+
+import pandas as pd
+from sqlalchemy import Column, String
+
+from dram2.utils import download_file, run_process, Fasta
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 from dram2.db_kits.utils import (
     DBKit,
     get_basic_descriptions,
     BOUTFMT6_COLUMNS
 )
-from dram2.utils.utils import Fasta
-
-from pathlib import Path
-from functools import partial
-import logging
-import pandas as pd
-import re
-
-from sqlalchemy import Column, String
-from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 
 CITATION = (

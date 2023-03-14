@@ -1,4 +1,7 @@
-import pandas as pd
+"""
+
+"""
+
 from skbio import read as read_sequence
 from skbio import write as write_sequence
 from os import mkdir, path
@@ -7,9 +10,9 @@ import logging
 
 # from dram2.distill.summarize_vgfs import filter_to_amgs
 import click 
+import pandas as pd
 
-from dram2.utils.database_handler import DatabaseHandler
-from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
+from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP
 
 # TODO: filter by taxonomic level, completeness, contamination
 # TODO: filter scaffolds file, gff file
@@ -68,23 +71,23 @@ def get_genes_from_identifiers(
                     annotation_genes_to_keep.append(gene)
 
         # get genes from distillate categories
-        if categories is not None:
-            database_handler = DatabaseHandler()
-            genome_summary_form = pd.read_csv(
-                database_handler.db_locs["genome_summary_form"], sep="\t"
-            )
-            if custom_distillate is not None:
-                genome_summary_form = pd.concat(
-                    [genome_summary_form, pd.read_csv(custom_distillate, sep="\t")]
-                )
-            for level in ["module", "sheet", "header", "subheader"]:
-                for category, frame in genome_summary_form.loc[
-                    ~pd.isna(genome_summary_form[level])
-                ].groupby(level):
-                    if category in categories:
-                        for gene, ids in gene_to_ids.items():
-                            if len(ids & set(frame["gene_id"])) > 0:
-                                annotation_genes_to_keep.append(gene)
+        # if categories is not None:
+        #     database_handler = DatabaseHandler()
+        #     genome_summary_form = pd.read_csv(
+        #         database_handler.db_locs["genome_summary_form"], sep="\t"
+        #     )
+        #     if custom_distillate is not None:
+        #         genome_summary_form = pd.concat(
+        #             [genome_summary_form, pd.read_csv(custom_distillate, sep="\t")]
+        #         )
+        #     for level in ["module", "sheet", "header", "subheader"]:
+        #         for category, frame in genome_summary_form.loc[
+        #             ~pd.isna(genome_summary_form[level])
+        #         ].groupby(level):
+        #             if category in categories:
+        #                 for gene, ids in gene_to_ids.items():
+        #                     if len(ids & set(frame["gene_id"])) > 0:
+        #                         annotation_genes_to_keep.append(gene)
     else:
         annotation_genes_to_keep = list(annotations_to_keep.index)
     return annotation_genes_to_keep

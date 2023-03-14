@@ -6,18 +6,14 @@ add the package data for distillate
 
 """
 
-from os import path, stat
+from os import path
 import tarfile
-from shutil import move, rmtree
 from dram2.db_kits.utils import (
     do_blast_style_search,
-    get_basic_descriptions,
     make_mmseqs_db,
     DBKit,
-    multigrep,
 )
-from dram2.utils.utils import Fasta, get_package_path 
-from functools import partial
+from dram2.utils import Fasta
 import logging
 import pandas as pd
 from pathlib import Path
@@ -31,7 +27,7 @@ CITATION = "Methyl is a in hous db mostly make by McKayla Borton"
 PROCESS_OPTIONS = {}
 
 
-def process(methyl_fa, output_dir, logger, threads) -> dict:
+def process(methyl_fa, output_dir, logger:logging.Logger, threads) -> dict:
     methyl_fa_db = path.join(output_dir, "methyl.mmsdb")
     make_mmseqs_db(methyl_fa, methyl_fa_db, logger, threads)
     return {"methyl_fa_db": methyl_fa_db}

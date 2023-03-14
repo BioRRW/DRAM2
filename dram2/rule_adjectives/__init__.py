@@ -9,7 +9,7 @@ import click
 from dram2.rule_adjectives.rule_graph import RuleParser, get_positive_genes
 from dram2.rule_adjectives.annotations import Annotations
 
-from dram2.utils.utils import get_package_path, DramUsageError
+from dram2.utils import get_package_path, DramUsageError
 from dram2.cli.context import (
     DramContext,
     __version__,

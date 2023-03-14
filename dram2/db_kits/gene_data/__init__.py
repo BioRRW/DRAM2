@@ -5,11 +5,12 @@ Count Heme Regulatory Motifs
 This
 """
 from typing import Optional
-from dram2.db_kits.utils import DBKit
-from dram2.utils.utils import Fasta
 import pandas as pd
 from skbio import read as read_sequence
 from Bio import SeqIO
+
+from dram2.db_kits.utils import DBKit
+from dram2.utils import Fasta
 
 MOTIF = "(C..CH)"
 
@@ -17,6 +18,7 @@ MOTIF = "(C..CH)"
 class CountMotifsKit(DBKit):
     name = "stats"
     formal_name: str = "Genome_stats"
+    max_threads:int = 1
     version: Optional[str] = None
     citation: str = (
         'This kit is used to get genome stats produced by prodigal'
