@@ -18,7 +18,7 @@ from functools import partial
 from typing import Optional
 from shutil import rmtree
 
-from dram2.utils import Fasta, run_process, DramUseError
+from dram2.utils import Fasta, run_process, DramUsageError
 from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.cli.context import DramContext, get_time_stamp_id, __version__
 
@@ -237,7 +237,7 @@ def call_genes(
                 FASTAS_CONF_TAG: [i.name for i in fastas],
             }
         },
-        FASTAS_CNF_TAG: [i.export(output_dir) for i in fastas],
+        FASTAS_CONF_TAG: [i.export(output_dir) for i in fastas],
     }
     if len(fastas) < 1:
         raise DramUsageError("No genes found, DRAM2 will not be able to proceed")

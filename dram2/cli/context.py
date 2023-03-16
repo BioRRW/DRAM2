@@ -10,19 +10,17 @@ config for dram
 ---------------
 
 A file path should have the key 'location' and that path can be absolute or
-relitive. If the paths are absolute then they are pointing to the exact location
-of the folder. Absoule paths for every single folder are hard to work with and
-all but imposible to move, most people will use relitve paths. If the paths are
-relative they are relative to the value of  the dram data folder where it
-will be asuemed all dram data is stored. The dram data folder is specified with
-the key 'dram_data_folder' and this path can also be relative or absolute. If it
-is absolute it will point to the exact location of the dram data if it is
-relative it will point to the location of the of the data folder with respect to
-the folder that contains the config file its self. So for example if the sead
-folder
-was "dram_data_folder: ./" the data must be stored in the same folder as the
-config.
-
+relitive. If the paths are absolute then they are pointing to the exact
+location of the folder. Absoule paths for every single folder are hard to work
+with and all but imposible to move, most people will use relitve paths. If the
+paths are relative they are relative to the value of  the dram data folder
+where it will be asuemed all dram data is stored. The dram data folder is
+specified with the key 'dram_data_folder' and this path can also be relative or
+absolute. If it is absolute it will point to the exact location of the dram
+data if it is relative it will point to the location of the of the data folder
+with respect to the folder that contains the config file its self. So for
+example if the sead folder was "dram_data_folder: ./" the data must be stored
+in the same folder as the config.
 """
 import collections
 import logging
@@ -34,17 +32,23 @@ import yaml
 import click
 
 
-from dram2.db_kits.utils import DRAM_DATAFOLDER_TAG, FILE_LOCATION_TAG
+from dram2.db_kits.utils import DRAM_DATAFOLDER_TAG
 
 PROJECT_CONFIG_YAML_NAME = "project_config.yaml"
-USER_CONFIG = Path.home() /  ".config" / "dram_config.yaml"
+USER_CONFIG = Path.home() / ".config" / "dram_config.yaml"
 GLOBAL_CONFIG = Path("/etc") / "dram_config.yaml"
 DEFAULT_KEEP_TMP = False
+LOG_FILE_NAME: str = "dram2.log"
 
 __version__ = "2.0.0"
 
-def get_config_path(logger:logging.Logger, custom_path: Optional[Path] = None) -> Path:
-    if custom_path is not None and custom_path.exists:
+
+def get_config_path(logger: logging.Logger,
+                    custom_path: Optional[Path] = None) -> Path:
+    if custom_path is not None:
+        if not custom_path.exists():
+            raise ValueError(
+                "You have passed a config path that does not exist.")
         logger.debug(f"Loading custom config from: {custom_path.as_posix()}")
         return custom_path
     if USER_CONFIG.exists():
@@ -58,7 +62,8 @@ def get_config_path(logger:logging.Logger, custom_path: Optional[Path] = None) -
         {i for i in [custom_path, USER_CONFIG, GLOBAL_CONFIG] if i is not None}
     )
     raise ValueError(
-        f"There is not config file found, DRAM looked at the falowing paths {serched_paths}"
+        f"There is not config file found, DRAM looked"
+        f" at the falowing paths {serched_paths}"
     )
 
 
@@ -66,6 +71,9 @@ def get_new_config_path(
     custom_path: Optional[Path] = None, conf_type: bool = False
 ) -> Path:
     """
+    Get the Config Path on Request
+    ------------------------------
+
     If the user gives a path put it there, else if the conf_type is global then put it in the global position if it is local or none then put it in local/user.
 
     It can be eddited when python3.10 is more Common into a match statment
@@ -77,11 +85,13 @@ def get_new_config_path(
     else:
         return USER_CONFIG
 
-def get_time_stamp_id(prefix:Optional[str]) -> str:
+
+def get_time_stamp_id(prefix: Optional[str]) -> str:
     timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
     if prefix is None:
         return timestamp_id
     return f"{prefix}_{timestamp_id}"
+
 
 class DramContext(object):
 
@@ -96,7 +106,7 @@ class DramContext(object):
         log_file_path: Optional[Path],
         output_dir: Optional[Path],
         keep_tmp: bool,
-        verbose=int,
+        verbose: int,
     ):
         self.cores = cores
         self.db_path = db_path
@@ -104,21 +114,11 @@ class DramContext(object):
         self.log_file_path = log_file_path
         self.output_dir = output_dir
         # self.force: bool = force
-        self.verbose = verbose
+        self.verbose: int = verbose
         self.keep_tmp: bool = keep_tmp
         self.project_config: Optional[dict] = None
         # Make a working_dir that may be deleted
         # self.working_dir.mkdir(exist_ok=True)
-
-    # def get_working_dir(self, Optional[prefix] = None):
-    #     output_dir = self.get_output_dir()
-    #     if prefix is None:
-    #         self.working_dir = output_dir / "working_dir"
-    #     else:
-    #         timestamp_id: str = datetime.now().strftime("%Y%m%d%H%M%S")
-    #         self.working_dir = output_dir / f"prefix_{timestamp_id}"
-    #     self.working_dir.mkdir(exist_ok=True)
-    #     return self.working_dir
 
     def get_output_dir(self) -> Path:
         if self.output_dir is None:
@@ -163,43 +163,44 @@ class DramContext(object):
         file, format, and the level of verbosity aka level.
 
         This is all basicaly pulled strate from the docs.
-        
+
         this consumes log_file_path, and verbosity it returns a fully
         formed logger.
 
         This function coverts the verbosity integer to the log level the maping is:
 
-            0 = CRITICAL 
-            1 = ERROR 
-            2 = WARNING 
-            3 = INFO 
-            4 = DEBUG 
-            5 >= NOTSET 
+            0 = CRITICAL
+            1 = ERROR
+            2 = WARNING
+            3 = INFO
+            4 = DEBUG
+            5 >= NOTSET
+
         Note that 5 is the max, logg levels past 5 will get the same result as 5
 
         Docs: https://docs.python.org/3/library/logging.html
-        
-        """ 
+
+        """
         logger = logging.getLogger("dram2_log")
 
         # conver verbosity to log levels
         match self.verbose:
             case 1:
-                level = logging.CRITICAL # numaric level = 50
+                level = logging.CRITICAL  # numaric level = 50
             case 2:
-                level = logging.ERROR # numaric level = 40
+                level = logging.ERROR  # numaric level = 40
             case 3:
-                level = logging.WARNING # numaric level = 30
+                level = logging.WARNING  # numaric level = 30
             case 4:
-                level = logging.INFO # numaric level = 20
+                level = logging.INFO  # numaric level = 20
             case 5:
-                level = logging.DEBUG # numaric level = 10
+                level = logging.DEBUG  # numaric level = 10
             case _:
-                level = logging.DEBUG# numaric level = 0
+                level = logging.DEBUG  # numaric level = 0
 
         if self.log_file_path is None:
             output_dir = self.get_output_dir()
-            log_file_path = output_dir / "dram2.log"
+            log_file_path = output_dir / LOG_FILE_NAME
         else:
             log_file_path = self.log_file_path
         formatter = logging.Formatter("%(asctime)s - %(message)s")
@@ -237,17 +238,19 @@ class DramContext(object):
             logger.warn(
                 "The config passed to DRAM dose not contain the key"
                 f" {DRAM_DATAFOLDER_TAG}. That key would point "
-                "to an existing folder of dram data ether relive to the folder "
-                "containg the config file or the absolute path. Without it you "
-                "must use absolute paths to all files requierd by dram. You "
-                "have now been warned that this may cause DRAM to fail."
+                "to an existing folder of dram data ether relive to the "
+                "folder containg the config file or the absolute path. "
+                "Without it you must use absolute paths to all files requierd "
+                "by dram. You have now been warned that this may cause DRAM "
+                "to fail."
             )
             data_folder_path = None
             config[DRAM_DATAFOLDER_TAG] = None
             return config
         data_folder_path = Path(data_folder)
         if not data_folder_path.is_absolute():
-            data_folder_path = (dram_config_path.parent / data_folder_path).absolute()
+            data_folder_path = (dram_config_path.parent /
+                                data_folder_path).absolute()
         config[DRAM_DATAFOLDER_TAG] = data_folder_path
         return config
 

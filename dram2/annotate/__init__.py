@@ -45,7 +45,7 @@ import pandas as pd
 
 from dram2 import db_kits as db_kits
 from dram2.call_genes import DEFAULT_GENES_FILE
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db 
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
 from dram2.utils import DramUsageError, Fasta
 from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.cli.context import (
@@ -144,7 +144,8 @@ def check_for_annotations(
     ----------------------------------------------------
     """
     dbs_we_have = set(annotation_run[USED_DBS_TAG])
-    you_need = [{j for j in i if j not in dbs_we_have} for i in annotation_sets]
+    you_need = [{j for j in i if j not in dbs_we_have}
+                for i in annotation_sets]
     for i in you_need:
         if len(i) < 1:
             return None
@@ -261,7 +262,7 @@ def get_all_fastas(
                 f"Genome file names must be unique. There is/are {dup_count} name/s that appear twice in called genes."
             )
     else:
-        called_fastas_obs:list[Fasta] = []
+        called_fastas_obs: list[Fasta] = []
 
     # Combine
     fastas = gene_fasta_obs + called_fastas_obs
@@ -292,7 +293,13 @@ def get_all_fastas(
     return fastas
 
 
-def get_past_annotation_run(project_config: dict) -> Optional[dict]:
+class annotation_meta(dataclass):
+
+    def run_dict():
+        pass
+
+
+def get_last_annotation_run(project_config: dict) -> Optional[dict]:
     annotation_run: Optional[dict] = (
         None
         if project_config.get("annotations") is None
@@ -366,7 +373,8 @@ def make_new_project_config(
         USED_DBS_TAG: list(database_names),
     }
     new_project_config[ANNOTATIONS_TAG][LATEST_ANNOTATION_RUN_TAG] = run_id
-    new_project_config[FASTAS_CONF_TAG] = [i.export(output_dir) for i in fastas]
+    new_project_config[FASTAS_CONF_TAG] = [
+        i.export(output_dir) for i in fastas]
     return new_project_config
 
 
@@ -430,7 +438,8 @@ def annotate(
     )
     logger.info(f"Started annotation with databases: {','.join(use_db)}")
     # initialize all used databases
-    databases = [i(dram_config, logger) for i in DB_KITS if i.name in set(use_db)]
+    databases = [i(dram_config, logger)
+                 for i in DB_KITS if i.name in set(use_db)]
     if len(fastas) < 1:
         raise DramUsageError(
             "No FASTAs were passed to the annotator DRAM has nothing to do."
@@ -462,21 +471,22 @@ def annotate(
     for i in databases:
         i.load_dram_config()
         i.set_args(
-                output_dir = output_dir,
-                working_dir = working_dir,
-                bit_score_threshold = bit_score_threshold,
-                rbh_bit_score_threshold = rbh_bit_score_threshold,
-                kofam_use_dbcan2_thresholds = kofam_use_dbcan2_thresholds,
-                threads = cores,
-                force = force,
-                extra = extra,
-                db_path = db_path,  # where to store dbs on the fly
-                keep_tmp = keep_tmp,
-                )
+            output_dir=output_dir,
+            working_dir=working_dir,
+            bit_score_threshold=bit_score_threshold,
+            rbh_bit_score_threshold=rbh_bit_score_threshold,
+            kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+            threads=cores,
+            force=force,
+            extra=extra,
+            db_path=db_path,  # where to store dbs on the fly
+            keep_tmp=keep_tmp,
+        )
 
     # update the config
     if write_config:
-        dram_config.update({j: k for i in databases for j, k in i.config.items()})
+        dram_config.update(
+            {j: k for i in databases for j, k in i.config.items()})
 
     # Add all the databases that you are going to
     databases += [
@@ -489,7 +499,8 @@ def annotate(
             f"There are more hmm cutoff files provided then custom hmm databases provided"
         )
 
-    custom_hmm_db_cutoffs_loc = list(custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
+    custom_hmm_db_cutoffs_loc = list(
+        custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
     databases += [
         HmmKit(i, j, k, dram_config, db_args)
         for i, j, k in zip(
@@ -604,8 +615,9 @@ def merge_past_annotations(
     )
     if len(all_annotations) != max(len(past_annotations_merge), len(new_annotations)):
         logger.critical(
-            "The old and new annotation files may not have merged correctly! Check the new"
-            " annotations file for errors. Did you use the correct genes.faa for your annotations?"
+            "The old and new annotation files may not have merged correctly!"
+            " Check the new annotations file for errors. Did you use the"
+            " correct genes.faa for your annotations?"
         )
     all_annotations = pd.concat([all_annotations, past_annotations_appened])
     return all_annotations
@@ -630,72 +642,76 @@ def merge_past_annotations(
     multiple=True,
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
-    help="Specify exactly which DBs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 -o output/dir annotate --use_db fegenie --use_db camper`, the options available are in this help.",
+    help=("Specify exactly which DBs to use. This argument can be used"
+          "  multiple times, so for example if you want to annotate with"
+          "  FeGenie and Camper you would have a command like `dram2 - o"
+          "  output/dir annotate --use_db fegenie --use_db camper`,"
+          "  the options available are in this help."),
 )
-@click.option(
+@ click.option(
     "--bit_score_threshold",
     type=int,
     default=60,
     help="minimum bit score of search to retain hits",
 )
-@click.option(
+@ click.option(
     "--rbh_bit_score_threshold",
     type=int,
     default=350,
     help="minimum bit score of reverse best hits to retain hits",
 )
-@click.option(
+@ click.option(
     "--custom_fasta_db_name",
     type=str,
     multiple=True,
     help="Names of custom databases, can be used multiple times.",
 )
-@click.option(
+@ click.option(
     "--custom_fasta_db_loc",
     multiple=True,
     type=click.Path(exists=True, path_type=Path),
-    help="Location of fastas to annotate against, can be used multiple times but"
-    "must match number of custom_db_name's",
+    help="""
+    Location of fastas to annotate against, can be used multiple times but
+    "must match number of custom_db_name's
+    """,
 )
-@click.option(
+@ click.option(
     "--custom_hmm_db_name",
     multiple=True,
     help="Names of custom hmm databases, can be used multiple times.",
 )
-@click.option(
+@ click.option(
     "--custom_hmm_db_loc",
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
     help="Location of HMMs to annotate against, can be used multiple times but"
     "must match number of custom_hmm_name's",
 )
-@click.option(
+@ click.option(
     "--custom_hmm_db_cutoffs_loc",
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
-    help="Location of file with custom HMM cutoffs and descriptions, can be used "
-    "multiple times.",
+    help="""
+    Location of file with custom HMM cutoffs and descriptions, can be used
+    multiple times.
+    """,
 )
-@click.option(
+@ click.option(
     "--tempory_dir",
     type=click.Path(path_type=Path),
-    help="Location of the temporary file where the annotations will be stored, this file will still be defeated at the end of the annotation process if the keep tmp flag is not set.",
+    help="""
+    Location of the temporary file where the annotations will be stored, this
+    file will still be defeated at the end of the annotation process if the
+    keep tmp flag is not set.
+    """,
 )
-# @click.option(
-#     "--make_new_faa",
-#     default=DEFAULT_KEEP_TMP,
-#     help="If true, the output directory will have a new genes.faa file with the"
-#     " annotation information appended to the headers. If false, this file will not"
-#     " be made and time will be saved. If not specified, the value will be set"
-#     " based on other arguments.",
-# )
-@click.option(
+@ click.option(
     "-f",
     "--force",
     is_flag=True,
     help="Remove all past annotations and annotate again.",
 )
-@click.pass_context
+@ click.pass_context
 def annotate_cmd(
     ctx: click.Context,
     gene_fasta_paths: list[Path],
@@ -720,14 +736,16 @@ def annotate_cmd(
 ):
     """
     Annotate Genes with Gene Database
-    ---
+    - --
 
-    Get gene identifiers from a set of databases and format them for
-    other DRAM2 analysis tools. To use this tool, your genes should already be called.
+    Get gene identifiers from a set of databases and format them for other
+    DRAM2 analysis tools. To use this tool, your genes should already be
+    called.
 
 
-    The annotation process depends on the user's selection. You can use the --use_db argument to
-    select a set of databases, or use the use_dbset argument to use a pre-configured set of databases.
+    The annotation process depends on the user's selection. You can use the
+    --use_db argument to select a set of databases, or use the use_dbset
+    argument to use a pre-configured set of databases.
 
     """
     context: DramContext = ctx.obj
@@ -780,11 +798,11 @@ def annotate_cmd(
         raise (e)
 
 
-@click.command("list_databases")
+@ click.command("list_databases")
 def list_databases():
     """
     List available database
-    ---
+    - --
 
 
     This is a simple tool to list the databases that are available to use in dram commands, mostly annotations. This includes both annotations' formal name, the key that identifies it to dram, always lowercase and all one word, and the citation if it exists.

@@ -1,14 +1,24 @@
+"""
+=================
+Test DBKit: KOfam
+=================
 
+DBKits have a range of functions that can be unique as you like. All of them
+need test files like this one
+
+Here we test:
+    - the stand alone annotation command
+
+"""
 import pytest
 import logging
 from pathlib import Path
-import pandas as pd
 from click.testing import CliRunner
 
-from dram2.cli.context import DramContext 
+from dram2.cli.context import DramContext
 from dram2.cli import dram2
 from dram2.db_kits.utils import Fasta
-from dram2.db_kits.kofam_kit import KOfamKit 
+from dram2.db_kits.kofam_kit import KOfamKit
 
 
 @pytest.fixture()
@@ -23,6 +33,8 @@ def dram_context(tmpdir):
         verbose=int(3),
     )
     return dram_context
+
+
 @pytest.fixture()
 def dram_context_bad(tmpdir):
     dram_context = DramContext(
@@ -72,6 +84,7 @@ def db_args_dict(logger, tmpdir):
     }
     return db_args
 
+
 def test_check_setup_fail(dram_context_bad, logger):
     with pytest.raises(
         FileNotFoundError,
@@ -83,7 +96,6 @@ def test_check_setup_fail(dram_context_bad, logger):
         ),
     ):
         kit = KOfamKit(dram_context_bad.get_dram_config(logger), logger)
-
 
 
 def test_check_setup_pass(dram_context, db_args_dict):
@@ -116,7 +128,8 @@ def test_search_cmd(tmpdir, runner):
     )
     # assert result1.exit_code == 0
     result = runner.invoke(
-        dram2, ["-o", output_dir_empty, "annotate", "--use_db", "kofam", input_faa]
+        dram2, ["-o", output_dir_empty, "annotate",
+                "--use_db", "kofam", input_faa]
     )
     # breakpoint()
     # assert pd.read_csv(

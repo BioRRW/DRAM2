@@ -31,8 +31,6 @@ from datetime import datetime
 DEFAULT_VERBOSE = 4  # maps to logging levels
 
 
-
-
 @click.group(
     cls=OrderedGroup,
     help=(
@@ -124,11 +122,6 @@ def dram2(
     )
 
 
-def dram2_logged_entry():
-    click.get_current_context()
-    pass
-
-
 # These are the essential components of dram, and call may not be
 dram2.add_command(call_genes_cmd)
 dram2.add_command(annotate_cmd)
@@ -148,6 +141,7 @@ try:
     dram2.add_command(amg_summary_cmd)
 except ImportError:
     pass
+
 
 from dram2.genbank import generate_genbank_cmd
 dram2.add_command(generate_genbank_cmd)
