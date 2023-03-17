@@ -58,8 +58,8 @@ Just copy the directory into a good working location on zenith.
 
 .. code-block:: bash
 
-   cp -r /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/example_files_try_one /my_dram_test_dir
-   cd /my_dram_test_dir
+   cp -r /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/example_files_try_one ./my_dram_test_dir
+   cd ./my_dram_test_dir
 It contains these folders
 
 Activate the Environment
