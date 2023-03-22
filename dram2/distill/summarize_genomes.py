@@ -1,46 +1,55 @@
 """
+===============
 DRAM Distillate
----------------
+===============
 
-This is the script that distills the genomes from the annotations step.
+Script that distills the genomes from the annotations step.
 It requires annotations and the dram distillation step
 
+Exampel use:: 
+    
+    conda activate ./dram2_env
+    dram2 distill --help
 """
-import logging
-from collections import Counter
-from itertools import chain
-from typing import Optional
+__author__ = "Rory Flynn"
+__copyright__ = "Copyright 2023, Wrighton Lab"
+__email__ = "rory.flynn@colostate.edu"
+__license__ = "NA"
 
-import pandas as pd
-from collections import Counter, defaultdict
-from pathlib import Path
-import altair as alt
-import networkx as nx
-from itertools import tee
-import re
 import numpy as np
-from dram2.utils.globals import FASTAS_CONF_TAG
+import pandas as pd
+import re
+from itertools import tee
+import networkx as nx
+import altair as alt
+from pathlib import Path
+from typing import Optional
+import logging
+from collections import Counter, defaultdict
 
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
+
+from dram2.annotate import (
+    get_annotation_ids_by_row,
+    get_all_annotation_ids,
+    get_last_annotation_meta,
+    DB_KITS,
+    AnnotationMeta,
+    check_for_annotations,
+    USED_DBS_TAG,
+    DISTILLATION_MIN_SET,
+    DISTILLATION_MIN_SET_KEGG,
+)
 from dram2.utils import (
     get_ordered_uniques,
     DramUsageError,
     Fasta,
     get_package_path,
 )
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
+from dram2.utils.globals import FASTAS_CONF_TAG
+
 
 # from dram2.annotate import  get_ids_from_annotations_all
-from dram2.annotate import (
-    get_annotation_ids_by_row,
-    get_all_annotation_ids,
-    DB_KITS,
-    get_past_annotation_run,
-    ANNOTATION_FILE_TAG,
-    check_for_annotations,
-    USED_DBS_TAG,
-    DISTILLATION_MIN_SET,
-    DISTILLATION_MIN_SET_KEGG,
-)
 
 __version__ = "2.0.0"
 DEFAULT_GROUPBY_COLUMN = "fasta"
@@ -136,7 +145,12 @@ CONSTANT_DISTILLATE_COLUMNS = [
     COL_HEADER,
     COL_SUBHEADER,
 ]
-DISTILATE_SORT_ORDER_COLUMNS = [COL_HEADER, COL_SUBHEADER, COL_MODULE, COL_GENE_ID]
+DISTILATE_SORT_ORDER_COLUMNS = [
+    COL_HEADER,
+    COL_SUBHEADER,
+    COL_MODULE,
+    COL_GENE_ID,
+]
 EXCEL_MAX_CELL_SIZE = 32767
 LOCATION_TAG = "location"
 
@@ -158,35 +172,38 @@ def get_distillate_sheet(form_tag: str, dram_config: dict, logger: logging.Logge
     ):
         sheet_path: Path = get_package_path(Path(FILES_NAMES[form_tag]))
         logger.debug(
-            f"Using the default distillation sheet for {form_tag} with its location at {sheet_path}. This information is only important if you intended to use a custom distillation sheet"
+            f"""
+            Using the default distillation sheet for {form_tag} with its location at
+            {sheet_path}. This information is only important if you intended to use a
+            custom distillation sheet.
+            """
         )
     else:
         sheet_path = Path(sheet_path_str)
         if not sheet_path.is_absolute():
-            dram_data_folder: Optional[str] = config.get(DRAM_DATAFOLDER_TAG)
+            dram_data_folder: Optional[str] = dram_config.get(DRAM_DATAFOLDER_TAG)
             if dram_data_folder is None:
                 raise DramUsageError(
-                    f"In the DRAM2 config File, the path {form_tag} is a relative path and the {DRAM_DATAFOLDER_TAG} is not set!"
+                    f"""
+                    In the DRAM2 config File, the path {form_tag} is a relative path
+                    and the {DRAM_DATAFOLDER_TAG} is not set!
+                    """
                 )
             sheet_path = Path(dram_data_folder) / sheet_path
         if not sheet_path.exists():
             raise DramUsageError(
-                f"The file {form_tag} is not at the path"
-                f" {sheet_path}. Most likely you moved the DRAM"
-                f" data but forgot to update the config file to"
-                f" point to it. The easy fix is to set the"
-                f" {DRAM_DATAFOLDER_TAG} variable in the config"
-                f" like:\n"
-                f" {DRAM_DATAFOLDER_TAG}: the/path/to/my/file"
-                f" If you are using full paths and not the"
-                f" {DRAM_DATAFOLDER_TAG} you may want to revue the"
-                f" Configure Dram section of the documentation to"
-                f" make sure your config will work with dram."
-                f" rememberer that the config must be a valid yaml"
-                f" file to work. Also you can always use"
-                f" db_builder to remake your databases and the"
-                f" config file if you don't feel up to editing it"
-                f" yourself."
+                f"""
+                The file {form_tag} is not at the path {sheet_path}. Most likely you
+                moved the DRAM data but forgot to update the config file to point to
+                it. The easy fix is to set the {DRAM_DATAFOLDER_TAG} variable in the
+                config like:\n
+                {DRAM_DATAFOLDER_TAG}: the/path/to/my/file Iyou are using full paths
+                and not the {DRAM_DATAFOLDER_TAG} you may want to revue the Configure
+                Dram section othe documentation to make sure your config will work with
+                dram. rememberer that the config must be a valid yaml file to work.
+                Also you can always use db_builder to remake your databases and the
+                config file iyou don't feel up to editing it yourself.
+                """
             )
 
     return pd.read_csv(sheet_path, sep="\t")
@@ -250,7 +267,7 @@ def summarize_rrnas(rrnas_df, groupby_column=DEFAULT_GROUPBY_COLUMN):
             "rRNA",
         ]
         for genome, rrna_dict in genome_rrna_dict.items():
-            row.append(genome_rrna_dict[genome].get(rna_type, 0))
+            row.append(rrna_dict.get(rna_type, 0))
         row_list.append(row)
     rrna_frame = pd.DataFrame(
         row_list, columns=FRAME_COLUMNS + list(genome_rrna_dict.keys())
@@ -502,7 +519,10 @@ def make_module_coverage_df(annotation_df, module_nets):
             break
     if ko_id is None:
         raise ValueError(
-            f"No KEGG or KOfam id column could be found. These names were tried: {', '.join(ko_id_names)}"
+            f"""
+            No KEGG or KOfam id column could be found.
+            These names were tried: {', '.join(ko_id_names)}.
+            """
         )
     for gene_id, ko_list in annotation_df[ko_id].items():
         if type(ko_list) is str:
@@ -565,7 +585,12 @@ def make_module_coverage_heatmap(module_coverage, mag_order=None):
                 sort=None,
                 axis=alt.Axis(labelLimit=0, labelAngle=90),
             ),
-            y=alt.Y("genome", title=None, sort=mag_order, axis=alt.Axis(labelLimit=0)),
+            y=alt.Y(
+                "genome",
+                title=None,
+                sort=mag_order,
+                axis=alt.Axis(labelLimit=0),
+            ),
             tooltip=[
                 alt.Tooltip("genome", title="Genome"),
                 alt.Tooltip("module_name", title="Module Name"),
@@ -590,7 +615,7 @@ def make_module_coverage_heatmap(module_coverage, mag_order=None):
 
 
 def pairwise(iterable):
-    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+    """s -> (s0, s1), (s1, s2), (s2, s3), ..."""
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -623,7 +648,7 @@ def split_into_steps(definition, split_char=" "):
     step_starts.append(len(definition))
     steps = list()
     for a, b in pairwise(step_starts):
-        step = definition[a + 1 : b]
+        step = definition[a + 1: b]
         if step.startswith("(") and step.endswith(")"):
             if first_open_paren_is_all(step):
                 step = step[1:-1]
@@ -842,7 +867,8 @@ def make_functional_heatmap(functional_df, mag_order=None):
                 title=None,
                 sort=mag_order,
                 axis=alt.Axis(
-                    labelLimit=0, labelExpr="replace(datum.label, /_\d*$/gi, '')"
+                    labelLimit=0,
+                    labelExpr="replace(datum.label, /_\d*$/gi, '')",
                 ),
             )
         else:
@@ -855,7 +881,9 @@ def make_functional_heatmap(functional_df, mag_order=None):
         rect_colors = alt.Color(
             "present",
             legend=alt.Legend(
-                title="Function is Present", symbolType="square", values=[True, False]
+                title="Function is Present",
+                symbolType="square",
+                values=[True, False],
             ),
             sort=[True, False],
             scale=alt.Scale(range=["#2ca25f", "#e5f5f9"]),
@@ -931,7 +959,11 @@ def rename_genomes_to_taxa(function_df, labels, mag_order):
 
 
 def make_product_heatmap(
-    module_coverage_frame, etc_coverage_df, function_df, mag_order=None, labels=None
+    module_coverage_frame,
+    etc_coverage_df,
+    function_df,
+    mag_order=None,
+    labels=None,
 ):
     module_coverage_heatmap = make_module_coverage_heatmap(
         module_coverage_frame, mag_order
@@ -954,10 +986,14 @@ def make_product_df(module_coverage_frame, etc_coverage_df, function_df):
                 index="genome", columns="module_name", values="step_coverage"
             ),
             etc_coverage_df.pivot(
-                index="genome", columns="complex_module_name", values="percent_coverage"
+                index="genome",
+                columns="complex_module_name",
+                values="percent_coverage",
             ),
             function_df.pivot(
-                index="genome", columns="category_function_name", values="present"
+                index="genome",
+                columns="category_function_name",
+                values="present",
             ),
         ],
         axis=1,
@@ -979,7 +1015,7 @@ def get_phylum_and_most_specific(taxa_str):
         return "p__%s;%s__%s" % (phylum, most_specific_rank, most_specific_taxa)
 
 
-def make_strings_no_repeats(genome_taxa_dict):
+def make_strings_no_repeats(genome_taxa_dict: dict):
     labels = dict()
     seen = Counter()
     for genome, taxa_string in genome_taxa_dict.items():
@@ -989,40 +1025,31 @@ def make_strings_no_repeats(genome_taxa_dict):
     return labels
 
 
-def get_past_annotations(
-    annotation_run: Optional[dict], output_dir, force
+def get_past_annotation_data(
+    annotation_meta: Optional[AnnotationMeta], output_dir, force
 ) -> pd.DataFrame:
-    if annotation_run is None:
+    """
+    Get the relivant annotation data as a dataframe.
+
+    :param annotation_meta:
+    :param output_dir:
+    :param force:
+    :returns:
+    :raises DramUsageError:
+    """
+    if annotation_meta is None:
         raise DramUsageError(
-            "There is no annotations recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory does not contain the result of "
-            "a successful annotation call.\n"
-            "Run `dram2 -o this_dram_dir get_status` to see if annotations have been run on this dram directory "
-            "or if it is valid at all. "
-            "If you have called genes but not run annotations then run "
-            "`dram2 -o this_output_dir annotate db_set 'distill'` in order to get the minimal "
-            "annotation set for distillation.\n"
-            " Review the documentation to learn more about the required pipeline needed "
-            "to run dram distill."
-        )
-    relative_annotation_path: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
-    if relative_annotation_path is None or annotation_run is None:
-        raise dramusageerror(
-            "There is no annotations.tsv recorded in the project_config provided.\n\n"
-            "It must be the case that the DRAM directory does not contain the result of "
-            "a successful annotation call.\n"
-            "Run `dram2 get_status` to see if annotations have been run on this dram directory "
-            "or if it is valid at all. "
-            "If you have called genes but not run annotations then run "
-            "`dram2 -o this_output_dir annotate db_set 'distill'` in order to get the minimal "
-            "annotation set for distillation.\n"
-            " Review the documentation to learn more about the required pipeline needed "
-            "to run dram distill."
-        )
-    annotations_path = output_dir / relative_annotation_path
-    if not annotations_path.exists():
-        raise DramUsageError(
-            f"The path to annotations exists but it does not point to a annotations file that exists in the dram_directory make sure the path to your annotations is at the relive path {relative_annotation_path} with respect to the dram_directory: {output_dir}."
+            """
+            There is no annotations recorded in the project_meta
+            provided.\n\n It must be the case that the DRAM directory does not
+            contain the result of a successful annotation call.\n Run `dram2 - o
+            this_dram_dir get_status` to see if annotations have been run on
+            this dram directory or if it is valid at all. If you have called
+            genes but not run annotations then run `dram2 - o this_output_dir
+            annotate db_set 'distill'` in order to get the minimal annotation
+            set for distillation.\n Review the documentation to learn more
+            about the required pipeline needed to run dram distill.
+            """
         )
     if force:
         logging.warning(
@@ -1032,22 +1059,32 @@ def get_past_annotations(
     else:
         if (
             db_error := check_for_annotations(
-                [DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET], annotation_run
+                [DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET],
+                annotation_meta,
             )
         ) is not None:
             raise DramUsageError(db_error)
 
-    return pd.read_csv(annotations_path, sep="\t", index_col=0)
+    return pd.read_csv(annotation_meta.annotation_tsv, sep="\t", index_col=0)
 
 
 def get_dbkit_genome_summary_forms(
-    annotation_run: Optional[dict],
+    annotation_meta: Optional[AnnotationMeta],
     dram_config: dict,
-    logger:logging.Logger,
+    logger: logging.Logger,
     force: bool,
     use_db_distilate: Optional[list],
 ) -> list[Path]:
+    """
+    Fined and return DRAM forms.
 
+    :param annotation_meta:
+    :param dram_config:
+    :param logger:
+    :param force:
+    :param use_db_distilate:
+    :returns:
+    """
     db_kits_with_distilate: list[DBKit] = [
         i(dram_config, logger) for i in DB_KITS if i.selectable and i.has_genome_summary
     ]
@@ -1060,9 +1097,7 @@ def get_dbkit_genome_summary_forms(
         ]
 
     # Get the list of annotations
-    annotation_dbs = (
-        set() if annotation_run is None else set(annotation_run[USED_DBS_TAG])
-    )
+    annotation_dbs = set() if annotation_meta is None else set(annotation_meta.used_dbs)
 
     if force:
         return [
@@ -1080,11 +1115,13 @@ def get_dbkit_genome_summary_forms(
     return [
         i.get_genome_summary()
         for i in db_kits_with_distilate
-        if i.name in annotation_dbs 
+        if i.name in annotation_dbs
     ]
 
 
 def test_get_dbkit_genome_summary_forms():
+    """Test the location finding of genome summary forms."""
+
     class TestDBKit(DBKit):
         name = "test"
         has_genome_summary = True
@@ -1094,6 +1131,7 @@ def test_get_dbkit_genome_summary_forms():
 
         def search(self):
             pass
+
     get_dbkit_genome_summary_forms({USED_DBS_TAG: "test"}, {}, True, set(), {"test"})
 
 
@@ -1101,9 +1139,8 @@ def distill(
     run_id: str,
     logger: logging.Logger,
     output_dir: Path,
-    project_config: dict,
+    project_meta: dict,
     dram_config: dict,
-    # not from context
     annotations_tsv_path: Optional[Path],
     modules: tuple[str, str, str],
     force: bool,
@@ -1116,14 +1153,34 @@ def distill(
     groupby_column: str = DEFAULT_GROUPBY_COLUMN,
     use_db_distilate: Optional[list] = None,
 ) -> tuple[Optional[list[Fasta]], Optional[Path], Optional[Path], Optional[Path]]:
+    """
+    Distill DRAM annotations to understand metabolism.
 
-    # Out_paths for config
+    :param run_id:
+    :param logger:
+    :param output_dir:
+    :param project_meta:
+    :param dram_config:
+    :param annotations_tsv_path: Only if not from dram context
+    :param modules:
+    :param force:
+    :param trna_path:
+    :param rrna_path:
+    :param custom_summary_form:
+    :param show_gene_names:
+    :param genomes_per_product:
+    :param make_big_html:
+    :param groupby_column:
+    :param use_db_distilate:
+    :returns:
+    :raises ValueError:
+    """
     genome_stats_path: Optional[Path] = None
     metabolism_summary_output_path: Optional[Path] = None
     product_tsv_output: Optional[Path] = None
 
-    annotation_run: Optional[dict] = None
-    called_fastas: Optional[dict] = project_config.get(FASTAS_CONF_TAG)
+    annotation_meta: Optional[dict] = None
+    called_fastas: Optional[dict] = project_meta.get(FASTAS_CONF_TAG)
     fastas = (
         None
         if called_fastas is None
@@ -1132,13 +1189,17 @@ def distill(
     if annotations_tsv_path is not None:
         if not force:
             raise ValueError(
-                "You need to pass the -f/--force flag also, in order to bypass the checks, that would rely on the project config, in order to ensure that you "
+                """
+                If you provide an annotaions file with no project meta data to describe
+                it you need to also pass the - f/--force flag. This will let you bypass
+                the checks the are usualy requiered.
+                """
             )
         logger.warning("You are u")
         annotations = pd.read_csv(annotations_tsv_path, sep="\t", index_col=0)
     else:
-        annotation_run = get_past_annotation_run(project_config)
-        annotations = get_past_annotations(annotation_run, output_dir, force)
+        annotation_meta = get_last_annotation_meta(project_meta, output_dir)
+        annotations = get_past_annotation_data(annotation_meta, force)
     if "bin_taxnomy" in annotations:
         annotations = annotations.sort_values("bin_taxonomy")
 
@@ -1148,7 +1209,7 @@ def distill(
 
     db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
     if not force:
-        dbs_we_have_ano = set(annotation_run[USED_DBS_TAG])
+        dbs_we_have_ano = set(annotation_meta.uds)
         db_kits_with_ids = [i for i in db_kits_with_ids if i.name in dbs_we_have_ano]
     else:
         logger.warning("Skipping the normal checks because of the force flag")
@@ -1176,10 +1237,13 @@ def distill(
         # load runtime custom summary form
         if custom_summary_form is not None:
             genome_summary_form = pd.concat(
-                [genome_summary_form, pd.read_csv(custom_summary_form, sep="\t")]
+                [
+                    genome_summary_form,
+                    pd.read_csv(custom_summary_form, sep="\t"),
+                ]
             )
         db_kit_forms = get_dbkit_genome_summary_forms(
-            annotation_run, dram_config, logger, force, use_db_distilate
+            annotation_meta, dram_config, logger, force, use_db_distilate
         )
         # Merge base, custom,  and db_kit summary forms into one
         genome_summary_form = pd.concat(
@@ -1225,7 +1289,12 @@ def distill(
         )
 
         # NOTE: We don't document the html because it is not used as input and we can't guarantee it gets made
-    return fastas, genome_stats_path, metabolism_summary_output_path, product_tsv_output
+    return (
+        fastas,
+        genome_stats_path,
+        metabolism_summary_output_path,
+        product_tsv_output,
+    )
 
 
 def make_genome_stats_file(
@@ -1303,7 +1372,10 @@ def make_product(
             taxa_str_parser = get_phylum_and_most_specific
         # else just throw in what is there
         else:
-            taxa_str_parser = lambda x: x
+
+            def taxa_str_parser(x):
+                return x
+
         labels = make_strings_no_repeats(
             {
                 row[groupby_column]: taxa_str_parser(row["bin_taxonomy"])
@@ -1347,7 +1419,11 @@ def make_product(
                 logger,
                 annotation_ids_by_row,
             )
-            module_coverage_df_subset, etc_coverage_df_subset, function_df_subset = dfs
+            (
+                module_coverage_df_subset,
+                etc_coverage_df_subset,
+                function_df_subset,
+            ) = dfs
             module_coverage_dfs.append(module_coverage_df_subset)
             etc_coverage_dfs.append(etc_coverage_df_subset)
             function_dfs.append(function_df_subset)
@@ -1377,7 +1453,11 @@ def make_product(
         product_df = make_product_df(module_coverage_df, etc_coverage_df, function_df)
         if make_big_html or len(genome_order) < GENOMES_PRODUCT_LIMIT:
             product = make_product_heatmap(
-                module_coverage_df, etc_coverage_df, function_df, genome_order, None
+                module_coverage_df,
+                etc_coverage_df,
+                function_df,
+                genome_order,
+                None,
             )
             product.save(f"{html_base_path.as_posix()}.html")
             logger.info(f"Generated product heatmap")
@@ -1391,6 +1471,97 @@ def make_product(
 import os
 
 os.system("rm -r ./test_15soil/distillation")
-os.system("DRAM.py distill -i ./test_15soil/annotations.tsv -o ./test_15soil/distillation")
+os.system(
+    "DRAM.py distill -i ./test_15soil/annotations.tsv -o ./test_15soil/distillation")
 
 """
+"""
+    :param run_id:
+    :param logger:
+    :param output_dir:
+    :param project_meta:
+    :param dram_config:
+    :param annotations_tsv_path:
+    :param modules:
+    :param force:
+    :param trna_path:
+    :param rrna_path:
+    :param custom_summary_form:
+    :param show_gene_names:
+    :param genomes_per_product:
+    :param make_big_html:
+    :param groupby_column:
+    :param use_db_distilate:
+    :param output_path:
+    :param annotations:
+    :param trna:
+    :param rrna:
+    :param logger:
+    :param groupby_column:
+    :param output_path:
+    :param annotations:
+    :param annotation_ids_by_row:
+    :param trna:
+    :param rrna:
+    :param genome_summary_form:
+    :param logger:
+    :param groupby_column:
+    :param show_distillate_gene_names:
+    :param tsv_output:
+    :param html_base_path:
+    :param annotations:
+    :param logger:
+    :param module_steps_form:
+    :param etc_module_df:
+    :param function_heatmap_form:
+    :param annotation_ids_by_row:
+    :param groupby_column:
+    :param genomes_per_product:
+    :param make_big_html:
+    :raises ValueError:
+    """
+"""
+    :param run_id:
+    :param logger:
+    :param output_dir:
+    :param project_meta:
+    :param dram_config:
+    :param annotations_tsv_path:
+    :param modules:
+    :param force:
+    :param trna_path:
+    :param rrna_path:
+    :param custom_summary_form:
+    :param show_gene_names:
+    :param genomes_per_product:
+    :param make_big_html:
+    :param groupby_column:
+    :param use_db_distilate:
+    :param output_path:
+    :param annotations:
+    :param trna:
+    :param rrna:
+    :param logger:
+    :param groupby_column:
+    :param output_path:
+    :param annotations:
+    :param annotation_ids_by_row:
+    :param trna:
+    :param rrna:
+    :param genome_summary_form:
+    :param logger:
+    :param groupby_column:
+    :param show_distillate_gene_names:
+    :param tsv_output:
+    :param html_base_path:
+    :param annotations:
+    :param logger:
+    :param module_steps_form:
+    :param etc_module_df:
+    :param function_heatmap_form:
+    :param annotation_ids_by_row:
+    :param groupby_column:
+    :param genomes_per_product:
+    :param make_big_html:
+    :raises ValueError:
+    """

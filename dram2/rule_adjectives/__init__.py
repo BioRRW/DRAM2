@@ -15,15 +15,14 @@ from dram2.cli.context import (
     __version__,
     OrderedGroup,
     get_time_stamp_id,
-    __version__,
 )
 from dram2.annotate import (
-    ANNOTATION_FILE_TAG,
-    get_past_annotation_run,
-    LATEST_ANNOTATION_RUN_TAG,
+    get_last_annotation_meta,
+    AnnotationMeta,
     check_for_annotations,
 )
 from dram2.annotate import DB_KITS
+from dram2.utils import DramUsageError
 from dram2.db_kits.utils import DBKit
 
 from dram2.tree_kit import (
@@ -39,13 +38,6 @@ from dram2.tree_kit.pplacer import DramTree
 
 ADJECTIVES_TSV_NAME: str = "adjectives.tsv"
 RULES_TSV_PATH: Path = get_package_path(Path("rule_adjectives", "rules.tsv"))
-
-# class PythonLiteralOption(click.Option):
-#     def type_cast_value(self, ctx, value):
-#         try:
-#             return ast.literal_eval(value)
-#         except:
-#             raise click.BadParameter(value)
 
 
 def list_adjectives(ctx, param, value):
@@ -75,21 +67,26 @@ def show_rules_path(ctx, param, value):
 @click.group(
     "adjectives",
     cls=OrderedGroup,
-    help="Describe Gene Features (Adjectives)\n\n The DRAM2 Adjectives are features, defined by a set of rules which themselves are based on key genes and selective use of phylogenetic trees.",
+    help="""Describe Gene Features(Adjectives)\n\n The DRAM2 Adjectives are features,
+    defined by a set of rules which themselves are based on key genes and selective use
+    of phylogenetic trees.""",
 )
 @click.pass_context
 def adjectives_cmd(
     ctx: click.Context,
 ):
     """
-    Describe Gene Features (Adjectives)
-    ---
+    Describe Gene Features(Adjectives)
+    - --
 
-    The DRAM2 Adjectives are features, defined by a set of rules which themselves are based on key genes and selective use of phylogenetic trees.
+    The DRAM2 Adjectives are features, defined by a set of rules which themselves are
+    based on key genes and selective use of phylogenetic trees.
 
-    In order to use this command, you must first complete the following for all genes in your project:
+    In order to use this command, you must first complete the following for all genes
+    in your project:
     - Call the Genes with `dram2 call`
-    - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the following database:
+    - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the
+      following database:
         - KEGG or KOfam
         - Pfam
         - CAMPER
@@ -107,27 +104,38 @@ def adjectives_cmd(
     "--annotations_tsv_path",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Location of an annotations.tsv. You don't need to use this option if you are using the output_dir for dram with a project_config. If you use this option, you must also use the force flag to bypass the safeguards that prevent you from running distill with insufficient data",
+    help="""
+    Location of an annotations.tsv. You don't need to use this option if you
+    are using the output_dir for dram with a project_config. If you use this option,
+    you must also use the force flag to bypass the safeguards that prevent you from
+    running distill with insufficient data.
+    """,
 )
 @click.option(
     "--adjectives_tsv_path",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Location of the output adjectives.tsv. if you leave this blank the adjectives.tsv file will be put in the output directory",
+    help="""
+    Location of the output adjectives.tsv. if you leave this blank the adjectives.tsv
+    file will be put in the output directory.
+    """,
 )
 @click.option(
     "-a",
     "--adjectives",
     multiple=True,
     default=[],
-    help="A list of adjectives, by name, to evaluate. This limits the number of adjectives that are evaluated and is faster.",
+    help="""
+    A list of adjectives, by name, to evaluate. This limits the number of adjectives
+    that are evaluated and is faster.""",
 )
 @click.option(
     "-p",
     "--plot_adjectives",
     multiple=True,
     default=[],
-    help="A list of adjectives, by name, to plot. This limits the number of adjectives that are plotted and is probably needed for speed.",
+    help="""A list of adjectives, by name, to plot. This limits the number of
+    adjectives that are plotted and is probably needed for speed.""",
 )
 @click.option(
     "-g",
@@ -145,7 +153,8 @@ def adjectives_cmd(
     "--strainer_tsv",
     type=click.Path(exists=False),
     default=None,
-    help="The path for a tsv that will pass to strainer to filter genes. The only option at this time is ‘pgtb’ for positive genes that are on true bugs.",
+    help="""The path for a tsv that will pass to strainer to filter genes. The only
+    option at this time is ‘pgtb’ for positive genes that are on true bugs.""",
 )
 @click.option(
     "--strainer_type",
@@ -157,13 +166,15 @@ def adjectives_cmd(
     "--debug_ids_by_fasta_to_tsv",
     type=click.Path(exists=False),
     default=None,
-    help="This is a tool to debug the list of IDs found by DRAM it is mostly for experts",
+    help="""This is a tool to debug the list of IDs found by DRAM it is mostly for
+    experts.""",
 )
 @click.option(
     "--user_rules_tsv",
     type=click.Path(exists=True),
     default=RULES_TSV_PATH,
-    help="This is an optional path to a rules file with strict formatting. It will overwrite the original rules file that is stored with the script.",
+    help="""This is an optional path to a rules file with strict formatting. It will
+    overwrite the original rules file that is stored with the script.""",
 )
 @click.option(
     "--show_rules_path",
@@ -199,7 +210,8 @@ def adjectives_cmd(
     is_flag=True,
     show_default=True,
     default=False,
-    help="Skip the normal checks on the dram project_config and just try to use the annotations and trees provided if available.",
+    help="""Skip the normal checks on the dram project_config and just try to use the
+    annotations and trees provided if available.""",
 )
 @click.pass_context
 def evaluate_cmd(
@@ -217,14 +229,18 @@ def evaluate_cmd(
     force: bool,
 ):
     """
-     Evaluate Genes and Describe Their Features (Adjectives)
+     Evaluate Genes and Describe Their Features(Adjectives)
     ---
 
-    The DRAM2 Adjectives are features, defined by a set of rules which themselves are based on key genes and selective use of phylogenetic trees.
+    The DRAM2 Adjectives are features, defined by a set of rules which themselves are
+    based on key genes and selective use of phylogenetic trees.
 
-    In order to use this command you must first complete the falowing for all genes in your project:
+    In order to use this command you must first complete the falowing for all genes in
+    your project:
+
     - Call the Genes with `dram2 call` (the genes dir itself is not needed)
-    - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the following database:
+    - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the
+      following database:
         - KEGG or KOfam
         - Pfam
         - CAMPER
@@ -294,55 +310,66 @@ def evaluate_cmd(
 
 
 def get_annotations_path(
-    annotation_run: dict | None,
+    annotation_meta: AnnotationMeta | None,
     annotations: Path | None,
     force: bool,
     output_dir: Path,
 ) -> tuple[Path, Path | list]:
-    if force:
-        logging.warning(
-            "Skipping the normal checks for needed annotations "
-            "because the force flag was passed."
-        )
-    elif annotation_run is not None:
-        if (
-            db_error := check_for_annotations(
-                [{"kofam"}, {"kegg"}],
-                annotation_run,
+    """
+    Select the correct paths from the optional inputs.
+
+    Take the optional metadata, the optional annotation path and the force flags, to
+    decide where we get our annotations.
+
+    :param annotation_meta:
+    :param annotations:
+    :param force:
+    :param output_dir:
+    :returns:
+    :raises DramUsageError:
+    """
+    match (
+        isinstance(annotations, Path),
+        isinstance(annotation_meta, AnnotationMeta),
+        force,
+    ):
+        case (True, _, True):
+            logging.warning(
+                """Skipping the normal checks for needed annotations because the force
+                flag was passed."""
             )
-        ) is not None:
-            raise DramUsageError(db_error)
-    else:
-        raise DramUsageError(
-            "The project_config does not exist or you have not annotated. \n"
-            "Have you called genes and annotations?\n\n You must at least annotate"
-            " with KOfam or KEGG in order to run this script.\n\nIf you have done"
-            " the steps but don't have a project_config for whatever reason then "
-            "you can use the force option to skip this check."
-        )
-    if isinstance(annotations, Path):
-        annotation_to_use: Path = annotations
-    elif annotation_run is None:
-        raise DramUsageError(
-            "There is no project_config in the output directory and no"
-            " annotation.tsv was provided in its place."
-            "\nIf your output directory has no project config file,"
-            "you must use the --annotations option to point to an annotations.tsv."
-        )
-    else:
-        annotation_to_use_str: str | None = annotation_run.get(ANNOTATION_FILE_TAG)
-        if annotation_to_use_str is None:
+            return annotations
+        case (True, _, False):
             raise DramUsageError(
-                "There is no annotations.tsv recorded in the project_config "
-                "provided.\n\nIt must be the case that the DRAM directory"
-                " does not contain the result of a successful annotation, "
-                " because it was not run or it was moved."
-                # "\nRun `dram2 get_status` to see if annotations have been "
-                # "run on this dram directory or if it is valid at all. "
+                """You passed a custome annotations path overiding any annotations in
+                the project metadata. This tool needs the meta data to perform checks,
+                so if you pass a custom path you must also pass the force flag."""
             )
-        else:
-            annotation_to_use: Path = output_dir / annotation_to_use_str
-    return annotation_to_use
+        case (False, True, True):
+            return annotation_meta.annotation_tsv
+        case (False, True, False):
+            if (
+                db_error := check_for_annotations(
+                    [{"kofam"}, {"kegg"}],
+                    annotation_meta,
+                )
+            ) is not None:
+                raise DramUsageError(db_error)
+            return annotation_meta.annotation_tsv
+        case (False, False, False):
+            raise DramUsageError(
+                """ The project_config does not exist or you have not annotated. \n
+                Have you called genes and annotations?\n\n You must at least annotate
+                with KOfam or KEGG in order to run this script.\n\nIf you have done the
+                steps but don't have a project_config for whatever reason then you can
+                point to the annotation.tsv with the annotations options, then use the
+                force option to skip this check."""
+            )
+        case _:
+            raise ValueError(
+                """The developer missed a use case in handling the options
+                             for deciding the annotations.tsv path"""
+            )
 
 
 def evaluate(
@@ -362,7 +389,9 @@ def evaluate(
     database: list[DBKit],
 ):
     """
-    Using a DRAM annotations file, make a table of adjectives.
+    Make a table of adjectives.
+
+    Make a table of adjectives, sing a DRAM annotations file,
 
     :param annotations_tsv: Path to a DRAM annotations file.
     :param adjectives_tsv: Path for the output true false table.
@@ -370,15 +399,22 @@ def evaluate(
     :param adjectives: Adjectives to evaluate.
     :param plot_adjectives: Adjectives to plot
     :param plot_genomes: Genomes to plot.
-    :param plot_path: The path that will become a folder of output plots, no path no plots.
+    :param plot_path: The path that will become a folder of output plots, no path no
+    plots.
     :param strainer_tsv: The path for a tsv that will pass to strainer to filter genes.
     :param strainer_type: The type of process that should make the strainer file.
-        the only option at this time is ‘pgtb’ for positive genes that are on true bugs.
+    :param tree_paths:
+    :param logger:
+    :param cores:
+    :param database:
+    only option at this time is ‘pgtb’ for positive genes that are on true bugs.
     """
-
     annotations = Annotations(annotations_tsv.absolute().as_posix(), db_kits=database)
     rules = RuleParser(rules_tsv, adjectives=set(adjectives))
-    tree_data: dict[str, pd.Series] = { i: (pd.Series() if j is None else pd.read_csv(j, sep="\t", index_col=0)) for i, j in tree_paths.items() }
+    tree_data: dict[str, pd.Series] = {
+        i: (pd.Series() if j is None else pd.read_csv(j, sep="\t", index_col=0))
+        for i, j in tree_paths.items()
+    }
     adjectives = rules.check_genomes(annotations, logger, tree_data)
     if debug_ids_by_fasta_to_tsv is not None:
         annotations.ids_by_fasta.to_csv(debug_ids_by_fasta_to_tsv, sep="\t")
@@ -451,11 +487,12 @@ def plot_rules_cmd(
 ):
     """
     Make a Set of Plots to Show How Rules are Evaluated
-    ---
+    - --
 
-    Understanding how annotations use its rules to call a given gene is non-trivial. This function provides a method to name these genes.
+    Understanding how annotations use its rules to call a given gene is
+    non-trivial. This function provides a method to name these genes.
 
-    """
+    ""
     context: DramContext = ctx.obj
 
 
@@ -465,17 +502,20 @@ def rule_plot(
     plot_path: str = None,
 ):
     """
+    Make a pdf plot of a rule to understand it.
 
-    :param annotations_tsv: Path to a DRAM annotations file.
-    :param adjectives_tsv: Path for the output true false table.
-    :param rules_tsv: Path to a rules file with strict formatting, this is optional.
-    :param adjectives: Adjectives to evaluate.
-    :param plot_adjectives: Adjectives to plot
-    :param plot_genomes: Genomes to plot.
-    :param plot_path: The path that will become a folder of output plots, no path no plots.
-    :param strainer_tsv: The path for a tsv that will pass to strainer to filter genes.
-    :param strainer_type: The type of process that should make the strainer file.
-        the only option at this time is `pgtb` for positive genes that are on true bugs.
+    : param annotations_tsv: Path to a DRAM annotations file.
+    : param adjectives_tsv: Path for the output true false table.
+    : param rules_tsv: Path to a rules file with strict formatting, this is
+    optional.
+    : param adjectives: Adjectives to evaluate.
+    : param plot_adjectives: Adjectives to plot
+    : param plot_genomes: Genomes to plot.
+    : param plot_path: The path that will become a folder of output plots, no path no plots.
+    : param strainer_tsv: The path for a tsv that will pass to strainer to filter
+    genes.: param strainer_type: The type of process that should make the strainer
+    file. the only option at this time is `pgtb` for positive genes that are on
+    true bugs.
     """
     rules = RuleParser(rules_tsv, adjectives=adjectives)
     rules.plot_rule(plot_path)
@@ -483,4 +523,3 @@ def rule_plot(
 
 adjectives_cmd.add_command(evaluate_cmd)
 adjectives_cmd.add_command(plot_rules_cmd)
-

@@ -92,8 +92,8 @@ def merge_checkm_quality(annotations: pd.DataFrame,
     annotations["bin_contamination"] = contamination
 
 
-@click.command('merge',
-               )
+@click.group('merge',
+             )
 @click.option('--safe/--un_safe', is_flag=True)
 @click.argument(
     "gene_fasta_paths",
@@ -146,6 +146,7 @@ def merger_cmd(
 
 
 def get_merge_files_from_meta(project_meta: {}):
+    pass
 
 
 def merger():

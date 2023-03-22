@@ -11,13 +11,12 @@ from dram2.cli.context import (
     __version__,
     get_time_stamp_id,
 )
-from dram2.annotate import ANNOTATIONS_TAG
 from dram2.utils import Fasta, DramUsageError
+
 from dram2.annotate import (
-    get_past_annotation_run,
+    get_last_annotation_meta,
+    AnnotationMeta,
     DB_KITS,
-    USED_DBS_TAG,
-    ANNOTATION_FILE_TAG,
     check_for_annotations,
 )
 from dram2.tree_kit.dram_phylo_pipe import (
@@ -58,12 +57,11 @@ LATEST_TREE_RUN_TAG: str = "latest"
 
 
 def get_annotations_and_genes_path(
-    annotation_run: Optional[dict],
+    annotation_meta: Optional[AnnotationMeta],
     genes_list: Optional[list],
     annotations: Optional[Path],
     genes: Optional[Path],
     force: bool,
-    output_dir: Path,
     logger: logging.Logger,
 ) -> tuple[Path, Path | list]:
     if force:
@@ -71,51 +69,45 @@ def get_annotations_and_genes_path(
             "Skipping the normal checks for needed annotations "
             "because the force flag was passed."
         )
-    elif annotation_run is not None:
+    elif annotation_meta is not None:
         if (
-            db_error := check_for_annotations(NXR_NAR_TREE.target_dbs, annotation_run)
+            db_error := check_for_annotations(NXR_NAR_TREE.target_dbs, annotation_meta)
         ) is not None:
             raise DramUsageError(db_error)
     else:
         raise DramUsageError(
-            "The project_config does not exist, or you have not annotated. \n"
-            "Have you called genes and annotations?\n\n You must at least annotate"
-            " with KOfam or KEGG in order to run this script.\n\nIf you have done"
-            " the steps but don't have a project_config for whatever reason then "
-            "you can use the force option to skip this check."
+            """
+            The project_config does not exist, or you have not annotated. \n Have you
+            called genes and annotations?\n\n You must at least annotate with KOfam or
+            KEGG in order to run this script.\n\nIf you have done the steps but don't
+            have a project_config for whatever reason then you can use the force option
+            to skip this check.
+            """
         )
     if isinstance(annotations, Path):
         annotation_to_use: Path = annotations
-    elif annotation_run is None:
+    elif annotation_meta is None:
         raise DramUsageError(
-            "There is no project_config in the output directory and no"
-            " annotation.tsv was provided in its place."
-            "\nIf your output directory has no project config file,"
-            "you must use the --annotations option to point to an annotations.tsv."
+            """
+            There is no project_config in the output directory and no annotation.tsv
+            was provided in its place. \nIf your output directory has no meta data, you
+            must use the - -annotations option to point to an annotations.tsv.
+            """
         )
     else:
-        annotation_to_use_str: Optional[str] = annotation_run.get(ANNOTATION_FILE_TAG)
-        if annotation_to_use_str is None:
-            raise DramUsageError(
-                "There is no annotations.tsv recorded in the project_config "
-                "provided.\n\nIt must be the case that the DRAM directory"
-                " does not contain the result of a successful annotation, "
-                " because it was not run or it was moved."
-                # "\nRun `dram2 get_status` to see if annotations have been "
-                # "run on this dram directory or if it is valid at all. "
-            )
-        else:
-            annotation_to_use: Path = output_dir / annotation_to_use_str
+        annotation_to_use: Path = annotation_meta.annotation_tsv
     if isinstance(genes, Path):
         return annotation_to_use, genes
     elif isinstance(genes_list, list):
         return annotation_to_use, genes_list
     else:
         raise DramUsageError(
-            "There is no genes directory recorded in the project_config file"
-            " provided, and no genes.faa was provided in its place."
-            "\nIf your output directory has no project config file,"
-            " you must use the --genes option to point to a genes.faa."
+            """
+            There is no genes directory recorded in the project_config file provided,
+            and no genes.faa was provided in its place. \nIf your output directory has
+            no project config file, you must use the --genes option to point to a
+            genes.faa.
+            """
         )
 
 
@@ -126,10 +118,11 @@ def get_annotations_and_genes_path(
     "annotations",
     type=click.Path(exists=True),
     required=False,
-    help="The DRAM annotations.tsv file, it must meet all the requirement for"
-    " this tool. pointing to this not necessary if you use the output directory"
-    " option. If there is no project config in the output directory you will"
-    " need to use force. ",
+    help="""
+    The DRAM annotations.tsv file, it must meet all the requirement for this tool.
+    pointing to this not necessary if you use the output directory option. If there is
+    no project config in the output directory you will need to use force.
+    """,
 )
 @click.option(
     "-g",
@@ -173,21 +166,24 @@ def get_annotations_and_genes_path(
     "--min_dif_len_ratio",
     type=int,
     required=False,
-    help="The minimum ratio, in distances, between the nearest labeled gene and"
-    " the nearest differently labeled gene for a placed gene to adopt that"
-    " label. This does not apply to genes labeled based on placement in a"
-    " labeled clad. So if the first distance is d1 and the second longer"
-    " distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the placed gene will"
-    " fail to be labeled.",
+    help="""
+    The minimum ratio, in distances, between the nearest labeled gene and the nearest
+    differently labeled gene for a placed gene to adopt that label. This does not apply
+    to genes labeled based on placement in a labeled clad. So if the first distance is
+    d1 and the second longer distance is d2 if d2/d1 - 1 < min_dif_len_ratio then the
+    placed gene will fail to be labeled.
+    """,
     default=MIN_DIF_LEN_RATIO_DFLT,
 )
 @click.option(
     "--max_len_to_label",
     type=int,
     required=False,
-    help="The maximum distance that a placed gene can be from the nearest"
-    " labeled node and adopt that label. This does not apply to genes labeled"
-    " based on placement in a labeled clad.",
+    help="""
+    The maximum distance that a placed gene can be from the nearest labeled node and
+    adopt that label. This does not apply to genes labeled based on placement in a
+    labeled clad.
+    """,
     default=MAX_LEN_TO_LABEL_DFLT,
 )
 # @click.option(
@@ -202,7 +198,9 @@ def get_annotations_and_genes_path(
     is_flag=True,
     show_default=True,
     default=False,
-    help="Keep the temporary directory where pplacer files and other intermediaries are.",
+    help="""
+    Keep the temporary directory where pplacer files and other intermediaries are.
+    """,
 )
 @click.option(
     "-f",
@@ -210,7 +208,10 @@ def get_annotations_and_genes_path(
     is_flag=True,
     show_default=True,
     default=False,
-    help="Skip the normal checks on the dram project_config and just try to use the annotations and genes provided.",
+    help="""
+    Skip the normal checks on the dram project_config and just try to use the
+    annotations and genes provided.
+    """,
 )
 # @click.option(
 #     "--output_dir",
@@ -222,7 +223,9 @@ def get_annotations_and_genes_path(
     multiple=True,
     default=[t.name for t in TREES],
     type=click.Choice([t.name for t in TREES], case_sensitive=False),
-    help="Specify exactly which trees to use. This argument can be used multiple times, but for now there is only one option.",
+    help="""
+    Specify exactly which trees to use. This argument can be used multiple times, but
+    for now there is only one option.""",
 )
 @click.pass_context
 def phylo_tree_cmd(
@@ -259,17 +262,19 @@ def phylo_tree_cmd(
     logger = context.get_logger()
     output_dir: Path = context.get_output_dir()
     cores: int = context.cores
-    project_config: dict = context.get_project_config()
+    project_config: dict = context.get_project_meta()
     dram_config: dict = context.get_dram_config(logger)  # FIX
     try:
         genes_list: Optional[list] = project_config.get(FASTAS_CONF_TAG)
-        annotation_run: Optional[dict] = get_past_annotation_run(project_config)
+        annotation_meta: Optional[AnnotationMeta] = get_last_annotation_meta(
+            project_config, output_dir
+        )
         annotations_path, genes_path_list = get_annotations_and_genes_path(
-            annotation_run, genes_list, annotations, genes, force, output_dir, logger
+            annotation_meta, genes_list, annotations, genes, force, logger
         )
         run_id: str = get_time_stamp_id(TREE_TAG)
         db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
-        if annotation_run is None and not force:
+        if annotation_meta is None and not force:
             raise DramUsageError(
                 "There is no project_config or it is missing the data from a"
                 " annotation run, but you have not used the force flag to skip"
@@ -277,8 +282,8 @@ def phylo_tree_cmd(
                 " annotation run data. If you know what you are doing, you can"
                 " use the force flag to continue without checks"
             )
-        elif annotation_run is not None and not force:
-            dbs_we_have_ano = set(annotation_run[USED_DBS_TAG])
+        elif annotation_meta is not None and not force:
+            dbs_we_have_ano = set(annotation_meta.used_dbs)
             db_kits_with_ids = [
                 i for i in db_kits_with_ids if i.name in dbs_we_have_ano
             ]
@@ -316,7 +321,7 @@ def phylo_tree_cmd(
                     }
                 }
             )
-        context.set_project_config(project_config)
+        context.set_project_meta(project_config)
 
     except Exception as e:
         logger.error(e)

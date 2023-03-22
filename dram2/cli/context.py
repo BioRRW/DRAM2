@@ -34,7 +34,7 @@ import click
 
 from dram2.db_kits.utils import DRAM_DATAFOLDER_TAG
 
-PROJECT_CONFIG_YAML_NAME = "project_config.yaml"
+PROJECT_META_YAML_NAME = "project_meta.yaml"
 USER_CONFIG = Path.home() / ".config" / "dram_config.yaml"
 GLOBAL_CONFIG = Path("/etc") / "dram_config.yaml"
 DEFAULT_KEEP_TMP = False
@@ -133,24 +133,24 @@ class DramContext(object):
         #         )
         return self.output_dir
 
-    def get_project_config(self) -> dict:
+    def get_project_meta(self) -> dict:
         output_dir = self.get_output_dir()
-        project_config_path = output_dir / PROJECT_CONFIG_YAML_NAME
-        self.project_config = {}
-        if project_config_path.exists():
-            with open(project_config_path, "r") as pcf:
-                saved_config = yaml.safe_load(pcf)
-                if saved_config is not None:
-                    self.project_config.update(saved_config)
-        return self.project_config
+        project_meta_path = output_dir / PROJECT_CONFIG_YAML_NAME
+        self.project_meta = {}
+        if project_meta_path.exists():
+            with open(project_meta_path, "r") as pcf:
+                saved_meta = yaml.safe_load(pcf)
+                if saved_meta is not None:
+                    self.project_meta.update(saved_meta)
+        return self.project_meta
 
-    def set_project_config(self, project_config: dict, write_config: bool = True):
+    def set_project_meta(self, project_config: dict, write_config: bool = True):
         output_dir = self.get_output_dir()
-        project_config_path = output_dir / PROJECT_CONFIG_YAML_NAME
-        self.project_config = project_config
-        if write_config:
-            with open(project_config_path, "w") as pcf:
-                yaml.safe_dump(self.project_config, pcf)
+        project_meta_path = output_dir / PROJECT_META_YAML_NAME
+        self.project_meta = project_meta
+        if write_meta:
+            with open(project_meta_path, "w") as pcf:
+                yaml.safe_dump(self.project_meta, pcf)
 
     def get_logger(self):
         """
