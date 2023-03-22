@@ -1,7 +1,12 @@
 """
-This program adds profiles based on phylogenetic trees into dram. The key to this process is pplacer which places leaves into pre-existing trees
+Adds profiles based on phylogenetic trees into dram.
 
-NOTE pplacer uses about 1/4 of the memory when placing on a FastTree tree as compared to a RAxML tree inferred with GTRGAMMA. If your reads are short and in a fixed region, the memory used by pplacer v1.1 alpha08 (or later) scales with respect to the total number of non-gap columns in your query alignment. You can also make it use less memory (and run faster) by cutting down the size of your reference tree.
+The key to this process is pplacer which places leaves into pre-existing trees. NOTE
+pplacer uses about 1/4 of the memory when placing on a FastTree tree as compared
+to a RAxML tree inferred with GTRGAMMA. If your reads are short and in a fixed region,
+the memory used by pplacer v1.1 alpha08 (or later) scales with respect to the total
+number of non-gap columns in your query alignment. You can also make it use less memory
+(and run faster) by cutting down the size of your reference tree.
 
 TODO Allow this to use the genes directory instead of this
 TODO Update the clade data type to be more representative
@@ -163,13 +168,16 @@ def extract_enigmatic_genes(
     logger: logging.Logger,
 ) -> Path:
     """
+    Filter a fasta based on gene IDs.
+
+    Takes in a fasta file of genes and a list of ids in the dram annotation, and
+    returns a filtered fasta to match.
+
     :param ids_keep: Enigmatic ids from annotations from dram run
     :param gene_fasta: faa from dram run
     :param work_dir: Temp files here
     :param logger: Standard DRAM logger
-    :returns: The path to the ambiguous genes in a fasta file
 
-    Takes in a fasta file of genes and a list of ids in the dram annotation, and returns a filtered fasta to match.
     """
     logger.info("Finding enigmatic genes")
     output_fasta = work_dir / "trim.faa"
@@ -235,28 +243,72 @@ def read_edpl(
     logger: logging.Logger,
 ):
     """
-    There are not as many options for certainty as first thought, but in any case I will for now go with the EDPL.
+    Get the edpl, and add it to the db
 
-    So the deal with uncertainty is that it may only mean something if the distance to the contrary node is smaller than some ratio of the EDPL. Of cores, it is not clear if the distances would even be distributed equally along all paths.
+    There are not as many options for certainty as first thought, but in any case I
+    will for now go with the EDPL.
 
-    In any case, there is no reason to think that these values are not a measure of uncertainty, and the user will probably have use for them but it may mean that in the future we provide additional pplacer output.
+    So the deal with uncertainty is that it may only mean something if the distance to
+    the contrary node is smaller than some ratio of the EDPL. Of cores, it is not clear
+    if the distances would even be distributed equally along all paths.
+
+    In any case, there is no reason to think that these values are not a measure of
+    uncertainty, and the user will probably have use for them but it may mean that in
+    the future we provide additional pplacer output.
 
     The best solution and one that we could certainly achieve, is to use pplacer to place and then
 
 
-    I think [the manual](http://matsen.github.io/pplacer/generated_rst/guppy_edpl.html#guppy-edpl) describes it best, and it says this with EDPL:
+    I think [the manual](
+            http://matsen.github.io/pplacer/generated_rst/guppy_edpl.html#guppy-edpl)
+    describes it best, and it says this with EDPL:
 
-        The expected distance between placement locations (EDPL) is a means of understanding the uncertainty of a placement using placer. The motivation for using such a metric comes from when there are a number of closely-related sequences present in the reference alignment. In this case, there may be considerable uncertainty about which edge is best as measured by posterior probability or likelihood weight ratio. However, the actual uncertainty as to the best region of the tree for that query sequence may be quite small. For instance, we may have a number of very similar subspecies of a given species in the alignment, and although it may not be possible to be sure to match a given query to a subspecies, one might be quite sure that it is one of them.
+        The expected distance between placement locations (EDPL) is a means of
+        understanding the uncertainty of a placement using placer. The motivation for
+        using such a metric comes from when there are a number of closely-related
+        sequences present in the reference alignment. In this case, there may be
+        considerable uncertainty about which edge is best as measured by posterior
+        probability or likelihood weight ratio. However, the actual uncertainty as to
+        the best region of the tree for that query sequence may be quite small. For
+        instance, we may have a number of very similar subspecies of a given species in
+        the alignment, and although it may not be possible to be sure to match a given
+        query to a subspecies, one might be quite sure that it is one of them.
 
-        The EDPL metric is one way of resolving this problem by considering the distances between the possible placements for a given query. It works as follows. Say the query bounces around to the different placement positions according to their posterior probability; i.e. the query lands with location one with probability p_1, location two with probability p_2, and so on. Then the EDPL value is simply the expected distance it will travel in one of those bounces (if you don’t like probabilistic language, it’s simply the average distance it will travel per bounce when allowed to bounce between the placements for a long time with their assigned probabilities). Here’s an example, with three hypothetical locations for a given query sequence:
+        The EDPL metric is one way of resolving this problem by considering the
+        distances between the possible placements for a given query. It works as
+        follows. Say the query bounces around to the different placement positions
+        according to their posterior probability; i.e. the query lands with location
+        one with probability p_1, location two with probability p_2, and so on. Then
+        the EDPL value is simply the expected distance it will travel in one of those
+        bounces (if you don’t like probabilistic language, it’s simply the average
+                 distance it will travel per bounce when allowed to bounce between the
+                 placements for a long time with their assigned probabilities). Here’s
+        an example, with three hypothetical locations for a given query sequence:
 
-    The [pplacer paper]() has even more to say. It will discuss the use of place vis which is a tool that will most likely make its way into our work also.
+    The [pplacer paper]() has even more to say. It will discuss the use of place vis
+    which is a tool that will most likely make its way into our work also.
 
         Quantifying uncertainty in placement location
 
-        Pplacer calculates edge uncertainty via posterior probability and the likelihood weight ratio. These methods quantify uncertainty on an edge-by-edge basis by comparing the best placement locations on each edge. Such quantities form the basis of an understanding of placement uncertainty.
+        Pplacer calculates edge uncertainty via posterior probability and the
+        likelihood weight ratio. These methods quantify uncertainty on an edge-by-edge
+        basis by comparing the best placement locations on each edge. Such quantities
+        form the basis of an understanding of placement uncertainty.
 
-        The Expected Distance between Placement Locations (EDPL) is used to overcome difficulties in distinguishing between local and global uncertainty, which is a complication of relying on confidence scores determined on an edge-by-edge basis. This quantity is computed as follows for a given query sequence. Pplacer first determines the top-scoring collection of edges; the optimal placement on each edge is assigned a probability defining confidence, which is the likelihood weight ratio (in ML mode) or the posterior probability (in Bayesian mode). The EDPL uncertainty is the weighted-average distance between those placements (Figure 4), i.e. the sum of the distances between the optimal placements weighted by their probability (4). The EDPL thus uses distances on the tree to distinguish between cases where nearby edges appear equally good, versus cases when a given query sequence does not have a clear position in the tree. These measures of uncertainty can then be viewed with placeviz as described below.
+        The Expected Distance between Placement Locations (EDPL) is used to overcome
+        difficulties in distinguishing between local and global uncertainty, which is a
+        complication of relying on confidence scores determined on an edge-by-edge
+        basis. This quantity is computed as follows for a given query sequence. Pplacer
+        first determines the top-scoring collection of edges; the optimal placement on
+        each edge is assigned a probability defining confidence, which is the
+        likelihood weight ratio (in ML mode) or the posterior probability (in Bayesian
+                                                                           mode). The
+        EDPL uncertainty is the weighted-average distance between those placements
+        (Figure 4), i.e. the sum of the distances between the optimal placements
+        weighted by their probability (4). The EDPL thus uses distances on the tree to
+        distinguish between cases where nearby edges appear equally good, versus cases
+        when a given query sequence does not have a clear position in the tree. These
+        measures of uncertainty can then be viewed with placeviz as described below.
     """
     placed_edpl_file = os.path.join(work_dir, "edpl.txt")
     _ = run_process(

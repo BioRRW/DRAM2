@@ -1,8 +1,8 @@
+"""The main controle point where trees are loaded and functions are defined."""
 import logging
 from pathlib import Path
 from typing import Optional
 import os
-from importlib.resources import files
 
 import click
 
@@ -11,7 +11,7 @@ from dram2.cli.context import (
     __version__,
     get_time_stamp_id,
 )
-from dram2.utils import Fasta, DramUsageError
+from dram2.utils import get_package_path, DramUsageError
 
 from dram2.annotate import (
     get_last_annotation_meta,
@@ -29,28 +29,28 @@ from dram2.tree_kit.pplacer import DramTree
 
 TREE_TAG: str = "phylo_trees"
 
-DATA_PATH = Path(files("dram2.tree_kit").joinpath("data"))
+DATA_PATH: Path = get_package_path(Path("tree_kit", "data"))
 NXR_NAR_TREE = DramTree(
     name="nxr_nar",
-    pplacer_profile=os.path.join(DATA_PATH, "nxr_nar", "nxr_nar.refpkg"),
+    pplacer_profile=DATA_PATH / "nxr_nar" / "nxr_nar.refpkg",
     target_ids=["K11180", "dsrA", "dsrB", "K11181"],
     target_dbs=[{"kegg", "sulfur"}, {"kofam", "sulfur"}],
     reference_seq=os.path.join(
         DATA_PATH, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"
     ),
-    gene_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
-    color_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "color_map.tsv"),
+    gene_mapping_path=DATA_PATH / "nxr_nar" / "nxr-nar-tree-mapping.tsv",
+    color_mapping_path=DATA_PATH / "nxr_nar" / "color_map.tsv",
 )
 AMOA_PMOA_TREE = DramTree(
     name="amoa_pmoa",
-    pplacer_profile=os.path.join(DATA_PATH, "nxr_nar", "nxr_nar.refpkg"),
+    pplacer_profile=DATA_PATH / "nxr_nar" / "nxr_nar.refpkg",
     target_ids=["K11180", "dsrA", "dsrB", "K11181"],
     target_dbs=[{"kegg"}, {"kofam"}],
     reference_seq=os.path.join(
         DATA_PATH, "nxr_nar", "nxr-nar_seqs_for_tree_aligned.faa"
     ),
-    gene_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "nxr-nar-tree-mapping.tsv"),
-    color_mapping_path=os.path.join(DATA_PATH, "nxr_nar", "color_map.tsv"),
+    gene_mapping_path=DATA_PATH / "nxr_nar" / "nxr-nar-tree-mapping.tsv",
+    color_mapping_path=DATA_PATH / "nxr_nar" / "color_map.tsv",
 )
 TREES = [NXR_NAR_TREE]
 LATEST_TREE_RUN_TAG: str = "latest"
@@ -64,6 +64,23 @@ def get_annotations_and_genes_path(
     force: bool,
     logger: logging.Logger,
 ) -> tuple[Path, Path | list]:
+    """
+    Select the most apropriate annotations and genes files to use based on user input.
+
+    Todo:
+    ----
+      - Make this a match statment
+
+    :param annotation_meta:
+    :param genes_list:
+    :param annotations:
+    :param genes:
+    :param force:
+    :param logger:
+    :returns:
+    :raises DramUsageError:
+
+    """
     if force:
         logger.warning(
             "Skipping the normal checks for needed annotations "
@@ -132,36 +149,6 @@ def get_annotations_and_genes_path(
     required=False,
     help="The gene fasta file, genes.faa file from dram combine genes.",
 )
-# @click.option(
-#     "-d",
-#     "dram_directory",
-#     type=click.Path(exists=True),
-#     required=False,
-#     help="The dram input file, with no names changed so it contains annotations.txt and genes.faa, genes.fna",
-# )
-# @click.option(
-#     "-o",
-#     "--output_dir",
-#     default="./",
-#     type=click.Path(exists=False),
-#     required=False,
-#     help="The output directory, includes new annotations, phylo_xml files, and log",
-# )
-# @click.option(
-#     "-o",
-#     "output_dir",
-#     type=click.Path(exists=False),
-#     required=False,
-#     help="The output annotations file",
-# )
-# @click.option(
-#     "-c",
-#     "--cores",
-#     type=int,
-#     required=False,
-#     help="The number of cores to use",
-#     default=10,
-# )
 @click.option(
     "--min_dif_len_ratio",
     type=int,
@@ -186,13 +173,6 @@ def get_annotations_and_genes_path(
     """,
     default=MAX_LEN_TO_LABEL_DFLT,
 )
-# @click.option(
-#     "--annotate_all",
-#     is_flag=True,
-#     show_default=True,
-#     default=False,
-#     help="Don't place just the ambiguous genes, place all of them",
-# )
 @click.option(
     "--keep_temp",
     is_flag=True,
@@ -213,11 +193,6 @@ def get_annotations_and_genes_path(
     annotations and genes provided.
     """,
 )
-# @click.option(
-#     "--output_dir",
-#     default="./",
-#     help="Don't place uncertain genes, place all of them",
-# )
 @click.option(
     "--use_tree",
     multiple=True,

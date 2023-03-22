@@ -255,21 +255,22 @@ def evaluate_cmd(
     logger = context.get_logger()
     output_dir: Path = context.get_output_dir()
     cores: int = context.cores
-    project_config: dict = context.get_project_config()
+    project_config: dict = context.get_project_meta()
     dram_config = context.get_dram_config(logger)  # FIX
     try:
 
         run_id: str = get_time_stamp_id(TREE_TAG)
-        annotation_run: dict | None = get_past_annotation_run(project_config)
+        annotation_run: AnnotationMeta | None = get_last_annotation_meta(
+            project_config, output_dir)
         if adjectives_tsv_path is not None:
             adjectives_tsv = adjectives_tsv_path
         else:
             adjectives_tsv = output_dir / ADJECTIVES_TSV_NAME
 
         annotations_tsv = get_annotations_path(
-            annotation_run, annotations_tsv_path, force, output_dir
+            annotation_run, annotations_tsv_path, force
         )
-        if isinstance(user_rules_tsv, Path):
+        if isinstance(userrules_tsv, Path):
             rules_tsv = user_rules_tsv
         else:
             rules_tsv: Path = RULES_TSV_PATH
@@ -313,8 +314,7 @@ def get_annotations_path(
     annotation_meta: AnnotationMeta | None,
     annotations: Path | None,
     force: bool,
-    output_dir: Path,
-) -> tuple[Path, Path | list]:
+) -> Path:
     """
     Select the correct paths from the optional inputs.
 

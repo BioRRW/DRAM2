@@ -2,14 +2,15 @@
 =================
 Tools For PPlacer
 =================
+
+Use PPlacer to put genes o a set of trees.
 """
 import os
-import json
 import logging
 import pandas as pd
-from tempfile import TemporaryDirectory
 from dram2.utils import run_process
-from multiprocessing import cpu_count
+
+# from multiprocessing import cpu_count
 
 QUERY_TMP_NAME = "query"
 
@@ -96,12 +97,17 @@ taxit_comand= ['taxit', 'create', '-l', '16s_rRNA', '-P', 'nxr_nar.refpkg',
 
 import subprocess
 results = subprocess.run(
-            "pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 100",
+            "pplacer", "-p", "-c", "tree_kit/data/nxr_nar/nxr_nar.refpkg",
+            "tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir",
+            "tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 100"],
             check=True,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-pplacer -p -c /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/DRAM2/dram2/tree_kit/data/nxr_nar/nxr_nar.refpkg tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 10 
+pplacer -p -c \
+tree_kit/data/nxr_nar/nxr_nar.refpkg \
+tests/dev_tools/nxr_nar_run2/tmp_d2_zon/query.fasta --out-dir \
+tests/dev_tools/nxr_nar_run2/tmp_d2_zon -j 10
 """
