@@ -104,7 +104,7 @@ class DramContext(object):
         db_path: Optional[Path],
         config_file: Optional[Path],
         log_file_path: Optional[Path],
-        output_dir: Optional[Path],
+        dram_dir: Optional[Path],
         keep_tmp: bool,
         verbose: int,
     ):
@@ -112,7 +112,7 @@ class DramContext(object):
         self.db_path = db_path
         self.custom_config_file = config_file
         self.log_file_path = log_file_path
-        self.output_dir = output_dir
+        self.dram_dir = dram_dir
         # self.force: bool = force
         self.verbose: int = verbose
         self.keep_tmp: bool = keep_tmp
@@ -120,22 +120,22 @@ class DramContext(object):
         # Make a working_dir that may be deleted
         # self.working_dir.mkdir(exist_ok=True)
 
-    def get_output_dir(self) -> Path:
-        if self.output_dir is None:
+    def get_dram_dir(self) -> Path:
+        if self.dram_dir is None:
             raise ValueError(
                 "You need to set an output directory or you can't use dram use `dram2 --help` and revue the docs."
             )
-        if not self.output_dir.exists():
-            self.output_dir.mkdir()
+        if not self.dram_dir.exists():
+            self.dram_dir.mkdir()
         # elif not self.force:
         #     raise ValueError(
-        #         "The output_dir already exists! try using the -f flag to overwrite"
+        #         "The dram_dir already exists! try using the -f flag to overwrite"
         #         )
-        return self.output_dir
+        return self.dram_dir
 
     def get_project_meta(self) -> dict:
-        output_dir = self.get_output_dir()
-        project_meta_path = output_dir / PROJECT_CONFIG_YAML_NAME
+        dram_dir = self.get_dram_dir()
+        project_meta_path = dram_dir / PROJECT_CONFIG_YAML_NAME
         self.project_meta = {}
         if project_meta_path.exists():
             with open(project_meta_path, "r") as pcf:
@@ -145,8 +145,8 @@ class DramContext(object):
         return self.project_meta
 
     def set_project_meta(self, project_config: dict, write_config: bool = True):
-        output_dir = self.get_output_dir()
-        project_meta_path = output_dir / PROJECT_META_YAML_NAME
+        dram_dir = self.get_dram_dir()
+        project_meta_path = dram_dir / PROJECT_META_YAML_NAME
         self.project_meta = project_meta
         if write_meta:
             with open(project_meta_path, "w") as pcf:
@@ -199,8 +199,8 @@ class DramContext(object):
                 level = logging.DEBUG  # numaric level = 0
 
         if self.log_file_path is None:
-            output_dir = self.get_output_dir()
-            log_file_path = output_dir / LOG_FILE_NAME
+            dram_dir = self.get_dram_dir()
+            log_file_path = dram_dir / LOG_FILE_NAME
         else:
             log_file_path = self.log_file_path
         formatter = logging.Formatter("%(asctime)s - %(message)s")

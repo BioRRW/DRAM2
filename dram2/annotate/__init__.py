@@ -33,27 +33,6 @@ Todo:
  - replace the tsv with something faster, maybe a parquet
 
 """
-import importlib
-import pkgutil
-import logging
-from multiprocessing import Pool
-from functools import partial, reduce
-from pathlib import Path
-from typing import Sequence, Optional
-from dataclasses import dataclass
-from shutil import rmtree
-from itertools import chain
-from collections import Counter
-from pkg_resources import resource_filename
-
-import click
-import pandas as pd
-
-from dram2 import db_kits as db_kits
-from dram2.call_genes import DEFAULT_GENES_FILE
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
-from dram2.utils import DramUsageError, Fasta
-from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.cli.context import (
     DramContext,
     DEFAULT_KEEP_TMP,
@@ -61,12 +40,36 @@ from dram2.cli.context import (
     __version__,
 )
 
+import pandas as pd
+import click
+from pkg_resources import resource_filename
+import importlib
+import pkgutil
+import logging
+from multiprocessing import Pool
+from functools import partial, reduce
+from pathlib import Path
+from typing import Sequence, Optional, NamedTuple
+from dataclasses import dataclass
+from shutil import rmtree
+from itertools import chain
+from collections import Counter
+
+from dram2.utils.globals import FASTAS_CONF_TAG
+from dram2.utils import DramUsageError, Fasta
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
+from dram2.call_genes import DEFAULT_GENES_FILE
+from dram2 import db_kits as db_kits
+
 
 for i in pkgutil.iter_modules(db_kits.__path__, db_kits.__name__ + "."):
     importlib.import_module(i.name)
 
 DB_KITS: list = [i for i in DBKit.__subclasses__() if i.selectable]
 
+AnnotationSet = NamedTuple(
+    "AnnotationSet", name=str, id=str, members=set[str], description=str
+)
 
 ANNOTATION_FILE_TAG: str = "annotation_file"
 DEFAULT_BIT_SCORE_THRESHOLD: float = 60
@@ -79,39 +82,63 @@ ANNOTATIONS_TAG = "annotations"
 LATEST_TAG: str = "latest"
 FASTA_COL = "fasta"
 GENE_ID_COL = "gene_ids"
-DISTILLATION_MIN_SET_KEGG = {"kegg", "dbcan", "pfam", "heme", "peptidase"}
-DISTILLATION_MIN_SET = {"kofam", "dbcan", "pfam", "heme", "peptidase"}
-ADJECTIVES_SET = {
-    "kofam",
-    "dbcan",
-    "pfam",
-    "heme",
-    "peptidase",
-    "sulfur",
-    "camper",
-    "methyl",
-    "fegenie",
-}
-ADJECTIVES_SET_KEGG = {
-    "kegg",
-    "dbcan",
-    "pfam",
-    "heme",
-    "peptidase",
-    "sulfur",
-    "camper",
-    "methyl",
-    "fegenie",
-}
+
+METABOLISM_KEGG_SET = AnnotationSet(
+    "Distilate: Metabolism",
+    "metabolism",
+    ["kegg", "dbcan", "pfam", "heme", "merops"],
+    "Use this set of annotations to get the most out of the metabolism distilate.",
+)
+METABOLISM_SET = AnnotationSet(
+    "Distilate: Metabolism with KEGG",
+    "metabolism",
+    ["kofam", "dbcan", "pfam", "heme", "merops"],
+    "Use this set of annotations to get the most out of the metabolism distilate.",
+)
+ADJECTIVES_SET = AnnotationSet(
+    "Adjectives",
+    "adjectives",
+    [
+        "kofam",
+        "dbcan",
+        "pfam",
+        "heme",
+        "merops",
+        "sulfur",
+        "camper",
+        "methyl",
+        "fegenie",
+    ],
+    "Use this set of annotations to get the most out of the DRAM adjectives tool.",
+)
+ADJECTIVES_KEGG_SET = AnnotationSet(
+    "Adjectives with KEGG",
+    "adjectives_kegg",
+    [
+        "kegg",
+        "dbcan",
+        "pfam",
+        "heme",
+        "merops",
+        "sulfur",
+        "camper",
+        "methyl",
+        "fegenie",
+    ],
+    (
+        "Use this set of annotations to get the most out of the DRAM adjectives "
+        "tool, using kegg. You need to have access to KEGG in order to use this."
+    ),
+)
 DBSETS_COL = "db_id_sets"
 DBSETS = {
-    "mini": DISTILLATION_MIN_SET,
-    "mini_kegg": DISTILLATION_MIN_SET,
-    "adjectives": ADJECTIVES_SET,
-    "adjectives_kegg": ADJECTIVES_SET_KEGG,
-    "wrighton_full": {i.name for i in DB_KITS},
-    # "adjectives_full": {},
-    # "adjectives_full_kegg": {},
+    dbs.id: dbs
+    for dbs in [
+        METABOLISM_SET,
+        METABOLISM_KEGG_SET,
+        ADJECTIVES_SET,
+        ADJECTIVES_KEGG_SET,
+    ]
 }
 VERSION_TAG = "version"
 WORKING_DIR_TAG = "working_dir"
@@ -124,7 +151,6 @@ KOFAM_USE_DBCAN2_THRESHOLDS_TAG = "kofam_use_dbcan2_thresholds"
 
 @dataclass
 class AnnotationMeta:
-
     output_dir: Path
     used_dbs: set[str]
     fasta_names: set[str]
@@ -162,11 +188,7 @@ def get_annotation_ids_by_row(data: pd.DataFrame, db_kits: list) -> pd.DataFrame
     Extract the annotaion IDs from each row.
 
     Extract the annotaion IDs from each row and return a data frame with a new column
-    with name DBSETS_COL containing these sets.
-
-    :param data:
-    :param db_kits:
-    :returns:
+    with name DBSETS_COL containing these sets.: param data:: param db_kits:    : returns:
     """
     # if groupby_column is not None:
     #     data.set_index(groupby_column, inplace=True)
@@ -191,10 +213,7 @@ def get_all_annotation_ids(ids_by_row) -> dict:
 
     Take the output from get annotation_ids_by_row and combine all the sets there in
     and return the ids and the counts. this will be the count of ids found in the full
-    set. This is typicaly used with a groupby.
-
-    :param ids_by_row: the output from get_annotation_ids_by_row
-    :returns:
+    set. This is typicaly used with a groupby.: param ids_by_row: the output from get_annotation_ids_by_row: returns:
     """
     out = Counter(chain(*ids_by_row[DBSETS_COL].values))
     return out
@@ -205,15 +224,11 @@ def check_for_annotations(
 ) -> Optional[str]:
     """
     Check for Required Sets of Annotations Intelligently
-    ----------------------------------------------------
+    - ---------------------------------------------------
 
     This method is not intended for the annotations themselves but for
     downstream processes that depend on these annotations. It is used to check if the list of annotations passed with the
-    annotation_sets argument are present.
-
-    :param annotation_sets:
-    :param annotation_meta:
-    :returns:
+    annotation_sets argument are present.: param annotation_sets:: param annotation_meta:    : returns:
     """
     dbs_we_have: set = annotation_meta.used_dbs
     you_need = [{j for j in i if j not in dbs_we_have} for i in annotation_sets]
@@ -226,38 +241,33 @@ def check_for_annotations(
     ]
     if len(you_need_or) < len(you_need_and):
         you_need_or = []
-    error_message = (
-        "You are trying to use a DRAM2 function that requires"
-        "specific annotations which this DRAM project does not"
-        "have yet.\n"
-    )
+    error_message = """
+        You are trying to use a DRAM2 function that requires
+        specific annotations which this DRAM project does not
+        have yet.\n
+        """
     if len(you_need_and) > 0:
-        error_message += (
-            f"You need to run annotate with with: [{', '.join(you_need_and)}]"
+        error_message += f""" You need to run annotate with with: [{', '.join(you_need_and)}].\n
+            The command to do that is like `dram2 - o this_output_dir
+             annotate - -use_db {' --use_db '.join(you_need_and)}`
             "\n"
-            f"The command to do that is like `dram2 -o this_output_dir"
-            f" annotate --use_db {' --use_db '.join(you_need_and)}`"
-            "\n"
-        )
+        """
         if len(you_need_or) > 0:
             error_message += "Also!\n"
     if len(you_need_or) > 0:
         error_message += (
             f"You need to annotate with:" f" {' or '.join(you_need_or)}\n\n"
         )
-    error_message += (
-        "You should still review the docs to make sure you are"
-        " running the program correctly to get results you want."
-    )
+    error_message += """
+        You should still review the docs to make sure you are
+        running the program correctly to get results you want.
+        """
     return error_message
 
 
 def check_fasta_names(fastas: list[Fasta]):
     """
-    Are the fasta names unique?
-
-    :param fastas:
-    :raises ValueError:
+    Are the fasta names unique?: param fastas:: raises ValueError:
     """
     fasta_names = [i.name for i in fastas]
     if len(fasta_names) != len(set(fasta_names)):
@@ -269,11 +279,7 @@ def check_fasta_names(fastas: list[Fasta]):
 
 def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
     """
-    Take a path and make a genes fasta object.
-
-    :param fasta_loc:
-    :param working_dir:
-    :returns:
+    Take a path and make a genes fasta object.: param fasta_loc: : param working_dir: : returns:
     """
     fasta_name = fasta_loc.stem
     fasta_working_dir = working_dir / fasta_name
@@ -288,18 +294,22 @@ def make_mmseqs_db_for_fasta(
         return fasta
     if fasta.tmp_dir is None:
         raise ValueError(
-            "Some how a fasta was passed to the function that makes mmseqs "
-            "databases which did not have an associated temporary directory in"
-            " which to put that mmseqs-db. Please kindly file a bug report on "
-            "GitHub. This indicates that the developer probably made a mistake"
+            """
+            Some how a fasta was passed to the function that makes mmseqs databases
+            which did not have an associated temporary directory in which to put that
+            mmseqs-db. Please kindly file a bug report on GitHub. This indicates that
+            the developer probably made a mistake.
+            """
         )
     if fasta.faa is None:
         raise ValueError(
-            "Some how a fasta was passed to the function that makes mmseqs"
-            " databases which did not have an associated faa directory in"
-            " which to put that mmseqs-db. Please kindly file a bug report on"
-            " GitHub. This indicates that the developer probably made a"
-            " mistake"
+            """
+            Some how a fasta was passed to the function that makes mmseqs
+            databases which did not have an associated faa directory in
+            which to put that mmseqs-db. Please kindly file a bug report on
+            GitHub. This indicates that the developer probably made a
+            mistake
+            """
         )
     fasta.tmp_dir.mkdir(exist_ok=True, parents=True)
     mmsdb = fasta.tmp_dir / "gene.mmsdb"
@@ -356,9 +366,11 @@ def get_all_fastas(
     # Stop the user duping the fastas that were called
     if (dup_count := has_dup_fasta_name(fastas, logger)) > 0:
         raise DramUsageError(
-            f"Genome file names must be unique. There is/are {dup_count}"
-            " name/s that appear in both the called genes passed, and the"
-            "called genes already in the output_dir."
+            f"""
+            Genome file names must be unique. There is /are {dup_count}
+            name/s that appear in both the called genes passed, and the
+            called genes already in the output_dir.
+            """
         )
 
     if annotation_meta is not None:
@@ -367,19 +379,21 @@ def get_all_fastas(
         if len(db_inter) > 0:
             if force:
                 logger.warning(
-                    f"You are re-annotating {len(fasta_inter)} of"
-                    f" {len(fastas)} FASTAs with databases they were already"
-                    f" annotated with: {db_inter}. The past annotations with"
-                    " these databases will be replaced."
+                    f"""
+                    You are re-annotating {len(fasta_inter)} or {len(fastas)} FASTAs
+                    with databases they were already annotated with: {db_inter}. The
+                    past annotations with these databases will be replaced.
+                    """
                 )
             else:
                 raise DramUsageError(
-                    f"You are trying to re-annotate {len(fasta_inter)} of"
-                    f" {len(fastas)} FASTAs with databases they were already"
-                    f" annotated with: {db_inter}. You need to use the force"
-                    f" flag '-f' in order to do this. If you use that flag"
-                    f" the past annotations with these databases will be"
-                    f" replaced."
+                    f"""
+                    You are trying to re-annotate {len(fasta_inter)} of {len(fastas)}
+                    FASTAs with databases they were already annotated with: {db_inter}.
+                    You need to use the force flag '-f' in order to do this. If you use
+                    that flag the past annotations with these databases will be
+                    replaced.
+            """
                 )
     return fastas
 
@@ -396,21 +410,20 @@ def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> Annotati
             provided.\n\n It must be the case that the DRAM directory does not
             contain the result of a successful annotation call.\n Run `dram2
             get_status` to see if annotations have been run on this dram
-            directory  or if it is valid at all. If you have called genes but
+            directory or if it is valid at all. If you have called genes but
             not run annotations then run `dram2 - o this_output_dir annotate
             db_set 'distill'` in order to get the minimal annotation set for
             distillation.\n Review the documentation to learn more about the
             required pipeline needed  to run dram distill.
                 """
         )
-    annotations_path = output_dir / Path(annotation_dict[ANNOTATION_FILE_TAG])
     if not annotations_path.exists():
         raise DramUsageError(
             f"""
-            The path to annotations exists but it does not point to a
+            The path to annotations has been recorded but it does not point to a
             annotations file that exists in the dram_directory make sure the
             path to your annotations is at the relive path
-            {relative_annotation_path} with respect to the dram_directory:
+            {annotation_tsv} with respect to the dram_directory:
             {output_dir}.
             """
         )
@@ -648,7 +661,8 @@ def annotate(
         logger.warning(
             """
             No databases were selected. There is nothing for DRAM to do but
-            save progress and exit."""
+            save progress and exit.
+            """
         )
         new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
     else:
@@ -677,9 +691,9 @@ def annotate(
     if past_annotation_meta is not None:
         logger.info(
             """
-                    Found past annotations in project config, DRAM will attempt
-                    to merge new annotations.
-                    """
+             Found past annotations in project config, DRAM will attempt
+             to merge new annotations.
+            """
         )
         past_annotations = pd.read_csv(
             output_dir / past_annotation_meta.annotation_tsv,
@@ -693,9 +707,9 @@ def annotate(
     elif force and annotation_tsv.exists():
         logger.info(
             """
-                    Found past annotations in the output path, DRAM will
-                    attempt to force-fully merge new annotations.
-                    """
+            Found past annotations in the output path, DRAM will
+            attempt to force-fully merge new annotations.
+            """
         )
         past_annotations = pd.read_csv(
             annotation_tsv,
@@ -794,32 +808,37 @@ def merge_past_annotations(
     multiple=True,
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
-    help=(
-        """
+    help="""
         Specify exactly which DBs to use. This argument can be used multiple
         times, so for example if you want to annotate with FeGenie and Camper
-        you would have a command like `dram2 - o output/dir annotate --use_db
-        fegenie --use_db camper`, the options available are in this help.
-        """
-    ),
+        you would have a command like `dram2 - o output/dir annotate - -use_db
+        fegenie - -use_db camper`, the options available are in this help.
+        """,
 )
 @click.option(
     "--bit_score_threshold",
     type=int,
     default=60,
-    help="minimum bit score of search to retain hits",
+    help="""
+    The minimum bit score as calkulated by a HMMER or MMseqs search to retain
+    hits.
+    """,
 )
 @click.option(
     "--rbh_bit_score_threshold",
     type=int,
     default=350,
-    help="minimum bit score of reverse best hits to retain hits",
+    help="""
+    Minimum bit score of reverse best hits to retain hits.
+    """,
 )
 @click.option(
     "--custom_fasta_db_name",
     type=str,
     multiple=True,
-    help="Names of custom databases, can be used multiple times.",
+    help="""
+    Names of custom databases, can be used multiple times.
+    """,
 )
 @click.option(
     "--custom_fasta_db_loc",
@@ -827,7 +846,7 @@ def merge_past_annotations(
     type=click.Path(exists=True, path_type=Path),
     help="""
     Location of fastas to annotate against, can be used multiple times but
-    "must match number of custom_db_name's
+    must match number of custom_db_name's.
     """,
 )
 @click.option(
@@ -839,8 +858,10 @@ def merge_past_annotations(
     "--custom_hmm_db_loc",
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
-    help="Location of HMMs to annotate against, can be used multiple times but"
-    "must match number of custom_hmm_name's",
+    help="""
+    Location of HMMs to annotate against, can be used multiple times but
+    must match number of custom_hmm_name's
+    """,
 )
 @click.option(
     "--custom_hmm_db_cutoffs_loc",
@@ -891,7 +912,7 @@ def annotate_cmd(
 ):
     """
     Annotate Genes with Gene Database
-    - --
+    ---
 
     Get gene identifiers from a set of databases and format them for other
     DRAM2 analysis tools. To use this tool, your genes should already be
@@ -917,7 +938,12 @@ def annotate_cmd(
     project_meta: dict = context.get_project_meta()
     dram_config = context.get_dram_config(logger)  # FIX
     if len(use_dbset) > 0:
-        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j]]
+        logger.info(
+            f"""
+            Using the data from DB sets {', '.join([DBSETS[j] for j in use_dbset])}
+        """
+        )
+        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j].members]
 
     use_db = list(set(use_db))
     try:
@@ -953,19 +979,61 @@ def annotate_cmd(
         raise (e)
 
 
-@click.command("list_databases")
+@click.command("list_dbs")
 def list_databases():
     """
-    List available database
+    List available databases
     - --
 
 
-    This is a simple tool to list the databases that are available to use in dram commands, mostly annotations. This includes both annotations' formal name, the key that identifies it to dram, always lowercase and all one word, and the citation if it exists.
+    List the available databases to use in for annotation. Output includes:
+        - formal name
+        - the key that identifies it to dram, always lowercase and all one word
+        - the citation, if it exists.
+
+    Example Use:
+
+        conda activate ./dram2_env
+        dram2 list_dbs
+
     """
     for i in DB_KITS:
         print(
-            f"""
-            {i.formal_name}:\n   Use the key name \"{i.name}\" to select\n
-            Citation: {i.citation}\n\n
-            """
+            f'{i.formal_name} (Use the key name "{i.name}" to select)\n'
+            f"Citation: {i.citation}\n\n"
+        )
+
+
+@click.command("list_db_sets")
+def list_database_sets():
+    """
+    List available database sets
+    ---
+
+    List the available database sets to use in for annotation. Output includes:
+        - formal name
+        - the key that identifies it to dram, always lowercase and all one word
+        - the descriptions.
+        - The names formal names, of the member databases
+
+    Example Use:
+
+        conda activate ./dram2_env
+        dram2 list_db_sets
+        dram2 list_dbs
+
+
+
+    This is a simple tool to list the databases that are available to use in dram
+    commands, mostly annotations. This includes both annotations' formal name, the key
+    that identifies it to dram, always lowercase and all one word, and the citation if
+    it exists.
+    """
+    for i in DBSETS.values():
+        members = [db for db in DB_KITS if db.name in i.members]
+        member_names = ", ".join([db.formal_name for db in members])
+        print(
+            f'{i.name} (Use the key name "{i.id}" to select)\n'
+            f"{i.description}\n"
+            f"Member DBs: {member_names}\n\n"
         )

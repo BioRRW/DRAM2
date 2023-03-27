@@ -6,28 +6,29 @@ DRAM Distillate
 Script that distills the genomes from the annotations step.
 It requires annotations and the dram distillation step
 
-Exampel use:: 
-    
+Exampel use::
+
     conda activate ./dram2_env
     dram2 distill --help
 """
-__author__ = "Rory Flynn"
-__copyright__ = "Copyright 2023, Wrighton Lab"
-__email__ = "rory.flynn@colostate.edu"
-__license__ = "NA"
-
-import numpy as np
-import pandas as pd
-import re
-from itertools import tee
-import networkx as nx
-import altair as alt
-from pathlib import Path
-from typing import Optional
-import logging
 from collections import Counter, defaultdict
-
-
+import logging
+from typing import Optional
+from pathlib import Path
+import altair as alt
+import networkx as nx
+from itertools import tee
+import re
+import pandas as pd
+import numpy as np
+from dram2.utils.globals import FASTAS_CONF_TAG
+from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
+from dram2.utils import (
+    get_ordered_uniques,
+    DramUsageError,
+    Fasta,
+    get_package_path,
+)
 from dram2.annotate import (
     get_annotation_ids_by_row,
     get_all_annotation_ids,
@@ -36,17 +37,16 @@ from dram2.annotate import (
     AnnotationMeta,
     check_for_annotations,
     USED_DBS_TAG,
-    DISTILLATION_MIN_SET,
-    DISTILLATION_MIN_SET_KEGG,
 )
-from dram2.utils import (
-    get_ordered_uniques,
-    DramUsageError,
-    Fasta,
-    get_package_path,
-)
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, DRAM_DATAFOLDER_TAG
-from dram2.utils.globals import FASTAS_CONF_TAG
+
+
+__author__ = "Rory Flynn"
+__copyright__ = "Copyright 2023, Wrighton Lab"
+__email__ = "rory.flynn@colostate.edu"
+__license__ = "NA"
+
+
+MIN_DB_SET: list[set[str]] = [{"kegg"}, {"kofam"}]
 
 
 # from dram2.annotate import  get_ids_from_annotations_all
@@ -1059,7 +1059,7 @@ def get_past_annotation_data(
     else:
         if (
             db_error := check_for_annotations(
-                [DISTILLATION_MIN_SET_KEGG, DISTILLATION_MIN_SET],
+                MIN_DB_SET,
                 annotation_meta,
             )
         ) is not None:

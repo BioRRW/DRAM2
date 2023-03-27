@@ -128,7 +128,10 @@ def get_annotations_and_genes_path(
         )
 
 
-@click.command("phylotree")
+@click.command(
+    "phylotree",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 # @click.version_option(__version__)
 @click.option(
     "-a",
@@ -145,7 +148,6 @@ def get_annotations_and_genes_path(
     "-g",
     "genes",
     type=click.Path(exists=True, path_type=Path),
-    context_settings=dict(help_option_names=["-h", "--help"]),
     default=None,
     required=False,
     help="The gene fasta file, genes.faa file from dram combine genes.",

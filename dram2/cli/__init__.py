@@ -38,7 +38,7 @@ import click
 
 from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__, OrderedGroup
 from dram2.call_genes import call_genes_cmd
-from dram2.annotate import annotate_cmd, list_databases
+from dram2.annotate import annotate_cmd, list_databases, list_database_sets
 
 
 DEFAULT_VERBOSE = 4  # maps to logging levels
@@ -137,7 +137,7 @@ def dram2(
     db_path: Optional[Path] = None,
     config_file: Optional[Path] = None,
     log_file_path: Optional[Path] = None,
-    output_dir: Optional[Path] = None,
+    dram_dir: Optional[Path] = None,
     # force: bool = DEFAULT_FORCE,
     keep_tmp: bool = DEFAULT_KEEP_TMP,
     verbose: int = DEFAULT_VERBOSE,
@@ -147,7 +147,7 @@ def dram2(
         db_path=db_path,
         config_file=config_file,
         log_file_path=log_file_path,
-        output_dir=output_dir,
+        dram_dir=dram_dir,
         verbose=verbose,
         keep_tmp=keep_tmp,
     )
@@ -157,6 +157,7 @@ def dram2(
 dram2.add_command(call_genes_cmd)
 dram2.add_command(annotate_cmd)
 dram2.add_command(list_databases)
+dram2.add_command(list_database_sets)
 dram2.add_command(pull_rrna_cmd)
 dram2.add_command(pull_trna_cmd)
 

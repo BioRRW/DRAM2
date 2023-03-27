@@ -3,7 +3,10 @@
 Call Genes
 ==========
 
-This is a very simple tool to call the genes in a set of MAG or other set of FASTAs. It does some other things too of course. You may think of them as side effects to the main purpose, but they are still important. It renames the scaffolds, it filters the called genes based on the minimum contig size.
+This is a very simple tool to call the genes in a set of MAG or other set of FASTAs. It
+does some other things too of course. You may think of them as side effects to the main
+purpose, but they are still important. It renames the scaffolds, it filters the called
+genes based on the minimum contig size.
 
 """
 
@@ -57,7 +60,8 @@ GENES_RUN_TAG: str = "genes"
         """
         Mode of prodigal to use for gene calling. NOTE: normal or single mode require
         genomes which are high quality with low contamination and long
-        contigs(average length > 3 Kbp).
+        contigs(average length > 3 Kbp).Read more about this option in
+        the prodigal wiki: https://github.com/hyattpd/prodigal/wiki.
         """
     ),
 )
@@ -95,7 +99,7 @@ def call_genes_cmd(
 ):
     """
     Call Genes and Filter Fastas
-    - ---------------------------
+    ----------------------------
 
     Prodigal is one of many tools that we use in the DRAM pipeline. You will
     notice that this function not only calls Prodigal, it also performs a number
@@ -170,7 +174,7 @@ def call_genes(
 ) -> dict:
     """
     Call Genes in FASTAs With Prodigal
-    - -------------------
+    --------------------
 
     Prodigal is one of many tools that we use in the DRAM pipeline. You will
     notice that this function not only calls prodigal it also performs a number
