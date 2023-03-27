@@ -83,22 +83,24 @@ LATEST_TAG: str = "latest"
 FASTA_COL = "fasta"
 GENE_ID_COL = "gene_ids"
 
+# TODO These should be moved to the packege they prep for
 METABOLISM_KEGG_SET = AnnotationSet(
     "Distilate: Metabolism",
-    "metabolism",
-    ["kegg", "dbcan", "pfam", "heme", "merops"],
+    "metabolism_set",
+    ["stats", "kegg", "dbcan", "pfam", "heme", "merops"],
     "Use this set of annotations to get the most out of the metabolism distilate.",
 )
 METABOLISM_SET = AnnotationSet(
     "Distilate: Metabolism with KEGG",
-    "metabolism",
-    ["kofam", "dbcan", "pfam", "heme", "merops"],
+    "metabolism_kegg_set",
+    ["stats", "kofam", "dbcan", "pfam", "heme", "merops"],
     "Use this set of annotations to get the most out of the metabolism distilate.",
 )
 ADJECTIVES_SET = AnnotationSet(
     "Adjectives",
     "adjectives",
     [
+        "stats",
         "kofam",
         "dbcan",
         "pfam",
@@ -115,6 +117,7 @@ ADJECTIVES_KEGG_SET = AnnotationSet(
     "Adjectives with KEGG",
     "adjectives_kegg",
     [
+        "stats",
         "kegg",
         "dbcan",
         "pfam",
@@ -188,7 +191,11 @@ def get_annotation_ids_by_row(data: pd.DataFrame, db_kits: list) -> pd.DataFrame
     Extract the annotaion IDs from each row.
 
     Extract the annotaion IDs from each row and return a data frame with a new column
-    with name DBSETS_COL containing these sets.: param data:: param db_kits:    : returns:
+    with name DBSETS_COL containing these sets.
+
+    :param data:
+    :param db_kits:
+    :returns:
     """
     # if groupby_column is not None:
     #     data.set_index(groupby_column, inplace=True)
@@ -213,7 +220,10 @@ def get_all_annotation_ids(ids_by_row) -> dict:
 
     Take the output from get annotation_ids_by_row and combine all the sets there in
     and return the ids and the counts. this will be the count of ids found in the full
-    set. This is typicaly used with a groupby.: param ids_by_row: the output from get_annotation_ids_by_row: returns:
+    set. This is typicaly used with a groupby.
+
+    :param ids_by_row: the output from get_annotation_ids_by_row
+    :returns:
     """
     out = Counter(chain(*ids_by_row[DBSETS_COL].values))
     return out
@@ -228,7 +238,11 @@ def check_for_annotations(
 
     This method is not intended for the annotations themselves but for
     downstream processes that depend on these annotations. It is used to check if the list of annotations passed with the
-    annotation_sets argument are present.: param annotation_sets:: param annotation_meta:    : returns:
+    annotation_sets argument are present.
+
+    :param annotation_sets:
+    :param annotation_meta:
+    :returns:
     """
     dbs_we_have: set = annotation_meta.used_dbs
     you_need = [{j for j in i if j not in dbs_we_have} for i in annotation_sets]
@@ -241,27 +255,28 @@ def check_for_annotations(
     ]
     if len(you_need_or) < len(you_need_and):
         you_need_or = []
-    error_message = """
-        You are trying to use a DRAM2 function that requires
-        specific annotations which this DRAM project does not
-        have yet.\n
-        """
+    error_message = (
+        "You are trying to use a DRAM2 function that requires"
+        "specific annotations which this DRAM project does not"
+        "have yet.\n"
+    )
     if len(you_need_and) > 0:
-        error_message += f""" You need to run annotate with with: [{', '.join(you_need_and)}].\n
-            The command to do that is like `dram2 - o this_output_dir
-             annotate - -use_db {' --use_db '.join(you_need_and)}`
-            "\n"
-        """
+        error_message += (
+            f"You need to run annotate with with: [{', '.join(you_need_and)}].\n"
+            f"The command to do that is like `dram2 - o this_output_dir "
+            f"annotate - -use_db {' --use_db '.join(you_need_and)}`"
+            f"\n"
+        )
         if len(you_need_or) > 0:
             error_message += "Also!\n"
     if len(you_need_or) > 0:
         error_message += (
             f"You need to annotate with:" f" {' or '.join(you_need_or)}\n\n"
         )
-    error_message += """
-        You should still review the docs to make sure you are
-        running the program correctly to get results you want.
-        """
+    error_message += (
+        "You should still review the docs to make sure you are "
+        "running the program correctly to get results you want."
+    )
     return error_message
 
 
@@ -279,7 +294,11 @@ def check_fasta_names(fastas: list[Fasta]):
 
 def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
     """
-    Take a path and make a genes fasta object.: param fasta_loc: : param working_dir: : returns:
+    Take a path and make a genes fasta object.
+
+    :param fasta_loc:
+    :param working_dir:
+    :returns:
     """
     fasta_name = fasta_loc.stem
     fasta_working_dir = working_dir / fasta_name
@@ -294,22 +313,18 @@ def make_mmseqs_db_for_fasta(
         return fasta
     if fasta.tmp_dir is None:
         raise ValueError(
-            """
-            Some how a fasta was passed to the function that makes mmseqs databases
-            which did not have an associated temporary directory in which to put that
-            mmseqs-db. Please kindly file a bug report on GitHub. This indicates that
-            the developer probably made a mistake.
-            """
+            "Some how a fasta was passed to the function that makes mmseqs databases "
+            "which did not have an associated temporary directory in which to put that "
+            "mmseqs-db. Please kindly file a bug report on GitHub. This indicates that "
+            "the developer probably made a mistake."
         )
     if fasta.faa is None:
         raise ValueError(
-            """
-            Some how a fasta was passed to the function that makes mmseqs
-            databases which did not have an associated faa directory in
-            which to put that mmseqs-db. Please kindly file a bug report on
-            GitHub. This indicates that the developer probably made a
-            mistake
-            """
+            "Some how a fasta was passed to the function that makes mmseqs "
+            "databases which did not have an associated faa directory in "
+            "which to put that mmseqs-db. Please kindly file a bug report on "
+            "GitHub. This indicates that the developer probably made a "
+            "mistake."
         )
     fasta.tmp_dir.mkdir(exist_ok=True, parents=True)
     mmsdb = fasta.tmp_dir / "gene.mmsdb"
@@ -643,10 +658,8 @@ def annotate(
     db_len_dif = len(custom_hmm_db_name) - len(custom_hmm_db_cutoffs_loc)
     if db_len_dif < 0:
         raise DramUsageError(
-            """
-            There are more hmm cutoff files provided then custom hmm
-            databases provided.
-            """
+            "There are more hmm cutoff files provided then custom hmm "
+            "databases provided."
         )
 
     custom_hmm_db_cutoffs_loc = list(custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
@@ -659,10 +672,8 @@ def annotate(
 
     if len(databases) < 1:
         logger.warning(
-            """
-            No databases were selected. There is nothing for DRAM to do but
-            save progress and exit.
-            """
+            "No databases were selected. There is nothing for DRAM to do but "
+            "save progress and exit."
         )
         new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
     else:
@@ -690,10 +701,8 @@ def annotate(
     # could be a match statement
     if past_annotation_meta is not None:
         logger.info(
-            """
-             Found past annotations in project config, DRAM will attempt
-             to merge new annotations.
-            """
+            "Found past annotations in project config, DRAM will attempt "
+            "to merge new annotations."
         )
         past_annotations = pd.read_csv(
             output_dir / past_annotation_meta.annotation_tsv,
@@ -706,10 +715,8 @@ def annotate(
         # The only case we update past dbs
     elif force and annotation_tsv.exists():
         logger.info(
-            """
-            Found past annotations in the output path, DRAM will
-            attempt to force-fully merge new annotations.
-            """
+            "Found past annotations in the output path, DRAM will"
+            "attempt to force-fully merge new annotations."
         )
         past_annotations = pd.read_csv(
             annotation_tsv,
@@ -912,7 +919,7 @@ def annotate_cmd(
 ):
     """
     Annotate Genes with Gene Database
-    ---
+    - --
 
     Get gene identifiers from a set of databases and format them for other
     DRAM2 analysis tools. To use this tool, your genes should already be
@@ -1008,7 +1015,7 @@ def list_databases():
 def list_database_sets():
     """
     List available database sets
-    ---
+    - --
 
     List the available database sets to use in for annotation. Output includes:
         - formal name

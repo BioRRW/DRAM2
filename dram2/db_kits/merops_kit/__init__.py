@@ -26,8 +26,8 @@ CITATION = (
 )
 
 
-class PeptidaseDescription(BASE):
-    __tablename__ = "peptidase_description"
+class MeropsDescription(BASE):
+    __tablename__ = "merops_description"
 
     id = Column(String(10), primary_key=True, nullable=False, index=True)
 
@@ -36,33 +36,33 @@ class PeptidaseDescription(BASE):
     @property
     def serialize(self):
         return {
-            "peptidase_id": self.id,
-            "peptidase_description": self.description,
+            "merops_id": self.id,
+            "merops_description": self.description,
         }
 
 
-# def get_peptidase_description(peptidase_hits, header_dict):
-#     peptidase_list: list[str] = list()
-#     peptidase_family: list[str] = list()
-#     peptidase_descirption: list[str] = list()
-#     for peptidase_hit in peptidase_hits.peptidase_id:
-#         header = header_dict[peptidase_id]
-#         peptidase_list.append(peptidase_id)
-#         peptidase_family.append(re.search(r"#\w*.#", header).group()[1:-1])
-#         peptidase_descirption.append(header)
+# def get_merops_description(merops_hits, header_dict):
+#     merops_list: list[str] = list()
+#     merops_family: list[str] = list()
+#     merops_descirption: list[str] = list()
+#     for merops_hit in merops_hits.merops_id:
+#         header = header_dict[merops_id]
+#         merops_list.append(merops_id)
+#         merops_family.append(re.search(r"#\w*.#", header).group()[1:-1])
+#         merops_descirption.append(header)
 #     new_df = pd.DataFrame(
-#         [peptidase_list, peptidase_family, peptidase_descirption],
-#         index=["peptidase_id", "peptidase_family", "peptidase_hit"],
-#         columns=peptidase_hits.index,
+#         [merops_list, merops_family, merops_descirption],
+#         index=["merops_id", "merops_family", "merops_hit"],
+#         columns=merops_hits.index,
 #     )
 #     return pd.concat(
-#         [new_df.transpose(), peptidase_hits.drop("peptidase_hit", axis=1)],
+#         [new_df.transpose(), merops_hits.drop("merops_hit", axis=1)],
 #         axis=1,
 #         sort=False,
 #     )
 
 
-def get_peptidase_descriptions(
+def get_merops_descriptions(
     hits: pd.DataFrame, header_dict: dict[str, str], db_name: str
 ) -> pd.DataFrame:
     """
@@ -80,10 +80,16 @@ def get_peptidase_descriptions(
     return descriptions
 
 
-class PeptidaseKit(DBKit):
+class MeropsKit(DBKit):
+    """
+    The DBKit object for peptiadse
 
-    name = "peptidase"
-    formal_name: str = "Peptidase"
+    :attribute mmsdb:
+    :attribute description_db:
+    """
+
+    name = "merops"
+    formal_name: str = "MEROPS Peptidases"
     citation: str = CITATION
 
     def load_dram_config(self):
@@ -91,7 +97,7 @@ class PeptidaseKit(DBKit):
         self.description_db = SQLDescriptions(
             self.get_config_path("description_db"),
             self.logger,
-            PeptidaseDescription,
+            MeropsDescription,
             self.name,
         )
 
@@ -116,12 +122,14 @@ class PeptidaseKit(DBKit):
         header_dict = self.description_db.get_descriptions(
             hits[f"{self.name}_hit"], f"description"
         )
-        return get_peptidase_descriptions(hits, header_dict, self.name)
+        return get_merops_descriptions(hits, header_dict, self.name)
 
     def get_ids(self, annotations: pd.Series) -> list:
-        main_id = "peptidase_family"
+        main_id = "merops_family"
         if main_id not in annotations:
-            self.logger.debug(f"Expected {main_id} to be in annotations,  but it was not found")
+            self.logger.debug(
+                f"Expected {main_id} to be in annotations,  but it was not found"
+            )
         elif not pd.isna(annotations[main_id]):
             return [j for j in str(annotations[main_id]).split(";")]
         return []
