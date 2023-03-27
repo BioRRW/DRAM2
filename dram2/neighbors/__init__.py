@@ -9,6 +9,7 @@ import click
 
 from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
 
+
 def find_neighborhoods(
     annotations, genes_from_ids, distance_bp=None, distance_genes=None
 ):
@@ -48,7 +49,6 @@ def find_neighborhoods(
 
     # merge data frames and write to file
     return pd.concat(neighborhood_frames)
-
 
 
 def get_gene_neighborhoods(
@@ -132,7 +132,7 @@ def get_gene_neighborhoods(
                         scaffold[
                             neighborhood_frame["start_position"][
                                 0
-                            ] : neighborhood_frame["end_position"][-1]
+                            ]: neighborhood_frame["end_position"][-1]
                         ]
                     )
         write_sequence(
@@ -142,15 +142,19 @@ def get_gene_neighborhoods(
         )
         logging.info("Scaffolds Neighborhood fasta generated")
 
-@click.command('neighbors')
+
+@click.command(
+    "neighbors",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.pass_context
 def neighbors_cmd(
     ctx: click.Context,
 ):
     """
     Pull Genes based on Their Neighborhoods
-    ___ 
-    
-    DRAM2 Can pull genes based on their proximity to other genes. I have not even written documentation for this yet. 
+    ___
+
+    DRAM2 Can pull genes based on their proximity to other genes. I have not even written documentation for this yet.
     """
     print("This command requires more work to function in dram2")

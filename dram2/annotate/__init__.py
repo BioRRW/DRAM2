@@ -776,6 +776,7 @@ def merge_past_annotations(
 
 @click.command(
     "annotate",
+    context_settings=dict(help_option_names=["-h", "--help"]),
 )
 @click.argument(
     "gene_fasta_paths",

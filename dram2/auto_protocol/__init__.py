@@ -6,7 +6,10 @@ Auto Protocalls
 import click
 from dram2.cli.context import DramContext, __version__
 
-@click.command("protocal")
+
+@click.command("protocal",
+               context_settings=dict(help_option_names=["-h", "--help"]),
+               )
 # @click.argument(
 #     "fasta_paths",
 #     type=click.Path(exists=True, path_type=Path),

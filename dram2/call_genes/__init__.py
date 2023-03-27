@@ -28,7 +28,11 @@ DEFAULT_TRANS_TABLE: str = "11"
 DEFAULT_GENES_FILE: str = "genes"
 GENES_RUN_TAG: str = "genes"
 
-@click.command("call")
+
+@click.command(
+    "call",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.argument(
     "fasta_paths",
     type=click.Path(exists=True, path_type=Path),
@@ -39,8 +43,10 @@ GENES_RUN_TAG: str = "genes"
     "--force",
     is_flag=True,
     help=(
-        "Remove all called genes and information about them, you"
-        " will only get the current set of genes from the command"
+        """
+        Remove all called genes and information about them, you will only get the
+        current set of genes from the command not the genes from past runs of call.
+        """
     ),
 )
 @click.option(
@@ -48,9 +54,11 @@ GENES_RUN_TAG: str = "genes"
     default=DEFAULT_PRODIGAL_MODE,
     type=click.Choice(["train", "meta", "single"], case_sensitive=False),
     help=(
-        "Mode of prodigal to use for gene calling. NOTE: normal"
-        " or single mode require genomes which are high quality with"
-        " low contamination and long contigs (average length >3 Kbp)."
+        """
+        Mode of prodigal to use for gene calling. NOTE: normal or single mode require
+        genomes which are high quality with low contamination and long
+        contigs(average length > 3 Kbp).
+        """
     ),
 )
 @click.option(
@@ -58,9 +66,10 @@ GENES_RUN_TAG: str = "genes"
     default=None,
     type=click.Path(path_type=Optional[Path]),
     help=(
-        "Mode of prodigal to use for gene calling. NOTE: normal or"
-        " single mode require genomes which are high quality with low"
-        " contamination and long contigs (average length >3 Kbp)."
+        """
+        The directory to store the genes files to be used or deleated latter. This
+        feature is beta.
+        """
     ),
 )
 @click.option(
@@ -68,10 +77,10 @@ GENES_RUN_TAG: str = "genes"
     type=click.Choice([str(i) for i in range(1, 26)], case_sensitive=False),
     default=DEFAULT_TRANS_TABLE,
     help=(
-        "Mode of prodigal to use for gene calling. NOTE:"
-        " normal or single mode require genomes which are high quality"
-        " with low contamination and long contigs"
-        " (average length >3 Kbp)."
+        """
+        Prodigal trans tables to use for gene calling. Read more about this option in
+        the prodigal wiki: https://github.com/hyattpd/prodigal/wiki.
+        """
     ),
 )
 @click.pass_context
@@ -86,7 +95,7 @@ def call_genes_cmd(
 ):
     """
     Call Genes and Filter Fastas
-    ----------------------------
+    - ---------------------------
 
     Prodigal is one of many tools that we use in the DRAM pipeline. You will
     notice that this function not only calls Prodigal, it also performs a number
@@ -96,21 +105,13 @@ def call_genes_cmd(
     This command takes a positional argument/arguments namely FASTAs. The FASTA
     are path/paths to FASTAs representing mags or other genome collections of
     uncalled genes. This means that the use of the program will look like
-    this::
+    this: :
 
-       dram2 -o dram_dir call <option> /some/path/*.fasta
+       dram2 -d dram_dir call <option> /some/path/*.fasta
 
-    or This ::
+    or This::
 
-       dram2 -o dram_dir call <option> /some/path/fasta1.fasta /some/path/fasta2.fasta
-
-    :param ctx:
-    :param fasta_paths:
-    :param genes_dir:
-    :param min_contig_size:
-    :param prodigal_mode:
-    :param prodigal_trans_tables:
-    :param force:
+       dram2 -d dram_dir call <option> /some/path/fasta1.fasta / some/path/fasta2.fasta
     """
     context: DramContext = ctx.obj
     logger = context.get_logger()
@@ -122,7 +123,7 @@ def call_genes_cmd(
     if genes_dir is None:
         genes_dir = output_dir / DEFAULT_GENES_FILE
 
-    project_config: dict = context.get_project_config()
+    project_meta: dict = context.get_project_meta()
     # get assembly locations
 
     try:
@@ -134,7 +135,7 @@ def call_genes_cmd(
             logger=logger,
             run_id=run_id,
             working_dir=genes_dir,
-            project_config=project_config,
+            project_meta=project_meta,
             keep_tmp=keep_tmp,
             min_contig_size=min_contig_size,
             prodigal_mode=prodigal_mode,
@@ -142,8 +143,8 @@ def call_genes_cmd(
             force=force,
         )
 
-        project_config.update(new_config)
-        context.set_project_config(project_config)
+        project_meta.update(new_config)
+        context.set_project_meta(project_meta)
 
     except Exception as e:
 
@@ -152,13 +153,14 @@ def call_genes_cmd(
 
         raise e
 
+
 def call_genes(
     output_dir: Path,
     fasta_paths: list[Path],
     cores: int,
     logger: logging.Logger,
     working_dir: Path,
-    project_config: dict,
+    project_meta: dict,
     run_id: str,
     keep_tmp: bool,
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
@@ -168,7 +170,7 @@ def call_genes(
 ) -> dict:
     """
     Call Genes in FASTAs With Prodigal
-    --------------------
+    - -------------------
 
     Prodigal is one of many tools that we use in the DRAM pipeline. You will
     notice that this function not only calls prodigal it also performs a number
@@ -179,14 +181,24 @@ def call_genes(
 
       - split this into smaller functions
 
-
-    :param ctx: The context passed from click
-    :param fasta_paths: A list of FASTA files, probably each representing a BIN from a MAG.
-    :param min_contig_size: The minimum contig size for DRAM to consider calling genes on
-    :param prodigal_mode: Mode of prodigal to use, see prodigal documentation for more info
-    :param prodigal_trans_tables: The number of trans tables to use for prodigal see the
-        prodigal documentation for more information on this
-    :raises ValueError:
+    :param output_dir: The output directory, usually the same as a DRAM dir.
+    :param fasta_paths: A list of paths to FASTA files, probably each representing a
+    BIN from a MAG.
+    :param cores: The number of threads or cpu's
+    :param logger: The logger object
+    :param working_dir: The temporary directory.
+    :param min_contig_size: The minimum contig size for DRAM to consider calling genes
+    on.
+    :param prodigal_mode: Mode of prodigal to use, see prodigal documentation for more
+    info.
+    :param prodigal_trans_tables: The number of trans tables to use for prodigal see
+    the prodigal documentation for more information on this.
+    :param project_meta: Meta data for dram actions
+    :param run_id: The id for the metadata
+    :param keep_tmp: Don't remove temp file
+    :param force: Erase past work in the project and call genes again
+    :returns: A new project meta data dictionary
+    :raises DramUsageError: If genes are not found.
     """
 
     # get assembly locations
@@ -196,16 +208,14 @@ def call_genes(
             f" fully deleted from: {working_dir}"
         )
         _ = [rmtree(x) for x in working_dir.glob("**/*") if not x.is_file()]
-        clean_called_genes(output_dir, project_config, logger)
+        clean_called_genes(output_dir, project_meta, logger)
         old_names = []
     else:
         old_names = (
             []
-            if "genes_called" not in project_config
+            if "genes_called" not in project_meta
             else [
-                j[0]
-                for i in project_config["genes_called"].values()
-                for j in i["fastas"]
+                j[0] for i in project_meta["genes_called"].values() for j in i["fastas"]
             ]
         )
     logger.info(f"Started calling genes for {len(fasta_paths)} fasta/s.")
@@ -244,10 +254,8 @@ def call_genes(
     return new_config
 
 
-
-
-def clean_called_genes(output_dir: Path, project_config: dict, logger: logging.Logger):
-    if (genes_called := project_config.get("genes_called")) is not None:
+def clean_called_genes(output_dir: Path, project_meta: dict, logger: logging.Logger):
+    if (genes_called := project_meta.get("genes_called")) is not None:
         for i in genes_called.values():
             if (
                 genes_path := import_posible_path(i["working_dir"], output_dir)
@@ -258,7 +266,8 @@ def clean_called_genes(output_dir: Path, project_config: dict, logger: logging.L
 
 def filter_fasta(fasta_loc: Path, min_len, output_loc) -> Optional[list]:
     """
-    Removes sequences shorter than a set minimum from FASTA files, outputs an object or to a file
+    Removes sequences shorter than a set minimum from FASTA files, outputs an object or
+    to a file.
 
     TODO:
 
@@ -266,8 +275,7 @@ def filter_fasta(fasta_loc: Path, min_len, output_loc) -> Optional[list]:
 
     :param fasta_loc: A FASTA file path, probably a BIN from a MAG.
     :param min_len: The minimum contig size for DRAM to consider calling genes on
-    :param output_loc: It's the output location
-    :returns:
+    :param output_loc: It's the output location: returns:
     """
     kept_seqs = (
         seq
@@ -330,7 +338,7 @@ def run_prodigal(
 ) -> tuple[Path, Path, Path]:
     """
     Run Prodigal
-    -----------
+    - ----------
 
     Runs the prodigal gene caller on a given FASTA file, outputs resulting files
     to the "tmp_dir" directory, this is usually but not always temporary.
@@ -341,7 +349,6 @@ def run_prodigal(
         efficient execution. That is however only an assumption and needs
         profiling to confirm.
       - Filtering may not be totally necessary, explore this option.
-
 
     :param filtered_fasta: The already filtered FASTA file, filtering may not be necessary
     :param tmp_dir: Output file, usually temporary but not every time
@@ -400,10 +407,11 @@ def get_fasta_names_dirs(
     logger: logging.Logger,
 ) -> list[Fasta]:
     """
-    :param fasta_paths: A list of FASTA files, probably each representing a BIN from a MAG.
+    :param fasta_paths: A list of FASTA files, probably each representing a BIN from a
+    MAG.
     :param working_dir:
-    :raises ValueError: If the file names are not unique
-    :returns:
+     :raises ValueError: If the file names are not unique
+     :returns: A list of fasta files with names called
     """
     with Pool(cores) as p:
         fasta_names: list[str] = p.map(get_fasta_name, fasta_paths)

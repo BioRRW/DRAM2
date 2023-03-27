@@ -15,11 +15,22 @@ from typing import Optional
 from dram2.rule_adjectives.annotations import (
     Annotations,
     SULFUR_ID,
-    FEGENIE_ID,COLUMN_SET
+    FEGENIE_ID,
+    COLUMN_SET,
 )
 from dram2.tree_kit import NXR_NAR_TREE, AMOA_PMOA_TREE
 
-LEAF_NODES = ["ko", "camper", "fegenie", "sulfur", "PF", "ec", "columnvalue", NXR_NAR_TREE.name, AMOA_PMOA_TREE.name]
+LEAF_NODES = [
+    "ko",
+    "camper",
+    "fegenie",
+    "sulfur",
+    "PF",
+    "ec",
+    "columnvalue",
+    NXR_NAR_TREE.name,
+    AMOA_PMOA_TREE.name,
+]
 
 
 def parse_ands(logic: str):
@@ -30,7 +41,7 @@ def parse_ands(logic: str):
         if c == "]":
             depth -= 1
         if c == "&" and depth == 0:
-            return parse_ands(logic[:i]) + parse_ands(logic[i + 1 :])
+            return parse_ands(logic[:i]) + parse_ands(logic[i + 1:])
     return [logic]
 
 
@@ -42,7 +53,7 @@ def parse_ors(logic: str):
         if c == "]":
             depth -= 1
         if c == "|" and depth == 0:
-            return parse_ors(logic[:i]) + parse_ors(logic[i + 1 :])
+            return parse_ors(logic[:i]) + parse_ors(logic[i + 1:])
     return [logic]
 
 
@@ -54,7 +65,7 @@ def parse_steps(logic: str):
         if c == "]":
             depth -= 1
         if c == "," and depth == 0:
-            return parse_steps(logic[:i]) + parse_steps(logic[i + 1 :])
+            return parse_steps(logic[:i]) + parse_steps(logic[i + 1:])
     return [logic]
 
 
@@ -135,7 +146,7 @@ def pf_func(pf: str, annotations):
 
 class RuleParser:
     def __init__(
-        self, rule_path:Path, verbose: bool = False, adjectives: set[str] = None
+        self, rule_path: Path, verbose: bool = False, adjectives: set[str] | None = None
     ):
 
         self.annotations = None
@@ -239,11 +250,15 @@ class RuleParser:
             self.G.add_edge(parent, nodeid)
             return
         for tree_name in [NXR_NAR_TREE.name, AMOA_PMOA_TREE.name]:
-            
+
             if re.match(rf"^{tree_name}>[0-9A-z]+$", logic):
                 nodeid = logic.removeprefix(f"{tree_name}>")
                 self.G.add_node(
-                    nodeid, display=nodeid, type=tree_name, function=tree_func, genomes={}
+                    nodeid,
+                    display=nodeid,
+                    type=tree_name,
+                    function=tree_func,
+                    genomes={},
                 )
                 self.G.add_edge(parent, nodeid)
                 return
@@ -310,7 +325,9 @@ class RuleParser:
             if self.G[node].get("type") != "steps" or True:
                 self._add_to_dot(i)
 
-    def plot_rule(self, output_folder, adjectives: Optional[list] = None, show_steps=False):
+    def plot_rule(
+        self, output_folder, adjectives: Optional[list] = None, show_steps=False
+    ):
         self.dot = graphviz.Digraph(strict=True)
         self.show_steps = show_steps
         if adjectives is None:
@@ -440,7 +457,8 @@ class RuleParser:
                         f"The adjective {adjective} requires output from the "
                         f"Phylo-genetic tree {NXR_NAR_TREE.name}. Data from "
                         f"that tree can't be found so this adjective will not "
-                        f"be evaluated.")
+                        f"be evaluated."
+                    )
                     return False
         if AMOA_PMOA_TREE.name not in self.tree_data:
             for i in nx.descendants(self.G, node):
@@ -449,7 +467,8 @@ class RuleParser:
                         f"The adjective {adjective} requires output from the "
                         f"Phylo-genetic tree {AMOA_PMOA_TREE.name}. Data from "
                         f"that tree can't be found so this adjective will not "
-                        f"be evaluated.")
+                        f"be evaluated."
+                    )
                     return False
         if SULFUR_ID in missing:
             for i in nx.descendants(self.G, node):
@@ -458,7 +477,8 @@ class RuleParser:
                         f"The adjective {adjective} requires output from the "
                         f" annotation with the Sulfur database. Data from "
                         f"that database can't be found so this adjective will not "
-                        f"be evaluated.")
+                        f"be evaluated."
+                    )
                     return False
         if FEGENIE_ID in missing:
             for i in nx.descendants(self.G, node):
@@ -467,11 +487,17 @@ class RuleParser:
                         f"The adjective {adjective} requires output from the "
                         f" annotation with the FeGenie database. Data from "
                         f"that database can't be found so this adjective will not "
-                        f"be evaluated.")
+                        f"be evaluated."
+                    )
                     return False
         return True
 
-    def check_genomes(self, annot: Annotations, logger: logging.Logger, tree_data: dict[str, pd.Series]):
+    def check_genomes(
+        self,
+        annot: Annotations,
+        logger: logging.Logger,
+        tree_data: dict[str, pd.Series],
+    ):
         # TODO make names and flags
         self.annot = annot
         self.logger = logger
@@ -503,7 +529,9 @@ class RuleParser:
             case "ko":
                 return self.G.nodes[node]["function"](node, annotations)
             case NXR_NAR_TREE.name:
-                return tree_func(self.tree_data[NXR_NAR_TREE.name]['labels'], node, genome_name)
+                return tree_func(
+                    self.tree_data[NXR_NAR_TREE.name]["labels"], node, genome_name
+                )
             case AMOA_PMOA_TREE.name:
                 return tree_func(self.tree_data[AMOA_PMOA_TREE.name], node, genome_name)
             case "camper":
@@ -643,4 +671,3 @@ def get_positive_genes(rules, annotations, adjectives_dat):
     gene_adj = gene_adj[gene_adj["positive_ids"].apply(len) > 0]
     gene_adj["positive_ids"] = gene_adj["positive_ids"].apply(lambda x: ",".join(x))
     return gene_adj
-

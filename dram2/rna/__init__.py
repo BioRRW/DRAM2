@@ -1,8 +1,8 @@
 """
-RNA Tools 
+RNA Tools
 _________
 
-One of DRAM's many subsidiary 
+One of DRAM's many subsidiary
 
 """
 
@@ -25,6 +25,7 @@ RAW_RRNA_COLUMNS = [
 ]
 RRNA_COLUMNS = ["fasta", "begin", "end", "strand", "type", "e-value", "note"]
 
+
 def get_dups(columns):
     keep = list()
     seen = list()
@@ -35,6 +36,7 @@ def get_dups(columns):
             seen.append(column)
             keep.append(True)
     return keep
+
 
 def count_motifs(gene_faa, motif="(C..CH)"):
     motif_count_dict = dict()
@@ -107,8 +109,6 @@ def run_barrnap(fasta, fasta_name, logger, threads=10):
         return None
 
 
-
-
 def run_trna_scan(
     fasta,
     tmp_dir,
@@ -155,7 +155,11 @@ def pull_trna():
     #     trna_table.to_csv(trna_loc, sep='\t', index=False)
     #     add_intervals_to_gff(trna_loc, renamed_gffs, len_dict, make_trnas_interval, 'Name', logger)
 
-@click.command('pull_rrna')
+
+@click.command(
+    "pull_rrna",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.pass_context
 def pull_rrna_cmd(
     ctx: click.Context,
@@ -169,7 +173,8 @@ def pull_rrna_cmd(
     print("This command requires more work to work in dram2")
     pull_rrna()
 
-@click.command('pull_trna')
+
+@click.command("pull_trna")
 @click.pass_context
 def pull_trna_cmd(
     ctx: click.Context,

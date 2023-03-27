@@ -7,6 +7,7 @@ Use PPlacer to put genes o a set of trees.
 """
 import os
 import logging
+from pathlib import Path
 import pandas as pd
 from dram2.utils import run_process
 
@@ -19,7 +20,7 @@ class DramTree:
     def __init__(
         self,
         name,
-        pplacer_profile: str,
+        pplacer_profile: Path,
         reference_seq: str,
         gene_mapping_path: str,
         color_mapping_path: str,
@@ -49,7 +50,7 @@ class DramTree:
         """ """
         self.logger.info("Aligning sequences with MAFFT")
         # The file at the end of the output path has the extension 'fasta'!
-        output_path = os.path.join(working_dir, f"{QUERY_TMP_NAME}.fasta")
+        output_path = working_dir / f"{QUERY_TMP_NAME}.fasta"
         if os.path.exists(output_path):
             self.logger.warn(
                 f"The alignment file {output_path} already "

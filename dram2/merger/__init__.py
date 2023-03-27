@@ -14,16 +14,19 @@ import click
 import pandas as pd
 
 from dram2.cli.context import (
-    DramContext, DEFAULT_KEEP_TMP, __version__, get_time_stamp_id)
+    DramContext,
+    DEFAULT_KEEP_TMP,
+    __version__,
+    get_time_stamp_id,
+)
 from dram2.utils import merge_files
 
 
-def merge_gtdb_taxonomy(annotations: pd.DataFrame,
-                        gtdb_taxonomy_paths: list[Path],
-                        logger: logging.Logger):
+def merge_gtdb_taxonomy(
+    annotations: pd.DataFrame, gtdb_taxonomy_paths: list[Path], logger: logging.Logger
+):
     gtdb_taxonomy = pd.concat(
-        [pd.read_csv(i, sep="\t", index_col=0)
-         for i in gtdb_taxonomy_paths]
+        [pd.read_csv(i, sep="\t", index_col=0) for i in gtdb_taxonomy_paths]
     )
     taxonomy = list()
     taxonomy_missing_bins = list()
@@ -57,19 +60,16 @@ def merge_gtdb_taxonomy(annotations: pd.DataFrame,
 #                     copy2(gbk_loc, gbk_dir)
 
 
-def merge_checkm_quality(annotations: pd.DataFrame,
-                         checkm_quality_path: Path,
-                         logger: logging.Logger
-                         ):
+def merge_checkm_quality(
+    annotations: pd.DataFrame, checkm_quality_path: Path, logger: logging.Logger
+):
     checkm_quality = pd.concat(
         [pd.read_csv(i, sep="\t", index_col=0) for i in checkm_quality_path]
     )
     checkm_quality.index = [
-        (str(i)
-         .removesuffix(".fa")
-         .removesuffix(".fasta")
-         .removesuffix(".fna")
-         ) for i in checkm_quality.index]
+        (str(i).removesuffix(".fa").removesuffix(".fasta").removesuffix(".fna"))
+        for i in checkm_quality.index
+    ]
 
     completeness = list()
     contamination = list()
@@ -92,9 +92,11 @@ def merge_checkm_quality(annotations: pd.DataFrame,
     annotations["bin_contamination"] = contamination
 
 
-@click.group('merge',
-             )
-@click.option('--safe/--un_safe', is_flag=True)
+@click.group(
+    "merge",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
+@click.option("--safe/--un_safe", is_flag=True)
 @click.argument(
     "gene_fasta_paths",
     type=click.Path(exists=True, path_type=Path),
@@ -120,7 +122,7 @@ def merge_checkm_quality(annotations: pd.DataFrame,
         directoryies as you want.
         """,
 )
-@ click.pass_context
+@click.pass_context
 def merger_cmd(
     ctx: click.Context,
 ):

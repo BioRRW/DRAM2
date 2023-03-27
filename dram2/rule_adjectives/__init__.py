@@ -22,7 +22,6 @@ from dram2.annotate import (
     check_for_annotations,
 )
 from dram2.annotate import DB_KITS
-from dram2.utils import DramUsageError
 from dram2.db_kits.utils import DBKit
 
 from dram2.tree_kit import (
@@ -66,6 +65,7 @@ def show_rules_path(ctx, param, value):
 
 @click.group(
     "adjectives",
+    context_settings=dict(help_option_names=["-h", "--help"]),
     cls=OrderedGroup,
     help="""Describe Gene Features(Adjectives)\n\n The DRAM2 Adjectives are features,
     defined by a set of rules which themselves are based on key genes and selective use
@@ -99,7 +99,10 @@ def adjectives_cmd(
     pass
 
 
-@click.command("eval")
+@click.command(
+    "eval",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.option(
     "--annotations_tsv_path",
     type=click.Path(exists=True, path_type=Path),
@@ -261,7 +264,8 @@ def evaluate_cmd(
 
         run_id: str = get_time_stamp_id(TREE_TAG)
         annotation_run: AnnotationMeta | None = get_last_annotation_meta(
-            project_config, output_dir)
+            project_config, output_dir
+        )
         if adjectives_tsv_path is not None:
             adjectives_tsv = adjectives_tsv_path
         else:
@@ -433,7 +437,10 @@ def evaluate(
         strainer_data.to_csv(strainer_tsv, sep="\t")
 
 
-@click.command("adjectives_plot")
+@click.command(
+    "adjectives_plot",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.argument(
     "plot_path", type=click.Path(exists=False), default=None
 )  # , help='will become a folder of output plots, no path no plots.')
@@ -487,19 +494,19 @@ def plot_rules_cmd(
 ):
     """
     Make a Set of Plots to Show How Rules are Evaluated
-    - --
+    ---
 
     Understanding how annotations use its rules to call a given gene is
     non-trivial. This function provides a method to name these genes.
 
-    ""
+    """
     context: DramContext = ctx.obj
 
 
 def rule_plot(
     rules_tsv: Path = RULES_TSV_PATH,
-    adjectives: list = None,
-    plot_path: str = None,
+    adjectives: list | None = None,
+    plot_path: str | None = None,
 ):
     """
     Make a pdf plot of a rule to understand it.

@@ -4,6 +4,8 @@ from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
 
 # TODO: make it take an input and output gff location and not overwrite
 # TODO: for some reason 1 is getting added to intervals when added to gff
+
+
 def add_intervals_to_gff(
     annotations_loc, gff_loc, len_dict, interval_function, groupby_column, logger
 ):
@@ -78,6 +80,8 @@ def annotate_gff(input_gff, output_gff, annotations, prefix=None):
             if len(database_information) > 0:
                 line += "%s;" % ";".join(database_information)
         o.write("%s\n" % line)
+
+
 def get_gene_data(fasta_loc):
     """Take the prodigal gene headers and get the scaffold that it came from
     Based on idba_ud 'scaffold_#' scaffold names with gene name after
@@ -139,9 +143,6 @@ def assign_grades(annotations):
             rank = "E"
         grades[gene] = rank
     return pd.DataFrame(grades, index=["rank"]).T
-
-
-
 
 
 def generate_annotated_fasta(
@@ -218,6 +219,7 @@ def rename_fasta(input_fasta, output_fasta, prefix):
         generate_renamed_fasta(input_fasta, prefix), format="fasta", into=output_fasta
     )
 
+
 def make_gbk_from_gff_and_fasta(
     gff_loc="genes.gff", fasta_loc="scaffolds.fna", faa_loc="genes.faa", output_gbk=None
 ):
@@ -276,10 +278,15 @@ def make_gbk_from_gff_and_fasta(
     else:
         open(output_gbk, "w").write(genbank_records)
 
+
 def generate_genbank():
     pass
 
-@click.command('generate_genbank')
+
+@click.command(
+    "generate_genbank",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.pass_context
 def generate_genbank_cmd(
     ctx: click.Context,

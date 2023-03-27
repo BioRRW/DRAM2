@@ -9,7 +9,7 @@ import warnings
 import logging
 
 # from dram2.distill.summarize_vgfs import filter_to_amgs
-import click 
+import click
 import pandas as pd
 
 from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP
@@ -148,35 +148,35 @@ def strainer(
         raise ValueError("DRAM filters yielded no annotations")
 
     # DRAM-v specific filtering
-    #AMGnonsense if putative_amgs:  # get potential amgs
-    #AMGnonsense     # annotations = filter_to_amgs(annotations.fillna(''), max_aux=max_auxiliary_score,
-    #AMGnonsense     #                              remove_transposons=remove_transposons, remove_fs=remove_fs, remove_js=remove_js)
-    #AMGnonsense     annotations = filter_to_amgs(
-    #AMGnonsense         annotations.fillna(""),
-    #AMGnonsense         max_aux=max_auxiliary_score,
-    #AMGnonsense         remove_transposons=remove_transposons,
-    #AMGnonsense         remove_fs=remove_fs,
-    #AMGnonsense     )
-    #AMGnonsense else:
-    #AMGnonsense     # filter based on virsorter categories
-    #AMGnonsense     if virsorter_category is not None:
-    #AMGnonsense         annotations = annotations.loc[
-    #AMGnonsense             [i in virsorter_category for i in annotations.virsorter]
-    #AMGnonsense         ]
-    #AMGnonsense     # filter based on aux scores
-    #AMGnonsense     if aux_scores is not None:
-    #AMGnonsense         annotations = annotations.loc[
-    #AMGnonsense             [i in aux_scores for i in annotations.auxiliary_score]
-    #AMGnonsense         ]
-    #AMGnonsense     # filter based on amg flags
-    #AMGnonsense     if amg_flags is not None:
-    #AMGnonsense         amg_flags = set(amg_flags)
-    #AMGnonsense         annotations = annotations.loc[
-    #AMGnonsense             [
-    #AMGnonsense                 len(set(i) & amg_flags) > 0 if not pd.isna(i) else False
-    #AMGnonsense                 for i in annotations.amg_flags
-    #AMGnonsense             ]
-    #AMGnonsense         ]
+    # AMGnonsense if putative_amgs:  # get potential amgs
+    # AMGnonsense     # annotations = filter_to_amgs(annotations.fillna(''), max_aux=max_auxiliary_score,
+    # AMGnonsense     #                              remove_transposons=remove_transposons, remove_fs=remove_fs, remove_js=remove_js)
+    # AMGnonsense     annotations = filter_to_amgs(
+    # AMGnonsense         annotations.fillna(""),
+    # AMGnonsense         max_aux=max_auxiliary_score,
+    # AMGnonsense         remove_transposons=remove_transposons,
+    # AMGnonsense         remove_fs=remove_fs,
+    # AMGnonsense     )
+    # AMGnonsense else:
+    # AMGnonsense     # filter based on virsorter categories
+    # AMGnonsense     if virsorter_category is not None:
+    # AMGnonsense         annotations = annotations.loc[
+    # AMGnonsense             [i in virsorter_category for i in annotations.virsorter]
+    # AMGnonsense         ]
+    # AMGnonsense     # filter based on aux scores
+    # AMGnonsense     if aux_scores is not None:
+    # AMGnonsense         annotations = annotations.loc[
+    # AMGnonsense             [i in aux_scores for i in annotations.auxiliary_score]
+    # AMGnonsense         ]
+    # AMGnonsense     # filter based on amg flags
+    # AMGnonsense     if amg_flags is not None:
+    # AMGnonsense         amg_flags = set(amg_flags)
+    # AMGnonsense         annotations = annotations.loc[
+    # AMGnonsense             [
+    # AMGnonsense                 len(set(i) & amg_flags) > 0 if not pd.isna(i) else False
+    # AMGnonsense                 for i in annotations.amg_flags
+    # AMGnonsense             ]
+    # AMGnonsense         ]
     if len(annotations) == 0:
         raise ValueError("DRAM-v filters yielded no annotations")
 
@@ -189,8 +189,10 @@ def strainer(
     write_sequence(output_fasta_generator, format="fasta", into=output_fasta)
 
 
-
-@click.command('strainer')
+@click.command(
+    "strainer",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.pass_context
 def strainer_cmd(
     ctx: click.Context,
@@ -200,19 +202,19 @@ def strainer_cmd(
     ___
 
     After you have completed your annotation and distillation, you may want to further analyze genes of interest by making trees or functional modeling. To pull the genes you can use DRAM.py strainer. For example, if you want to pull all pmoa/amoa genes based on KEGG annotations:
-    
+
     DRAM.py strainer --identifiers K10944 -i annotations.tsv -f genes.faa -o amoa_pmoa_genes.faa
-    
+
     Or you might want to blast a few specific genes:
-    
+
     DRAM.py strainer --genes bin.2_scaffold_2_3 bin.4_scaffold_12_42 -i annotations.tsv -f genes.dna -on my_genes.fna
-    
+
     Or maybe you only want to see genes that are involved in glycolysis or the TCA cycle that are from bins from the Roseburia genus:
-    
+
     DRAM.py strainer -i hmp_bins/annotations.tsv -f hmp_bins/genes.fna -o genes.roseburia.glycoloysis_tca.fna --taxonomy g__Roseburia --categories glycolysis TCA
-    
+
     DRAM strainer parameters
-    
+
         Input files:
             Annotations: annotations.tsv file generated during the annotate step
             Input fasta: genes fasta file (.faa or .fna) to be filtered

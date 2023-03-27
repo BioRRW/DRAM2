@@ -38,7 +38,10 @@ PRODUCT_TAG = "product"
 COMMAND_NAME = "distill"
 
 
-@click.command(COMMAND_NAME)
+@click.command(
+    COMMAND_NAME,
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
 @click.option(
     "--annotations_tsv_path",
     type=click.Path(exists=True, path_type=Path),
@@ -212,4 +215,3 @@ def distill_cmd(
 
 def path_str_for_project_config(output_dir, out_path: Optional[Path]) -> Optional[str]:
     return out_path if out_path is None else out_path.relative_to(output_dir).as_posix()
-

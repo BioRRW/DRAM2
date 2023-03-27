@@ -3,12 +3,16 @@ import click
 
 from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__
 
+
 def db_builder():
     print("This comand is comming soon")
 
-@click.command('build_database_set')
+
+@click.command('build_database_set',
+               context_settings=dict(help_option_names=["-h", "--help"]),
+               )
 @click.pass_context
-def db_builder_cmd():
+def db_builder_md():
     """
     Build Your Own Custom DRAM Database (Not Ready)
     ___

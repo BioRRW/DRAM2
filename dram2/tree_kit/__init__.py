@@ -145,6 +145,7 @@ def get_annotations_and_genes_path(
     "-g",
     "genes",
     type=click.Path(exists=True, path_type=Path),
+    context_settings=dict(help_option_names=["-h", "--help"]),
     default=None,
     required=False,
     help="The gene fasta file, genes.faa file from dram combine genes.",

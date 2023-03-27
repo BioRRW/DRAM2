@@ -8,10 +8,20 @@ the memory used by pplacer v1.1 alpha08 (or later) scales with respect to the to
 number of non-gap columns in your query alignment. You can also make it use less memory
 (and run faster) by cutting down the size of your reference tree.
 
-TODO Allow this to use the genes directory instead of this
-TODO Update the clade data type to be more representative
-TODO Maybe switch to FastTree -- or don't
-TODO Make database check tree specific
+Todo:
+----
+ - Allow this to use the genes directory instead of this
+ - Update the clade data type to be more representative
+ - Maybe switch to FastTree -- or don't
+ - Make database check tree specific
+
+Use
+----
+Use like so::
+    conda activate ./dram2_env
+    dram2 --help
+    dram2 phylotree --help
+
 """
 
 # import tempfile
@@ -488,7 +498,8 @@ Notes:
 # make a test set soon
 tree = NXR_NAR_TREE
 logger = logging.getLogger('dram_tree_log')
-annotations = pd.read_csv('example_one/all_bins_combined_3217db_ACTIVE_GENES_annotations.txt', sep='\t', index_col=0)
+annotations = pd.read_csv(
+    'example_one/all_bins_combined_3217db_ACTIVE_GENES_annotations.txt', sep='\t', index_col=0)
 jplace_file = 'example_place_output.jplace'
 """
 
@@ -500,7 +511,7 @@ def clade_info_to_series(
     Note that we use labeled nodes for distance, so the distance is not to the root of a clade but to its nearest endpoint in such a clade this could have unexpected consequences, but it means that we ground our choices in known genes and not in emergent behavior of clades and the labeling algorithm.
 
     """
-    delta: float = None
+    delta: float | None = None
     if clade.label is not None:
         label = clade.label
         place_info = f"{CLADE_INFO_PREFIX} Nearest gene is {clade.nearest[0].end.name}"
@@ -561,7 +572,7 @@ def write_files(
 ):
     """
     Write all the Tree files
-    ---------------_
+    -----------------------
 
 
     FIX THIS
@@ -591,15 +602,13 @@ def end_message(tree_df: pd.DataFrame, tree_name: str) -> str:
     clade_len = sum(tree_df[info_col].str.startswith(CLADE_INFO_PREFIX))
     prox_len = sum(tree_df[info_col].str.startswith(PROXIMITY_INFO_PREFIX))
     fail_len = sum(tree_df[info_col].str.startswith(UNPLACE_PREFIX))
-    return (
-        "Run phylogenetic disambiguation complete."
-        f"\nOf the {full_len} that request phylogenetic"
-        f" placement, {clade_len} genes where placed"
-        f" based on the clade they fell into, {prox_len}"
-        f" were classified based on the relative distance"
-        f" to labeled nodes. There were {fail_len} genes"
-        f" that could not be placed and so remain ambiguous"
-    )
+    return """
+        Run phylogenetic disambiguation complete. \nOf the {full_len} that request
+        phylogenetic placement, {clade_len} genes where placed based on the clade they
+        fell into, {prox_len} were classified based on the relative distance to labeled
+        nodes. There were {fail_len} genes that could not be placed and so remain
+        ambiguous.
+        """
 
 
 # if __name__ == "__main__":
