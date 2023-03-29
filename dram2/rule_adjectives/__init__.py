@@ -1,5 +1,4 @@
 """Contains main entry point to the program and helper functions"""
-import os
 from pathlib import Path
 import logging
 
@@ -77,13 +76,14 @@ def adjectives_cmd(
 ):
     """
     Describe Gene Features(Adjectives)
-    - --
+    ---
 
     The DRAM2 Adjectives are features, defined by a set of rules which themselves are
     based on key genes and selective use of phylogenetic trees.
 
     In order to use this command, you must first complete the following for all genes
     in your project:
+
     - Call the Genes with `dram2 call`
     - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the
       following database:
@@ -93,8 +93,6 @@ def adjectives_cmd(
         - FeGenie
         - Sulfur
     - Add phylogenetic tree information to the annotations with `dram2 philotrees`
-
-    This will make the adjectives.tsv
     """
     pass
 
@@ -156,8 +154,10 @@ def adjectives_cmd(
     "--strainer_tsv",
     type=click.Path(exists=False),
     default=None,
-    help="""The path for a tsv that will pass to strainer to filter genes. The only
-    option at this time is ‘pgtb’ for positive genes that are on true bugs.""",
+    help="""
+    The path for a tsv that will pass to strainer to filter genes. The only
+    option at this time is ‘pgtb’ for positive genes that are on true bugs.
+    """,
 )
 @click.option(
     "--strainer_type",
@@ -169,15 +169,19 @@ def adjectives_cmd(
     "--debug_ids_by_fasta_to_tsv",
     type=click.Path(exists=False),
     default=None,
-    help="""This is a tool to debug the list of IDs found by DRAM it is mostly for
-    experts.""",
+    help="""
+    This is a tool to debug the list of IDs found by DRAM it is mostly for
+    experts.
+    """,
 )
 @click.option(
     "--user_rules_tsv",
     type=click.Path(exists=True),
     default=RULES_TSV_PATH,
-    help="""This is an optional path to a rules file with strict formatting. It will
-    overwrite the original rules file that is stored with the script.""",
+    help="""
+    This is an optional path to a rules file with strict formatting. It will
+    overwrite the original rules file that is stored with the script.
+    """,
 )
 @click.option(
     "--show_rules_path",
@@ -193,9 +197,11 @@ def adjectives_cmd(
     callback=list_adjective_name,
     expose_value=False,
     is_eager=True,
-    help="List the names for all adjectives_tsv that are"
-    " available, you can pass these names to limit the"
-    " adjectives that are evaluated",
+    help="""
+    List the names for all adjectives_tsv that are
+    available, you can pass these names to limit the
+    adjectives that are evaluated
+    """,
 )
 @click.option(
     "--list_id",
@@ -203,9 +209,11 @@ def adjectives_cmd(
     callback=list_adjectives,
     expose_value=False,
     is_eager=True,
-    help="List the names for all adjectives_tsv that are"
-    " available, you can pass these names to limit the"
-    " adjectives that are evaluated",
+    help="""
+    List the names for all adjectives_tsv that are
+    available, you can pass these names to limit the
+    adjectives that are evaluated,
+    """,
 )
 @click.option(
     "-f",
@@ -213,8 +221,10 @@ def adjectives_cmd(
     is_flag=True,
     show_default=True,
     default=False,
-    help="""Skip the normal checks on the dram project_config and just try to use the
-    annotations and trees provided if available.""",
+    help="""
+    Skip the normal checks on the dram project_config and just try to use the
+    annotations and trees provided if available.
+    """,
 )
 @click.pass_context
 def evaluate_cmd(
@@ -233,7 +243,7 @@ def evaluate_cmd(
 ):
     """
      Evaluate Genes and Describe Their Features(Adjectives)
-    ---
+    - --
 
     The DRAM2 Adjectives are features, defined by a set of rules which themselves are
     based on key genes and selective use of phylogenetic trees.
@@ -314,6 +324,105 @@ def evaluate_cmd(
         raise (e)
 
 
+@click.command(
+    "adjectives_plot",
+    context_settings=dict(help_option_names=["-h", "--help"]),
+)
+@click.argument(
+    "plot_path", type=click.Path(exists=False), default=None
+)  # , help='will become a folder of output plots, no path no plots.')
+@click.option(
+    "-a",
+    "--adjectives",
+    multiple=True,
+    default=[],
+    help="""
+    A list of adjectives, by name, to evaluate. This limits the number of adjectives
+    that are evaluated and is faster.
+    """,
+)
+@click.option(
+    "--rules_tsv",
+    type=click.Path(exists=True),
+    default=RULES_TSV_PATH,
+    help="The path that will become a folder of output plots, no path no plots.",
+)  # , help='The rules file which adhere to strict formatting' )
+@click.option(
+    "--list_name",
+    is_flag=True,
+    callback=list_adjective_name,
+    expose_value=False,
+    is_eager=True,
+    help="""
+    List the names for all adjectives_tsv that are
+    available, you can pass these names to limit the
+    adjectives that are evaluated
+    """,
+)
+@click.option(
+    "--show_rules_path",
+    is_flag=True,
+    callback=show_rules_path,
+    expose_value=False,
+    is_eager=True,
+    help="Show the path to the default rules path.",
+)
+@click.option(
+    "--list_id",
+    is_flag=True,
+    callback=list_adjectives,
+    expose_value=False,
+    is_eager=True,
+    help="""
+    List the names for all adjectives_tsv that are
+    available, you can pass these names to limit the
+    adjectives that are evaluated
+    """,
+)
+@click.pass_context
+def plot_rules_cmd(
+    ctx: click.Context,
+    rules_tsv: str = RULES_TSV_PATH,
+    adjectives: list = None,
+    plot_path: str = None,
+):
+    """
+    Make a Set of Plots to Show How Rules are Evaluated
+    - --
+
+    Understanding how annotations use its rules to call a given gene is
+    non-trivial. This function provides a method to name these genes.
+
+    """
+    context: DramContext = ctx.obj
+
+
+def rule_plot(
+    rules_tsv: Path = RULES_TSV_PATH,
+    adjectives: list | None = None,
+    plot_path: str | None = None,
+):
+    """
+    Make a pdf plot of a rule to understand it.
+    :param annotations_tsv: Path to a DRAM annotations file.
+    :param adjectives_tsv: Path for the output true false table.
+    :param rules_tsv: Path to a rules file with strict formatting, this is
+    optional.
+    :param adjectives: Adjectives to evaluate.
+    :param plot_adjectives: Adjectives to plot
+    :param plot_genomes: Genomes to plot.
+    :param plot_path: The path that will become a folder of output plots, no path no
+    plots.
+    :param strainer_tsv: The path for a tsv that will pass to strainer to filter
+    genes.
+    :param strainer_type: The type of process that should make the strainer
+    file. the only option at this time is `pgtb` for positive genes that are on
+    true bugs.
+    """
+    rules = RuleParser(rules_tsv, adjectives=adjectives)
+    rules.plot_rule(plot_path)
+
+
 def get_annotations_path(
     annotation_meta: AnnotationMeta | None,
     annotations: Path | None,
@@ -324,7 +433,6 @@ def get_annotations_path(
 
     Take the optional metadata, the optional annotation path and the force flags, to
     decide where we get our annotations.
-
     :param annotation_meta:
     :param annotations:
     :param force:
@@ -397,6 +505,8 @@ def evaluate(
 
     Make a table of adjectives, sing a DRAM annotations file,
 
+
+
     :param annotations_tsv: Path to a DRAM annotations file.
     :param adjectives_tsv: Path for the output true false table.
     :param rules_tsv: Path to a rules file with strict formatting, this is optional.
@@ -406,12 +516,12 @@ def evaluate(
     :param plot_path: The path that will become a folder of output plots, no path no
     plots.
     :param strainer_tsv: The path for a tsv that will pass to strainer to filter genes.
-    :param strainer_type: The type of process that should make the strainer file.
+    :param strainer_type: The type of process that should make the strainer file. only
+    option at this time is ‘pgtb’ for positive genes that are on true bugs /
     :param tree_paths:
     :param logger:
     :param cores:
     :param database:
-    only option at this time is ‘pgtb’ for positive genes that are on true bugs.
     """
     annotations = Annotations(annotations_tsv.absolute().as_posix(), db_kits=database)
     rules = RuleParser(rules_tsv, adjectives=set(adjectives))
@@ -435,97 +545,6 @@ def evaluate(
     if strainer_tsv is not None:
         strainer_data = get_positive_genes(rules, annotations, adjectives)
         strainer_data.to_csv(strainer_tsv, sep="\t")
-
-
-@click.command(
-    "adjectives_plot",
-    context_settings=dict(help_option_names=["-h", "--help"]),
-)
-@click.argument(
-    "plot_path", type=click.Path(exists=False), default=None
-)  # , help='will become a folder of output plots, no path no plots.')
-@click.option(
-    "-a",
-    "--adjectives",
-    multiple=True,
-    default=[],
-    help="A list of adjectives, by name, to evaluate. This limits the number of adjectives that are evaluated and is faster.",
-)
-@click.option(
-    "--rules_tsv",
-    type=click.Path(exists=True),
-    default=RULES_TSV_PATH,
-    help="The path that will become a folder of output plots, no path no plots.",
-)  # , help='The rules file which adhere to strict formatting' )
-@click.option(
-    "--list_name",
-    is_flag=True,
-    callback=list_adjective_name,
-    expose_value=False,
-    is_eager=True,
-    help="List the names for all adjectives_tsv that are"
-    " available, you can pass these names to limit the"
-    " adjectives that are evaluated",
-)
-@click.option(
-    "--show_rules_path",
-    is_flag=True,
-    callback=show_rules_path,
-    expose_value=False,
-    is_eager=True,
-    help="Show the path to the default rules path.",
-)
-@click.option(
-    "--list_id",
-    is_flag=True,
-    callback=list_adjectives,
-    expose_value=False,
-    is_eager=True,
-    help="List the names for all adjectives_tsv that are"
-    " available, you can pass these names to limit the"
-    " adjectives that are evaluated",
-)
-@click.pass_context
-def plot_rules_cmd(
-    ctx: click.Context,
-    rules_tsv: str = RULES_TSV_PATH,
-    adjectives: list = None,
-    plot_path: str = None,
-):
-    """
-    Make a Set of Plots to Show How Rules are Evaluated
-    ---
-
-    Understanding how annotations use its rules to call a given gene is
-    non-trivial. This function provides a method to name these genes.
-
-    """
-    context: DramContext = ctx.obj
-
-
-def rule_plot(
-    rules_tsv: Path = RULES_TSV_PATH,
-    adjectives: list | None = None,
-    plot_path: str | None = None,
-):
-    """
-    Make a pdf plot of a rule to understand it.
-
-    : param annotations_tsv: Path to a DRAM annotations file.
-    : param adjectives_tsv: Path for the output true false table.
-    : param rules_tsv: Path to a rules file with strict formatting, this is
-    optional.
-    : param adjectives: Adjectives to evaluate.
-    : param plot_adjectives: Adjectives to plot
-    : param plot_genomes: Genomes to plot.
-    : param plot_path: The path that will become a folder of output plots, no path no plots.
-    : param strainer_tsv: The path for a tsv that will pass to strainer to filter
-    genes.: param strainer_type: The type of process that should make the strainer
-    file. the only option at this time is `pgtb` for positive genes that are on
-    true bugs.
-    """
-    rules = RuleParser(rules_tsv, adjectives=adjectives)
-    rules.plot_rule(plot_path)
 
 
 adjectives_cmd.add_command(evaluate_cmd)

@@ -75,7 +75,7 @@ COMMAND_NAME = "distill"
 @click.option(
     "--trna_path",
     type=click.Path(exists=True, path_type=Path),
-    help="tRNA output from a dram annotation. You don't need to explicitly give this path if you are using an output_dir from dram with a project_config file. The tRNA run will be automatically detected if you have a project config file.",
+    help="tRNA output from a dram annotation. You don't need to explicitly give this path if you are using an output_dir from dram with a project meta datafile. The tRNA run will be automatically detected if you have a project config file.",
 )
 # These arguments are only for the Metabolism Summary
 @click.option(
@@ -142,9 +142,19 @@ def distill_cmd(
 
     The output files are:
 
-    - The genome_summary.xlsx which contains a summary of metabolisms present in each genome. It gives gene by gene information across various metabolisms for every genome in your dataset.
-     - The genome_statistics.tsv file contains all measures required by the MIMAG about each fasta used as input.
-     - The product.html and product.tsv allow the user to understand the metabolic potential of each MAG or Collection at a glance. The product.html is an interactive html that allows users to hover over each box to see what genes prompted the box color (Example here) and was manually curated to consider alternate genes for pathways and single processes. This heat map allows the user to quickly profile ecosystem relevant processes across hundreds of genomes. The product.tsv provides the same information in a tsv format. If you have many FASTA's your product html may be split into many output files.
+    - The genome_summary.xlsx which contains a summary of metabolisms present in each
+      genome. It gives gene by gene information across various metabolisms for every
+      genome in your dataset/
+     - The genome_statistics.tsv file contains all measures required by the MIMAG about
+       each fasta used as input.
+     - The product.html and product.tsv allow the user to understand the metabolic
+       potential of each MAG or Collection at a glance. The product.html is an
+       interactive html that allows users to hover over each box to see what genes
+       prompted the box color (Example here) and was manually curated to consider
+       alternate genes for pathways and single processes. This heat map allows the user
+       to quickly profile ecosystem relevant processes across hundreds of genomes. The
+       product.tsv provides the same information in a tsv format. If you have many
+       FASTA's your product html may be split into many output files.
 
     """
     context: DramContext = ctx.obj
@@ -152,7 +162,7 @@ def distill_cmd(
     logger: logging.Logger = logging.getLogger("dram2_log")
     context.get_logger()
     output_dir: Path = context.get_output_dir()
-    project_config: dict = context.get_project_config()
+    project_meta: dict = context.get_project_meta()
     dram_config: dict = context.get_dram_config(logger)  # FIX
     try:
         (
@@ -164,7 +174,7 @@ def distill_cmd(
             run_id=run_id,
             logger=logger,
             output_dir=output_dir,
-            project_config=project_config,
+            project_meta=project_meta,
             dram_config=dram_config,
             annotations_tsv_path=annotations_tsv_path,
             modules=modules,
@@ -178,7 +188,7 @@ def distill_cmd(
             make_big_html=make_big_html,
             use_db_distilate=use_db_distilate,
         )
-        new_project_config = {
+        new_project_meta = {
             "latest": run_id,
             run_id: {
                 "version": __version__,
@@ -186,32 +196,32 @@ def distill_cmd(
                 if fastas_distilled is None
                 else [i.name for i in fastas_distilled],
                 GENOME_STATS_TAG: {
-                    LOCATION_TAG: path_str_for_project_config(
+                    LOCATION_TAG: path_str_for_project_meta(
                         output_dir, genome_stats_path
                     )
                 },
                 METABOLISM_SUMMARY_TAG: {
-                    LOCATION_TAG: path_str_for_project_config(
+                    LOCATION_TAG: path_str_for_project_meta(
                         output_dir, metabolism_summary_output_path
                     )
                 },
                 PRODUCT_TAG: {
-                    LOCATION_TAG: path_str_for_project_config(
+                    LOCATION_TAG: path_str_for_project_meta(
                         output_dir, product_tsv_output
                     )
                 },
             },
         }
-        if DISTILLATE_TAG in project_config:
-            project_config[DISTILLATE_TAG].update(new_project_config)
+        if DISTILLATE_TAG in project_meta:
+            project_meta[DISTILLATE_TAG].update(new_project_meta)
         else:
-            project_config.update({DISTILLATE_TAG: new_project_config})
-        context.set_project_config(project_config)
+            project_meta.update({DISTILLATE_TAG: new_project_meta})
+        context.set_project_meta(project_meta)
     except Exception as e:
         logger.error(e)
         logger.exception(f"Fatal error in {COMMAND_NAME}")
         raise (e)
 
 
-def path_str_for_project_config(output_dir, out_path: Optional[Path]) -> Optional[str]:
+def path_str_for_project_meta(output_dir, out_path: Optional[Path]) -> Optional[str]:
     return out_path if out_path is None else out_path.relative_to(output_dir).as_posix()

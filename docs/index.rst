@@ -60,16 +60,5 @@ The DRAM development team is actively working on DRAM2. We do not anticipate add
   :maxdepth: 0
 
   dev/docs
-  dev/call_genes
-  dev/annotate
-  dev/db_builder
-  dev/db_kits
-  dev/distill
-  dev/genbank
-  dev/merger
-  dev/rna
-  dev/rule_adjectives
-  dev/strainer
-  dev/trash
-  dev/tree_kit
-  dev/utils
+  dev/functions
+  dev/making_db_kits

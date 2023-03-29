@@ -919,7 +919,7 @@ def annotate_cmd(
 ):
     """
     Annotate Genes with Gene Database
-    - --
+    ---
 
     Get gene identifiers from a set of databases and format them for other
     DRAM2 analysis tools. To use this tool, your genes should already be
@@ -929,6 +929,9 @@ def annotate_cmd(
     The annotation process depends on the user's selection. You can use the
     - -use_db argument to select a set of databases, or use the use_dbset
     argument to use a pre-configured set of databases.
+
+    Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root
+    command before any subcommand.
 
     """
     context: DramContext = ctx.obj
@@ -1029,12 +1032,6 @@ def list_database_sets():
         dram2 list_db_sets
         dram2 list_dbs
 
-
-
-    This is a simple tool to list the databases that are available to use in dram
-    commands, mostly annotations. This includes both annotations' formal name, the key
-    that identifies it to dram, always lowercase and all one word, and the citation if
-    it exists.
     """
     for i in DBSETS.values():
         members = [db for db in DB_KITS if db.name in i.members]
