@@ -57,7 +57,20 @@ from collections import Counter
 
 from dram2.utils.globals import FASTAS_CONF_TAG
 from dram2.utils import DramUsageError, Fasta
-from dram2.db_kits.utils import DBKit, FastaKit, HmmKit, make_mmseqs_db
+from dram2.db_kits.utils import (
+    DBKit,
+    FastaKit,
+    HmmKit,
+    make_mmseqs_db,
+    DEFAULT_BIT_SCORE_THRESHOLD,
+    DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+    DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS,
+    DEFAULT_THREADS,
+    DEFAULT_GENES_CALLED,
+    DEFAULT_USE,
+    DEFAULT_FORCE,
+    DEFAULT_KEEP_TMP,
+)
 from dram2.call_genes import DEFAULT_GENES_FILE
 from dram2 import db_kits as db_kits
 
@@ -72,13 +85,8 @@ AnnotationSet = NamedTuple(
 )
 
 ANNOTATION_FILE_TAG: str = "annotation_file"
-DEFAULT_BIT_SCORE_THRESHOLD: float = 60
-DEFAULT_RBH_BIT_SCORE_THRESHOLD: float = 350
-DEFAULT_THREADS: int = 10
-DEFAULT_GENES_CALLED: bool = False
-FORCE_DEFAULT: bool = False
-USED_DBS_TAG: str = "used_dbs"
 ANNOTATIONS_TAG = "annotations"
+USED_DBS_TAG: str = "used_dbs"
 LATEST_TAG: str = "latest"
 FASTA_COL = "fasta"
 GENE_ID_COL = "gene_ids"

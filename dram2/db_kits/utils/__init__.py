@@ -94,6 +94,15 @@ QUERY_PREFIX = "query"
 TARGET_PREFIX = "target"
 HMM_SCAN_MAX_THREADS = 2
 
+DEFAULT_BIT_SCORE_THRESHOLD: float = 60
+DEFAULT_RBH_BIT_SCORE_THRESHOLD: float = 350
+DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS: bool = False
+DEFAULT_THREADS: int = 10
+DEFAULT_GENES_CALLED: bool = False
+DEFAULT_USE: bool = False
+DEFAULT_FORCE: bool = False
+DEFAULT_KEEP_TMP: bool = False
+
 
 def process_reciprocal_best_hits(
     forward_output_loc, reverse_output_loc, target_prefix="target"
@@ -520,7 +529,6 @@ def sig_scores(hits: pd.DataFrame, score_db: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-
 class DBKit(ABC):
     """
     DBKit Abstract Class
@@ -535,7 +543,7 @@ class DBKit(ABC):
     formal_name: str = ""
     search_type: str = "unknown"
     citation: str = "This database has no citation"
-    max_threads:int = -1
+    max_threads: int = -1
     logger: logging.Logger
     working_dir: Path
     bit_score_threshold: int
@@ -757,14 +765,14 @@ class DBKit(ABC):
         self,
         working_dir: Path,
         output_dir: Path,
-        bit_score_threshold: int,
-        rbh_bit_score_threshold: int,
-        kofam_use_dbcan2_thresholds: bool,
-        threads: int,
-        force: bool,
-        extra: dict,
-        db_path: Path,
-        keep_tmp: bool,
+        bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
+        rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+        kofam_use_dbcan2_thresholds: bool = DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS,
+        threads: int = DEFAULT_THREADS,
+        force: bool = DEFAULT_FORCE,
+        # extra: dict | None = None,
+        # db_path: Path,
+        keep_tmp: bool = DEFAULT_KEEP_TMP,
         # "fasta_paths": gene_fasta_paths,
     ):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
@@ -775,8 +783,8 @@ class DBKit(ABC):
         self.rbh_bit_score_threshold: int = rbh_bit_score_threshold
         self.threads: int = threads
         self.force: bool = force
-        self.extra: dict = extra
-        self.db_path = self.setup_db_path(db_path)
+        # self.extra: dict = extra
+        # self.db_path = self.setup_db_path(db_path)
         self.keep_tmp: bool = keep_tmp
 
     @staticmethod

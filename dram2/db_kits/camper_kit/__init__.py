@@ -2,7 +2,6 @@ from os import path, stat
 from typing import Optional
 import tarfile
 from shutil import move, rmtree
-from dram2.db_kits.fegenie_kit import process
 from dram2.utils import download_file, run_process, get_package_path, Fasta
 from dram2.db_kits.utils import (
     make_mmseqs_db,
@@ -123,6 +122,7 @@ def get_minimum_bitscore(info_db):
     bit_score_threshold = min(info_db[["A_rank", "B_rank"]].min().values)
     return bit_score_threshold
 
+
 def blast_search(
     query_db,
     target_db,
@@ -141,7 +141,7 @@ def blast_search(
         target_db=target_db,
         logger=logger,
         output_dir=working_dir,
-        bit_score_threshold = bit_score_threshold,
+        bit_score_threshold=bit_score_threshold,
         query_prefix="gene",
         target_prefix=db_name,
         threads=threads,
@@ -162,18 +162,22 @@ class CamperKit(DBKit):
     camper_hmm_cutoffs: Path
     camper_distillate: Path
     search_type: str = "hmm_and_blast_style"
-    has_genome_summary: bool= True
+    has_genome_summary: bool = True
 
     def get_genome_summary(self) -> Path:
         genome_summary_form = self.request_config_path("genome_summary_form")
         if genome_summary_form is None:
-            return get_package_path(Path("db_kits", "camper_kit", "CAMPER_distillate.tsv"))
+            return get_package_path(
+                Path("db_kits", "camper_kit", "CAMPER_distillate.tsv")
+            )
         return genome_summary_form
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
-        self.logger.info("CAMPER has a hmmer seach step with limited threads in the future this issue will be resolved")
+        self.logger.info(
+            "CAMPER has a hmmer seach step with limited threads in the future this issue will be resolved"
+        )
         if fasta.name is None:
-            raise ValueError('A fasta file needs a name')
+            raise ValueError("A fasta file needs a name")
         self.logger.debug(f"Annotating {fasta.name} with {self.formal_name}.")
         if (
             self.camper_fa_db is None
@@ -247,9 +251,10 @@ class CamperKit(DBKit):
         """
         Retrieve CAMPER release tar.gz
 
-        This will get a tar file that is automatically generated from making a campers release on git hub.  In order to
-        avoid changes in CAMPER being blindly excepted into DRAM, a new number must be put into the OPTIONS global
-        variable in order to change this.
+        This will get a tar file that is automatically generated from making a campers
+        release on git hub.  In order to avoid changes in CAMPER being blindly excepted
+        into DRAM, a new number must be put into the OPTIONS global variable in order
+        to change this.
 
         :param temporary: Usually in the output dir
         :param verbose: TODO replace with logging setting
@@ -265,7 +270,6 @@ class CamperKit(DBKit):
             camper_database,
         )
         return camper_database
-
 
     @classmethod
     def setup(
@@ -328,4 +332,3 @@ class CamperKit(DBKit):
             ["hmmpress", "-f", final_paths["camper_hmm"]], logger
         )  # all are pressed just in case
         return final_paths
-

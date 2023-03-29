@@ -10,6 +10,7 @@ import logging
 # from os import getenv
 import pandas as pd
 
+
 def export_posible_path(
     path: Optional[Path], relative_path: Optional[Path] = None
 ) -> Optional[str]:
@@ -82,21 +83,45 @@ class Fasta:
             import_posible_path(mmsdb, relative_path),
         )
         return ob
-    
-    def get_fna() -> Path:
-        if self.fna is None:
-            raise ValueError("The fna file is not defined, did you import allready called faa files?")
-        return  self.fna
-    
-    def get_gff() -> Path:
-        if self.gff is None:
-            raise ValueError("The gff file is not defined, did you import allready called faa files?")
-        return  self.gff
 
-    def get_mmsdb() -> Path:
+    def get_fna(self) -> Path:
+        """
+        Get the fna and handel it not existing
+
+        :returns:
+        :raises ValueError:
+        """
+        if self.fna is None:
+            raise ValueError(
+                "The fna file is not defined, did you import allready called faa files?"
+            )
+        return self.fna
+
+    def get_gff(self) -> Path:
+        """
+        Get the gff and handel it not existing
+
+        :returns:
+        :raises ValueError:
+        """
+        if self.gff is None:
+            raise ValueError(
+                "The gff file is not defined, did you import allready called faa files?"
+            )
+        return self.gff
+
+    def get_mmsdb(self) -> Path:
+        """
+        Get the mmsdb and handel it not existing
+
+        :returns:
+        :raises ValueError:
+        """
         if self.mmsdb is None:
-            raise ValueError("The mmsdb file is not defined, are you trying to skip or develop the annotate pipeline?")
-        return  self.gff
+            raise ValueError(
+                "The mmsdb file is not defined, are you trying to skip or develop the annotate pipeline?"
+            )
+        return self.gff
 
 
 class DramUsageError(Exception):
@@ -115,19 +140,36 @@ def get_package_path(local_path: Path):
     return abs_snake_path
 
 
-def download_file(url: str, output_file: str, logger: logging.Logger, alt_urls: list = None):
+def download_file(
+    url: str,
+    output_file: Path,
+    logger: logging.Logger,
+    alt_urls: None | list[str] = None,
+):
+    """
+    Download a file, probably a database
+
+    :param url:
+    :param output_file:
+    :param logger:
+    :param alt_urls:
+    :returns:
+    :raises URLError:
+    """
     # TODO: catching error 4 and give error message to retry or retry automatically
     links = [url] if alt_urls is None else [url] + alt_urls
-    for l in links: 
-        logger.debug('downloading %s' % url)
+    for link in links:
+        logger.debug("downloading %s" % url)
         try:
-            urlretrieve(l, output_file)
+            urlretrieve(link, output_file)
             return
         except BaseException as error:
             # BaseException is good http was to exact
-            logger.warning(f"Something went wrong with the download of the url: {l}")
+            logger.warning(f"Something went wrong with the download of the url: {link}")
             logger.warning(error)
-    raise URLError("DRAM whas not able to download a key database, check the logg for details")
+    raise URLError(
+        "DRAM whas not able to download a key database, check the logg for details"
+    )
     # run_process(['wget', '-O', output_file, url], verbose=verbose)
 
 
@@ -157,8 +199,6 @@ def get_all_annotation_ids(data, logger):
     data.apply(list)
     out = Counter(chain(*data.values))
     return out
-
-
 
 
 def run_process(
@@ -221,12 +261,12 @@ def merge_files(files_to_merge, outfile, has_header=False):
 def divide_chunks(l, n):
     # looping till length l
     for i in range(0, len(l), n):
-        yield l[i : i + n]
+        yield l[i: i + n]
 
 
 def remove_prefix(text, prefix):
     if text.startswith(prefix):
-        return text[len(prefix) :]
+        return text[len(prefix):]
     return text  # or whatever
 
 

@@ -20,7 +20,7 @@ db_kits:
          location: kofam_ko_list.tsv
     uniref:
       mmsdb:
-        location: uniref90.20220928.mmsdb 
+        location: uniref90.20220928.mmsdb
       description_db:
         location: /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/uniref.sqlite
     pfam:
@@ -66,8 +66,19 @@ db_kits:
         location: CAMPER_blast_scores.tsv
       hmmdb:
         location: CAMPER.hmm
+    cant_hyd:
       hmmdb_cutoffs:
         location: CAMPER_hmm_scores.tsv
+      genome_summary_form: 
+         location: engineeredsys_dram_module.tsv,
+       mmsdb: 
+         location: CANT_HYD.msdb,
+       mmsdb_cutoffs: 
+         location: CANT_HYD_BLAST_scores.csv,
+       hmmdb: 
+         location: CANT_HYD.hmm,
+       hmmdb_cutoffs: 
+         location: CANT_HYD_HMM_scores.csv,
 dram_sheets:
     genome_summary_form:
       location: null

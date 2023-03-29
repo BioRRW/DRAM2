@@ -1,7 +1,8 @@
 """Setup file for package"""
 from setuptools import setup, find_namespace_packages
 from os import path
-__version__='1.0.b1'
+
+__version__ = "1.0.b1"
 
 __author__ = "rmflynn"
 
@@ -13,24 +14,28 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 setup(
     name="dram2",
     version=__version__,
-    packages= find_namespace_packages(include=['dram2.*', 'dram2.db_kits.*'], )
-    ,
-    description="Distilled and Refined Annotation of Metabolism: A tool for the annotation and curation of function for"
-    " microbial and viral genomes",
+    packages=find_namespace_packages(
+        include=["dram2.*", "dram2.db_kits.*"],
+    ),
+    description=(
+        "Distilled and Refined Annotation of Metabolism: A tool for the"
+        " annotation and curation of function for"
+        " microbial and viral genomes"
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",  # Optional (see note above)
-    package_data={
-        "dram2.rule_adjectives": ["rules.tsv"],
-        "dram2.tree_kit": ["data", "nxr_nar", "nxr-nar-tree-mapping.tsv"],
-        "dram2.tree_kit": ["data", "pmoa_amoa", "pmoa_amoa-tree-mapping.tsv"],
-        "dram2.distill": ["data", "amg_database.tsv"],
-        "dram2.distill": ["data", "etc_module_database.tsv"],
-        "dram2.distill": ["data", "genome_summary_form.tsv"],
-        "dram2.distill": ["data", "module_step_form.tsv"],
-        "dram2.distill": ["data", "function_heatmap_form.tsv"],
-        "dram2.db_kits.methyl_kit": ["methylotrophy.faa"],
-        "dram2.db_kits.methyl_kit": ["methylotrophy_distillate.tsv"],
-    },
+    # package_data={
+    #     "dram2.rule_adjectives": ["rules.tsv"],
+    #     "dram2.tree_kit": ["data", "nxr_nar", "nxr-nar-tree-mapping.tsv"],
+    #     "dram2.tree_kit": ["data", "pmoa_amoa", "pmoa_amoa-tree-mapping.tsv"],
+    #     "dram2.distill": ["data", "amg_database.tsv"],
+    #     "dram2.distill": ["data", "etc_module_database.tsv"],
+    #     "dram2.distill": ["data", "genome_summary_form.tsv"],
+    #     "dram2.distill": ["data", "module_step_form.tsv"],
+    #     "dram2.distill": ["data", "function_heatmap_form.tsv"],
+    #     "dram2.db_kits.methyl_kit": ["methylotrophy.faa"],
+    #     "dram2.db_kits.methyl_kit": ["methylotrophy_distillate.tsv"],
+    # },
     # package_dir={'': ''},
     python_requires=">=3.10",
     install_requires=[
