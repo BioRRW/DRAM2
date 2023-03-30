@@ -4,7 +4,9 @@ merge DRAM Directories
 
 example use::
     conda activate ./dram2_env
+    pip install  ./
     dram2 merge --help
+    dram2 -h
 """
 
 import logging
@@ -96,35 +98,62 @@ def merge_checkm_quality(
     "merge",
     context_settings=dict(help_option_names=["-h", "--help"]),
 )
-@click.option("--safe/--un_safe", is_flag=True)
 @click.argument(
-    "gene_fasta_paths",
-    type=click.Path(exists=True, path_type=Path),
+    "dram_dirs",
+    type=click.Path(exists=True, path_type=Path, file_okay=False),
     nargs=-1,
 )
 @click.option(
+    "-g",
     "--gene_dir",
     multiple=True,
     type=click.Path(exists=True, path_type=Path, file_okay=False),
     help="""
-        Use this flag to point a directory of prodigal called genes. You can
-        use this flag as many times as you want to point to as many
-        directoryies as you want.
+    Use this flag to point a directory of prodigal called genes. You can
+    use this flag as many times as you want to point to as many
+    directoryies as you want.
+    These derectories will not be checked like files pulled from dram_dir metadata.
+    You do not need this if you point to a dram project directory that has metadata
+    intact.
         """,
 )
 @click.option(
+    "-a",
     "--annotations_tsv",
+    multiple=True,
+    type=click.Path(exists=True, path_type=Path, dir_okay=False),
+    help="""
+    Use this flag to point an annotaitons tsv. You can use this flag as many
+    times as you want to point to as many directoryies as you want.
+    These derectories will not be checked like files pulled from dram_dir metadata.
+    You do not need this if you point to a dram project directory that has metadata
+    intact.
+    """,
+)
+@click.option(
+    "-r",
+    "--rrna",
     multiple=True,
     type=click.Path(exists=True, path_type=Path, file_okay=False),
     help="""
-        Use this flag to point an annotaitons tsv. You can
-        use this flag as many times as you want to point to as many
-        directoryies as you want.
+        """,
+)
+@click.option(
+    "-t",
+    "--trna",
+    multiple=True,
+    type=click.Path(exists=True, path_type=Path, file_okay=False),
+    help="""
         """,
 )
 @click.pass_context
 def merger_cmd(
     ctx: click.Context,
+    dram_dirs: list[Path],
+    annotations_tsv: list[Path],
+    genes_dir: list[Path],
+    rrna: list[Path],
+    trna: list[Path],
 ):
     """
     Merge DRAM Projects
@@ -132,7 +161,14 @@ def merger_cmd(
 
     You may have separate dram projects that you need to merge. This command
     will be able to do so with variable levels of safety. Merging dram runs is
-    tricky because there is no guaranty that the annotations will the same.
+    tricky because there is no guaranty that the annotations will be the same in all
+    the directoryies you want to merge.
+
+    Example of use:"
+        conda activate ./dram2_env
+        dram2 merge -h
+        dram2 -h
+    pytest tests/test_merger.py
     """
     context: DramContext = ctx.obj
     run_id: str = get_time_stamp_id(ANNOTATIONS_TAG)
@@ -140,16 +176,57 @@ def merger_cmd(
     output_dir: Path = context.get_output_dir()
     project_config: dict = context.get_project_config()
     try:
-        merger()
+        merged_config = merger()
     except Exception as e:
         logger.error(e)
         logger.exception("Fatal error in merging")
         raise (e)
 
 
-def get_merge_files_from_meta(project_meta: {}):
+def get_annotations_to_merger(
+    annotations_tsv: list[Path], project_meta: dict
+) -> list[Path]:
+    """
+    Get all the annotations that we are merging
+
+    :param annotations_tsv:
+    :param project_meta:
+    """
     pass
 
 
-def merger():
+def get_genes_to_merge(genes_dir: list[Path], project_meta: dict) -> list[Path]:
+    """
+    Get all the genes that we are merging
+
+    :param genes_dir:
+    :param project_meta:
+    """
     pass
+
+
+def get_rrna_to_merge(genes_dir: list[Path], project_meta: dict) -> list[Path]:
+    """
+    Get all the genes that we are merging
+
+    :param genes_dir:
+    :param project_meta:
+    """
+    pass
+
+
+def get_trna_to_merge(genes_dir: list[Path], project_meta: dict) -> list[Path]:
+    """
+    Get all the genes that we are merging
+
+    :param genes_dir:
+    :param project_meta:
+    """
+    pass
+
+
+def merger(a):
+    get_annotations_to_merger(annotations_tsv, project_meta)
+    get_genes_to_merge()
+    get_rrna_to_merge()
+    get_trna_to_merge()

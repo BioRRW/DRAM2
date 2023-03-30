@@ -36,12 +36,16 @@ from typing import Optional
 
 import click
 
-from dram2.cli.context import DramContext, DEFAULT_KEEP_TMP, __version__, OrderedGroup
+from dram2.cli.context import (
+    DramContext,
+    DEFAULT_KEEP_TMP,
+    __version__,
+    OrderedGroup,
+    DEFAULT_VERBOSE,
+    DEFAULT_THREADS,
+)
 from dram2.call_genes import call_genes_cmd
 from dram2.annotate import annotate_cmd, list_databases, list_database_sets
-
-
-DEFAULT_VERBOSE = 4  # maps to logging levels
 
 
 @click.group(
@@ -64,10 +68,11 @@ DEFAULT_VERBOSE = 4  # maps to logging levels
         raw data to refined distillate in a mater of seconds. \n\nThere are
         many advanced options to choose from so pleas look over the DRAM2
         documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com
-        """),
+        """
+    ),
     context_settings=dict(help_option_names=["-h", "--help"]),
 )
-@ click.option(
+@click.option(
     "-d",
     "--dram_dir",
     type=click.Path(path_type=Path),
@@ -76,7 +81,7 @@ DEFAULT_VERBOSE = 4  # maps to logging levels
     also the location where the ouputs of past DRAM2 actions and metadata can be found.
     """,
 )
-@ click.option(
+@click.option(
     "--config_file",
     type=click.Path(path_type=Path),
     help="""
@@ -85,8 +90,8 @@ DEFAULT_VERBOSE = 4  # maps to logging levels
     `USER_HOME/.config/dram_config.yaml` then in `/etc/dram2_config.yaml`.
     """,
 )
-@ click.version_option(__version__)
-@ click.option(
+@click.version_option(__version__)
+@click.option(
     "-v",
     "--verbose",
     count=True,
@@ -99,18 +104,18 @@ DEFAULT_VERBOSE = 4  # maps to logging levels
     -vvvvvv...=NOTSET.
     """,
 )
-@ click.option(
+@click.option(
     "-t",
     "--threads",
     type=int,
-    default=10,
+    default=DEFAULT_THREADS,
     help="""
     number of threads to run or the number of processors to use. This command is passed
     to external tools called by DRAM2, as well as being used in DRAM2 its self. Note
     that increasing the threads may increase the amount of memory required.
     """,
 )
-@ click.option(
+@click.option(
     "--keep_tmp",
     is_flag=True,
     show_default=True,
@@ -130,7 +135,7 @@ DEFAULT_VERBOSE = 4  # maps to logging levels
 #         "the config file you pass."
 #     ),
 # )
-@ click.pass_context
+@click.pass_context
 def dram2(
     ctx: click.Context,
     threads: int,
@@ -143,7 +148,7 @@ def dram2(
     verbose: int = DEFAULT_VERBOSE,
 ):
     ctx.obj = DramContext(
-        cores=threads,
+        threads=threads,
         db_path=db_path,
         config_file=config_file,
         log_file_path=log_file_path,

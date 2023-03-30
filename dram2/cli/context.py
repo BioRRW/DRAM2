@@ -39,16 +39,16 @@ USER_CONFIG = Path.home() / ".config" / "dram_config.yaml"
 GLOBAL_CONFIG = Path("/etc") / "dram_config.yaml"
 DEFAULT_KEEP_TMP = False
 LOG_FILE_NAME: str = "dram2.log"
+DEFAULT_VERBOSE = 4  # maps to logging levels
+DEFAULT_THREADS = 10
 
 __version__ = "2.0.0"
 
 
-def get_config_path(logger: logging.Logger,
-                    custom_path: Optional[Path] = None) -> Path:
+def get_config_path(logger: logging.Logger, custom_path: Optional[Path] = None) -> Path:
     if custom_path is not None:
         if not custom_path.exists():
-            raise ValueError(
-                "You have passed a config path that does not exist.")
+            raise ValueError("You have passed a config path that does not exist.")
         logger.debug(f"Loading custom config from: {custom_path.as_posix()}")
         return custom_path
     if USER_CONFIG.exists():
@@ -100,16 +100,16 @@ class DramContext(object):
 
     def __init__(
         self,
-        cores: int,
-        db_path: Optional[Path],
-        config_file: Optional[Path],
-        log_file_path: Optional[Path],
+        # db_path: Optional[Path],
         dram_dir: Optional[Path],
-        keep_tmp: bool,
-        verbose: int,
+        config_file: Optional[Path],
+        log_file_path: Optional[Path] = None,
+        threads: int = DEFAULT_THREADS,
+        keep_tmp: bool = DEFAULT_KEEP_TMP,
+        verbose: int = DEFAULT_VERBOSE,
     ):
-        self.cores = cores
-        self.db_path = db_path
+        self.threads = threads
+        # self.db_path = db_path
         self.custom_config_file = config_file
         self.log_file_path = log_file_path
         self.dram_dir = dram_dir
@@ -135,7 +135,7 @@ class DramContext(object):
 
     def get_project_meta(self) -> dict:
         dram_dir = self.get_dram_dir()
-        project_meta_path = dram_dir / PROJECT_CONFIG_YAML_NAME
+        project_meta_path = dram_dir / PROJECT_META_YAML_NAME
         self.project_meta = {}
         if project_meta_path.exists():
             with open(project_meta_path, "r") as pcf:
@@ -249,8 +249,7 @@ class DramContext(object):
             return config
         data_folder_path = Path(data_folder)
         if not data_folder_path.is_absolute():
-            data_folder_path = (dram_config_path.parent /
-                                data_folder_path).absolute()
+            data_folder_path = (dram_config_path.parent / data_folder_path).absolute()
         config[DRAM_DATAFOLDER_TAG] = data_folder_path
         return config
 

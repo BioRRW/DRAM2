@@ -24,18 +24,31 @@ setup(
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",  # Optional (see note above)
-    # package_data={
-    #     "dram2.rule_adjectives": ["rules.tsv"],
-    #     "dram2.tree_kit": ["data", "nxr_nar", "nxr-nar-tree-mapping.tsv"],
-    #     "dram2.tree_kit": ["data", "pmoa_amoa", "pmoa_amoa-tree-mapping.tsv"],
-    #     "dram2.distill": ["data", "amg_database.tsv"],
-    #     "dram2.distill": ["data", "etc_module_database.tsv"],
-    #     "dram2.distill": ["data", "genome_summary_form.tsv"],
-    #     "dram2.distill": ["data", "module_step_form.tsv"],
-    #     "dram2.distill": ["data", "function_heatmap_form.tsv"],
-    #     "dram2.db_kits.methyl_kit": ["methylotrophy.faa"],
-    #     "dram2.db_kits.methyl_kit": ["methylotrophy_distillate.tsv"],
-    # },
+    package_data={
+        "dram2.rule_adjectives": ["rules.tsv"],
+        "dram2.tree_kit": [
+            "data/nxr_nar/color_map.tsv",
+            "data/nxr_nar/nxr-nar-tree-mapping.tsv",
+            "data/pmoa_amoa/pmoa_amoa-tree-mapping.tsv",
+        ],
+        "dram2.distill": [
+            "data/amg_database.tsv",
+            "data/etc_module_database.tsv",
+            "data/genome_summary_form.tsv",
+            "data/module_step_form.tsv",
+            "data/function_heatmap_form.tsv",
+        ],
+        "dram2.db_kits.methyl_kit": [
+            "methylotrophy.faa",
+            "methylotrophy_distillate.tsv",
+        ],
+        "dram2.db_kits.cant_hyd_kit": [
+            "data/BacMet_ExpVerified_BiocideRes_genes_SHORT.faa",
+            "data/CANT_HYD_BLAST_scores.csv",
+            "data/CANT_HYD_HMM_scores.csv",
+            "data/engineeredsys_dram_module.tsv",
+        ],
+    },
     # package_dir={'': ''},
     python_requires=">=3.10",
     install_requires=[

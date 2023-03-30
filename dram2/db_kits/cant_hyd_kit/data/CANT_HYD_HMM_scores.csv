@@ -1,0 +1,38 @@
+﻿hmm_name,A_rank,B_rank,score type,description
+AlkB,550,530,full,HMM; alkB; AlkB-type alkane hydroxylase
+AlmA_GroupI,900,830,full,HMM; almA; Flavin-binding monooxygenase
+AlmA_GroupIII,900,830,full,HMM; almA; Flavin-binding monooxygenase
+pBmoA,400,270,full,HMM; bmoA_butane; butane monooxygenase (particulate)
+pBmoB,350,250,full,HMM; bmoB; butane monooxygenase (particulate)
+pBmoC,300,190,full,HMM; bmoC; butane monooxygenase (particulate)
+sBmoX,1050,850,full,HMM; bmoX (alpha subunit); butane monooxygenase (soluble) complex
+sBmoY,800,500,full,HMM; bmoY; butane monooxygenase (soluble) complex
+sBmoZ,250,150,full,HMM; bmoZ; butane monooxygenase (soluble) complex
+CYP153,590,480,full,HMM; Cyp153; Cytochrome P450 alkane hydroxylase
+LadA_alpha,590,500,full,HMM; ladA_alpha; Long-chain alkane monooxygenase
+LadA_beta,740,670,full,HMM; ladA_beta; long-chain alkane hydrolase
+LadB,500,350,full,HMM; ladB; long-chain alkane hydrolase
+PrmA,1000,890,full,HMM; prmA; Propane 2-monoxygenase
+PrmC,800,630,full,HMM; prmC; Propane 2-monoxygenase
+TmoA_BmoA,900,810,full,HMM; tmoA; Toluene/Benzene 4-monooxygenase
+MAH_alpha,630,470,full,HMM; broad; Monoaromatic dioxygenase
+DmpO,180,130,full,HMM; dmpO; Phenol hydroxylase
+DszC,560,400,full,HMM; dszC (soxC); Dibenzothiophene desulfurization enzyme C
+NdoB,630,370,full,"HMM; ndoB; Naphthalene 1,2-dioxygenase alpha"
+NdoC,200,180,full,"HMM; ndoC; Polyaromatic/Naphthalene 1,2-dioxygenase beta subunit"
+non_NdoB_type,430,400,full,"HMM; non ndoB; Naphthalene 1,2-dioxygenase alpha"
+MAH_beta,220,170,full,"HMM; tcbAb, todC2, bphAb; Monoaromatic dioxygenase beta subunit"
+TmoB_BmoB,180,140,full,HMM; tmoB; Toluene/Benzene 4-monooxygenase
+TmoE,500,350,full,HMM; tmoE; Toluene 4-monooxygenase
+TomA1,660,600,full,HMM; tomA1; Toluene 2-monooxygenase/Phenol Hydroxylase
+TomA3,1040,960,full,HMM; tomA3; Toluene 2-monooxygenase/Phenol Hydroxylase
+TomA4,200,150,full,HMM; tomA4; Toluene 2-monooxygenase/Phenol Hydroxylase
+AhyA,710,490,full,HMM; ahyA; Alkane C2 methylene hydroxylase (putative)
+AssA,1160,800,full,HMM; masD/assA; 1-methylalkyl (alkyl) succinate synthase
+AbcA_1,1200,600,full,HMM; abcA1; Benzene carboxylase
+AbcA_2,1000,900,full,HMM; abcA2; Benzene carboxylase
+BssA,1600,1150,full,HMM; bssA/ibsA; Benzyl/(4-Isopropylbenzyl) succinate synthase
+CmdA,1000,620,full,HMM; cmdA; p-cymene dehydrogenase
+EbdA,1700,900,full,HMM; ebdA; Ethylbenzene dehydrogenase
+K27540,900,670,full,HMM; K27540; Naphthalene carboxylase
+NmsA,1550,1200,full,HMM; nmsA; Naphthyl 2-methylsuccinate synthase

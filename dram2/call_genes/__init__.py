@@ -22,7 +22,7 @@ from typing import Optional
 from shutil import rmtree
 
 from dram2.utils import Fasta, run_process, DramUsageError
-from dram2.utils.globals import FASTAS_CONF_TAG
+from dram2.utils.globals import FASTAS_CONF_TAG, DEFAULT_FORCE
 from dram2.cli.context import DramContext, get_time_stamp_id, __version__
 
 DEFAULT_MIN_CONTIG_SIZE: int = 2500
@@ -95,7 +95,7 @@ def call_genes_cmd(
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
     prodigal_mode=DEFAULT_PRODIGAL_MODE,
     prodigal_trans_tables=DEFAULT_TRANS_TABLE,
-    force: bool = False,
+    force: bool = DEFAULT_FORCE,
 ):
     """
     Call Genes and Filter Fastas
@@ -118,29 +118,18 @@ def call_genes_cmd(
        dram2 -d dram_dir call <option> /some/path/fasta1.fasta / some/path/fasta2.fasta
     """
     context: DramContext = ctx.obj
-    logger = context.get_logger()
-    output_dir: Path = context.get_output_dir()
-    keep_tmp: bool = context.keep_tmp
-    cores: int = context.cores
-    run_id: str = get_time_stamp_id(GENES_RUN_TAG)
 
     if genes_dir is None:
         genes_dir = output_dir / DEFAULT_GENES_FILE
 
-    project_meta: dict = context.get_project_meta()
     # get assembly locations
 
     try:
 
         new_config = call_genes(
-            output_dir=output_dir,
+            context,
             fasta_paths=fasta_paths,
-            cores=cores,
-            logger=logger,
-            run_id=run_id,
             working_dir=genes_dir,
-            project_meta=project_meta,
-            keep_tmp=keep_tmp,
             min_contig_size=min_contig_size,
             prodigal_mode=prodigal_mode,
             prodigal_trans_tables=prodigal_trans_tables,
@@ -159,18 +148,15 @@ def call_genes_cmd(
 
 
 def call_genes(
-    output_dir: Path,
+    context: DramContext,
     fasta_paths: list[Path],
-    cores: int,
-    logger: logging.Logger,
-    working_dir: Path,
     project_meta: dict,
     run_id: str,
     keep_tmp: bool,
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
     prodigal_mode=DEFAULT_PRODIGAL_MODE,
     prodigal_trans_tables=DEFAULT_TRANS_TABLE,
-    force: bool = False,
+    force: bool = DEFAULT_FORCE,
 ) -> dict:
     """
     Call Genes in FASTAs With Prodigal
@@ -204,6 +190,12 @@ def call_genes(
     :returns: A new project meta data dictionary
     :raises DramUsageError: If genes are not found.
     """
+    logger = context.get_logger()
+    output_dir: Path = context.get_dram_dir()
+    keep_tmp: bool = context.keep_tmp
+    cores: int = context.threads
+    run_id: str = get_time_stamp_id(GENES_RUN_TAG)
+    project_meta: dict = context.get_project_meta()
 
     # get assembly locations
     if force:
