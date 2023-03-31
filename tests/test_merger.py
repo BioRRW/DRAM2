@@ -19,9 +19,8 @@ from Bio import SeqIO
 from click.testing import CliRunner
 
 from dram2.cli.context import DramContext
-from dram2.annotate import annotate_cmd
-from dram2.call_genes import call_genes_cmd
-
+from dram2.annotate import annotate_pip
+from dram2.call_genes import call_genes_pipe
 
 import pytest
 
@@ -42,5 +41,8 @@ def test_make_example_dram_run_to_merge(tmp_path: Path):
     for i, line in enumerate(SeqIO.parse(open(infasta), "fasta")):
         with (out_fasta / f"NC_001422_{i}.fasta") as fasta_out:
             _ = SeqIO.write(line, fasta_out, "fasta")
-        call_genes_cmd(context, glob(f"{out_fasta.as_posix}/*.fasta"))
-        annotate_cmd(context)
+        call_genes_pipe(
+            context, [Path(i) for i in glob(f"{out_fasta.as_posix}/*.fasta")]
+        )
+        annotate_pipe(context)
+

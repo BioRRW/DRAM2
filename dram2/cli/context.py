@@ -27,6 +27,7 @@ import logging
 from typing import Optional
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 import yaml
 import click
@@ -116,7 +117,7 @@ class DramContext(object):
         # self.force: bool = force
         self.verbose: int = verbose
         self.keep_tmp: bool = keep_tmp
-        self.project_config: Optional[dict] = None
+        self.project_meta: Optional[dict] = None
         # Make a working_dir that may be deleted
         # self.working_dir.mkdir(exist_ok=True)
 
@@ -144,7 +145,7 @@ class DramContext(object):
                     self.project_meta.update(saved_meta)
         return self.project_meta
 
-    def set_project_meta(self, project_config: dict, write_config: bool = True):
+    def set_project_meta(self, project_meta: dict, write_meta: bool = True):
         dram_dir = self.get_dram_dir()
         project_meta_path = dram_dir / PROJECT_META_YAML_NAME
         self.project_meta = project_meta
@@ -270,3 +271,26 @@ class OrderedGroup(click.Group):
 
     def list_commands(self, ctx):
         return self.commands
+
+
+def log_error_wraper(fun: Callable, context: DramContext) -> Callable:
+    """
+    Add a wraper to function so errors are logged.
+
+    Add a wraper around a function so that if a error is rased it goses into the log.
+    Beleave it or not this is how you are suposed to solve this problem in python.
+
+    :param fun: A function to wrap
+    :param context: The full dram context to pull the logger if there is an error
+    :returns: The function wraped so any error will go into the logg before the exit
+    """
+
+    def error_logging_fun(*args, **kargs):
+        try:
+            return fun(*args, **kargs)
+        except Exception as e:
+            logger = context.get_logger()
+            logger.error(e)
+            logger.exception("Fatal error in calling genes")
+            raise e
+    return error_logging_fun

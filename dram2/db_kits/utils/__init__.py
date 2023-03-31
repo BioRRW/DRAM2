@@ -634,8 +634,8 @@ class DBKit(ABC):
     def get_config_path(self, required_file: str) -> Path:
         """
         Paths in the config can be complicated. here is a funcion that will get
-        you the absolute path, the relitve path or whatever. This should be more
-        fomalized and the config
+        you the absolute path, the relieve path or whatever. This should be more
+        formalized and the config
 
         should actualy be maniged in its own structure. With a data file class
         that can use this function.
@@ -660,7 +660,8 @@ class DBKit(ABC):
                 )
             else:
                 self.logger.warning(
-                    f"It looks like {required_file} was not setup, DRAM  will now atemp to run setup for {self.formal_name} in order to creat it"
+                    f"It looks like {required_file} was not setup, DRAM  will now "
+                    "atemp to run setup for {self.formal_name} in order to creat it"
                 )
                 self.setup()  # it can be asuumed that this will update the config also
         required_path = Path(self.config[required_file]["location"])
@@ -764,9 +765,9 @@ class DBKit(ABC):
     def set_args(
         self,
         working_dir: Path,
-        output_dir: Path,
-        bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
-        rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+        # output_dir: Path,
+        bit_score_threshold: float = DEFAULT_BIT_SCORE_THRESHOLD,
+        rbh_bit_score_threshold: float = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
         kofam_use_dbcan2_thresholds: bool = DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS,
         threads: int = DEFAULT_THREADS,
         force: bool = DEFAULT_FORCE,
@@ -778,7 +779,7 @@ class DBKit(ABC):
         self.kofam_use_dbcan2_thresholds: bool = kofam_use_dbcan2_thresholds
         self.working_dir: Path = working_dir / self.name
         self.working_dir.mkdir(exist_ok=True, parents=True)
-        self.output_dir: Path = output_dir
+        # self.output_dir: Path = output_dir
         self.bit_score_threshold: int = bit_score_threshold
         self.rbh_bit_score_threshold: int = rbh_bit_score_threshold
         self.threads: int = threads
@@ -892,12 +893,11 @@ class FastaKit(DBKit):
     name = "custom_fasta_db"
     selectable: bool = False
 
-    def __init__(self, name: str, loc: Path, config: dict, args: dict):
+    def __init__(self, name: str, loc: Path):
         self.set_universals(
             name, name, {}, "Custom FASTA", "No citation for custom DBs"
         )
         self.set_args(**args)
-        self.config: dict = config
         self.fasta_loc: Path = loc
         self.setup()
         # if none is passed from argparse then set to tuple of len 0
@@ -959,13 +959,14 @@ class HmmKit(DBKit):
     selectable: bool = False
 
     def __init__(
-        self, name: str, loc: Path, descriptions: Path, config: dict, args: dict
+        self,
+        name: str,
+        loc: Path,
+        descriptions: Path,
     ):
         self.set_universals(name, name, {}, "Custom hmm", "No citation for custom DBs")
         self.hmm_loc: Path = loc
         self.descriptions: Path = descriptions
-        self.set_args(**args)
-        self.config: dict = config
         self.fasta_loc: Path = loc
         self.setup()
 

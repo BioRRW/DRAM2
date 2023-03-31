@@ -194,11 +194,11 @@ def get_annotation_ids_by_row(data, logger):
     return out
 
 
-def get_all_annotation_ids(data, logger):
-    data = get_ids_from_annotations_by_row(data, logger)
-    data.apply(list)
-    out = Counter(chain(*data.values))
-    return out
+# def get_all_annotation_ids(data, logger):
+#     data = get_ids_from_annotations_by_row(data, logger)
+#     data.apply(list)
+#     out = Counter(chain(*data.values))
+#     return out
 
 
 def run_process(
@@ -280,3 +280,5 @@ def get_ordered_uniques(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x) or pd.isna(x))]
+
+

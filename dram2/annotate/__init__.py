@@ -36,6 +36,7 @@ Todo:
 from dram2.cli.context import (
     DramContext,
     DEFAULT_KEEP_TMP,
+    log_error_wraper,
     get_time_stamp_id,
     __version__,
 )
@@ -70,6 +71,7 @@ from dram2.db_kits.utils import (
     DEFAULT_USE,
     DEFAULT_FORCE,
     DEFAULT_KEEP_TMP,
+    DEFAULT_FORCE,
 )
 from dram2.call_genes import DEFAULT_GENES_FILE
 from dram2 import db_kits as db_kits
@@ -90,6 +92,7 @@ USED_DBS_TAG: str = "used_dbs"
 LATEST_TAG: str = "latest"
 FASTA_COL = "fasta"
 GENE_ID_COL = "gene_ids"
+DEFAULT_WRITE_CONFIG: bool = False
 
 # TODO These should be moved to the packege they prep for
 METABOLISM_KEGG_SET = AnnotationSet(
@@ -167,8 +170,8 @@ class AnnotationMeta:
     fasta_names: set[str]
     working_dir: Path
     annotation_tsv: Path
-    bit_score_threshold: int
-    rbh_bit_score_threshold: int
+    bit_score_threshold: float
+    rbh_bit_score_threshold: float
     kofam_use_dbcan2_thresholds: bool
     force: bool
     keep_tmp: bool
@@ -463,8 +466,8 @@ def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> Annotati
             needed to run dram distill.
             """
         )
-    bit_score_threshold: int = annotation_dict[BIT_SCORE_THRESHOLD_TAG]
-    rbh_bit_score_threshold: int = annotation_dict[RBH_BIT_SCORE_THRESHOLD_TAG]
+    bit_score_threshold: float = annotation_dict[BIT_SCORE_THRESHOLD_TAG]
+    rbh_bit_score_threshold: float = annotation_dict[RBH_BIT_SCORE_THRESHOLD_TAG]
     version: str = annotation_dict[VERSION_TAG]
     force: bool = annotation_dict[FORCE_TAG]
     keep_tmp: bool = annotation_dict[KEEP_TMP_TAG]
@@ -488,9 +491,7 @@ def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> Annotati
 def get_last_annotation_meta(
     project_meta: dict, output_dir: Path
 ) -> AnnotationMeta | None:
-    annotaions_dicts = project_meta.get(ANNOTATIONS_TAG)
-    if annotaions_dicts is None:
-        return None
+    annotaions_dicts: dict = project_meta.get(ANNOTATIONS_TAG)
     run_id = annotaions_dicts[LATEST_TAG]
     latest_dict = annotaions_dicts[run_id]
     annotation_meta = dict_to_annotation_meta(latest_dict, output_dir)
@@ -504,8 +505,8 @@ def make_new_meta_data(
     fastas: list[Fasta],
     working_dir: Path,
     annotation_tsv: Path,
-    bit_score_threshold: int,
-    rbh_bit_score_threshold: int,
+    bit_score_threshold: float,
+    rbh_bit_score_threshold: float,
     kofam_use_dbcan2_thresholds: bool,
     threads: int,
     force: bool,
@@ -562,21 +563,45 @@ def search_fasta_with_database(databases: list[DBKit], fasta: Fasta) -> pd.DataF
     return data
 
 
-def annotate(
+def get_custom_faa_dbs(
+    custom_fasta_db_name: Sequence = (),
+    custom_fasta_db_loc: Sequence = (),
+) -> list[FastaKit]:
+    return [FastaKit(i, j) for i, j in zip(custom_fasta_db_name, custom_fasta_db_loc)]
+
+
+def get_custom_hmm_dbs(
+    custom_hmm_db_loc: Sequence = (),
+    custom_hmm_db_name: Sequence = (),
+    custom_hmm_db_cutoffs_loc: Sequence = (),
+) -> list[HmmKit]:
+    # Add all the databases that you are going to
+    db_len_dif = len(custom_hmm_db_name) - len(custom_hmm_db_cutoffs_loc)
+    if db_len_dif < 0:
+        raise DramUsageError(
+            "There are more hmm cutoff files provided then custom hmm "
+            "databases provided."
+        )
+
+    custom_hmm_db_cutoffs_loc = list(custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
+    return [
+        HmmKit(i, j, k)
+        for i, j, k in zip(
+            custom_hmm_db_name, custom_hmm_db_loc, custom_hmm_db_cutoffs_loc
+        )
+    ]
+
+
+def annotate_pipe(
+    context: DramContext,
     gene_fasta_paths: list[Path],
-    dram_config: dict,
-    logger: logging.Logger,
-    output_dir: Path,
-    working_dir: Path,
-    cores: int,
-    run_id: str,
-    project_meta: dict,
-    keep_tmp: bool = DEFAULT_KEEP_TMP,
-    bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
-    rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+    tempory_dir: Path | None = None,
+    bit_score_threshold: float = DEFAULT_BIT_SCORE_THRESHOLD,
+    rbh_bit_score_threshold: float = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     # past_annotations_path: str = str(None),
     use_db: Sequence[str] = (),
-    db_path: Optional[Path] = None,
+    use_dbset: Sequence[str] = (),
+    # db_path: Optional[Path] = None,
     custom_fasta_db_name: Sequence = (),
     custom_fasta_db_loc: Sequence = (),
     custom_hmm_db_loc: Sequence = (),
@@ -586,9 +611,21 @@ def annotate(
     # rename_genes: bool = True,
     # make_new_faa: bool = bool(None),
     force: bool = False,
-    extra=None,
-    write_config: bool = False,
+    # extra=None,
+    # write_config: bool = False,
 ) -> dict:
+    run_id: str = get_time_stamp_id(ANNOTATIONS_TAG)
+    if tempory_dir is None:
+        working_dir: Path = context.get_dram_dir() / run_id
+    else:
+        working_dir: Path = tempory_dir
+    # logger = logging.getLogger("dram2_log")
+    logger = context.get_logger()
+    output_dir: Path = context.get_dram_dir()
+    keep_tmp: bool = context.keep_tmp
+    cores: int = context.threads
+    project_meta: dict = context.get_project_meta()
+    dram_config = context.get_dram_config(logger)  # FIX
     # get assembly locations
     # make mmseqs_dbs
     working_dir.mkdir(exist_ok=True)
@@ -612,11 +649,6 @@ def annotate(
             "No FASTAs were passed to the annotator DRAM has nothing to do."
         )
 
-    # cores_for_sub_process:int = cores
-    # fasta = [make_mmseqs_db_for_fasta(i, logger=logger,
-    # threads=cores_for_sub_process) for i
-    # in fastas]
-
     if cores > len(fastas):
         cores_for_sub_process: int = cores
         cores_for_maping: int = 1
@@ -634,77 +666,39 @@ def annotate(
             fastas,
         )
 
-    db_args = {
-        # "fasta_paths": gene_fasta_paths,
-    }
+    if len(use_dbset) > 0:
+        logger.info(
+            f"Using the data from DB sets "
+            f"{', '.join([DBSETS[j].name for j in use_dbset])}"
+        )
+        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j].members]
 
+    use_db = list(set(use_db))
     # add argument for annotations
-    for i in databases:
-        i.load_dram_config()
-        i.set_args(
-            output_dir=output_dir,
-            working_dir=working_dir,
-            bit_score_threshold=bit_score_threshold,
-            rbh_bit_score_threshold=rbh_bit_score_threshold,
-            kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
-            threads=cores,
-            force=force,
-            extra=extra,
-            db_path=db_path,  # where to store dbs on the fly
-            keep_tmp=keep_tmp,
-        )
-
-    # update the config
-    if write_config:
-        dram_config.update({j: k for i in databases for j, k in i.config.items()})
-
-    # Add all the databases that you are going to
-    databases += [
-        FastaKit(i, j, dram_config, db_args)
-        for i, j in zip(custom_fasta_db_name, custom_fasta_db_loc)
-    ]
-    db_len_dif = len(custom_hmm_db_name) - len(custom_hmm_db_cutoffs_loc)
-    if db_len_dif < 0:
-        raise DramUsageError(
-            "There are more hmm cutoff files provided then custom hmm "
-            "databases provided."
-        )
-
-    custom_hmm_db_cutoffs_loc = list(custom_hmm_db_cutoffs_loc) + ([None] * db_len_dif)
-    databases += [
-        HmmKit(i, j, k, dram_config, db_args)
-        for i, j, k in zip(
-            custom_hmm_db_name, custom_hmm_db_loc, custom_hmm_db_cutoffs_loc
-        )
-    ]
-
-    if len(databases) < 1:
-        logger.warning(
-            "No databases were selected. There is nothing for DRAM to do but "
-            "save progress and exit."
-        )
-        new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
-    else:
-        # combine those annotations
-        number_of_fastas = len(fastas)
-        _ = [j.start_counter(number_of_fastas) for j in databases]
-        new_annotations = pd.concat(
-            [search_fasta_with_database(databases, fasta=i) for i in fastas]
-        )
-
-    # ADD DESCRIPTIONS
-    # with Pool(cores) as p:
-    #     descriptions: list[pd.DataFrame] =
-    #     p.map(get_descriptions_for_annotations, databases)
-    descriptions: list[pd.DataFrame] = [
-        i.get_descriptions(new_annotations) for i in databases
-    ]
-    new_annotations = reduce(
-        partial(pd.merge, left_index=True, right_index=True, how="outer"),
-        descriptions + [new_annotations],
+    databases += get_custom_faa_dbs(
+        custom_fasta_db_name,
+        custom_fasta_db_loc,
+    )
+    databases += get_custom_hmm_dbs(
+        custom_hmm_db_loc,
+        custom_hmm_db_name,
+        custom_hmm_db_cutoffs_loc,
     )
 
-    # make a tsv even through that is stupid
+    new_annotations: pd.DataFrame = annotate(
+        fastas=fastas,
+        databases=databases,
+        logger=logger,
+        working_dir=working_dir,
+        keep_tmp=keep_tmp,
+        cores=cores,
+        bit_score_threshold=bit_score_threshold,
+        rbh_bit_score_threshold=rbh_bit_score_threshold,
+        kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+        force=force,
+    )
+
+    # make a path for tsv even through using a tsv is stupid
     annotation_tsv = output_dir / "annotations.tsv"
     # could be a match statement
     if past_annotation_meta is not None:
@@ -745,13 +739,74 @@ def annotate(
     if not keep_tmp:
         logger.info(f"Removing the temporary directory: {working_dir}.")
         rmtree(working_dir)
-    return make_new_meta_data(
+    new_meta = make_new_meta_data(
         project_meta,
         run_id,
         databases,
         fastas,
         **db_args,
         annotation_tsv=annotation_tsv,
+    )
+    project_meta.update(new_meta)
+    context.set_project_meta(project_meta)
+    return new_meta
+
+
+def annotate(
+    databases: list[DBKit],
+    fastas: list[Fasta],
+    logger: logging.Logger,
+    working_dir: Path = Path(".", "dram_tmp"),
+    bit_score_threshold: float = DEFAULT_BIT_SCORE_THRESHOLD,
+    rbh_bit_score_threshold: float = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+    kofam_use_dbcan2_thresholds: bool = DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS,
+    cores: int = DEFAULT_THREADS,
+    force: bool = DEFAULT_FORCE,
+    keep_tmp: bool = DEFAULT_KEEP_TMP,
+    # write_config: bool = DEFAULT_WRITE_CONFIG,
+) -> pd.DataFrame:
+    for i in databases:
+        i.load_dram_config()
+        i.set_args(
+            working_dir=working_dir,
+            bit_score_threshold=bit_score_threshold,
+            rbh_bit_score_threshold=rbh_bit_score_threshold,
+            kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+            threads=cores,
+            force=force,
+            # extra=extra,
+            # db_path=db_path,  # where to store dbs on the fly
+            keep_tmp=keep_tmp,
+        )
+
+    # update the config
+    # if write_config:
+    #     dram_config.update({j: k for i in databases for j, k in i.config.items()})
+
+    if len(databases) < 1:
+        logger.warning(
+            "No databases were selected. There is nothing for DRAM to do but "
+            "save progress and exit."
+        )
+        new_annotations = pd.DataFrame(index=[fa.name for fa in fastas])
+    else:
+        # combine those annotations
+        number_of_fastas = len(fastas)
+        _ = [j.start_counter(number_of_fastas) for j in databases]
+        new_annotations = pd.concat(
+            [search_fasta_with_database(databases, fasta=i) for i in fastas]
+        )
+
+    # ADD DESCRIPTIONS
+    # with Pool(cores) as p:
+    #     descriptions: list[pd.DataFrame] =
+    #     p.map(get_descriptions_for_annotations, databases)
+    descriptions: list[pd.DataFrame] = [
+        i.get_descriptions(new_annotations) for i in databases
+    ]
+    return reduce(
+        partial(pd.merge, left_index=True, right_index=True, how="outer"),
+        descriptions + [new_annotations],
     )
 
 
@@ -907,8 +962,8 @@ def annotate_cmd(
     ctx: click.Context,
     gene_fasta_paths: list[Path],
     use_db: list[str],
-    bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
-    rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+    bit_score_threshold: float = DEFAULT_BIT_SCORE_THRESHOLD,
+    rbh_bit_score_threshold: float = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     # log_file_path: str = str(None),
     # past_annotations_path: str = str(None),
     use_dbset: Sequence = (),
@@ -922,7 +977,7 @@ def annotate_cmd(
     tempory_dir: Optional[Path] = None,
     force: bool = False,
     # db_path: Path = None,
-    extra=None,
+    # extra=None,
     # study_set: Sequence = (),
 ):
     """
@@ -943,58 +998,23 @@ def annotate_cmd(
 
     """
     context: DramContext = ctx.obj
-    run_id: str = get_time_stamp_id(ANNOTATIONS_TAG)
-    if tempory_dir is None:
-        working_dir: Path = context.get_output_dir() / run_id
-    else:
-        working_dir: Path = tempory_dir
-    # logger = logging.getLogger("dram2_log")
-    logger = context.get_logger()
-    output_dir: Path = context.get_output_dir()
-    keep_tmp: bool = context.keep_tmp
-    cores: int = context.cores
-    project_meta: dict = context.get_project_meta()
-    dram_config = context.get_dram_config(logger)  # FIX
-    if len(use_dbset) > 0:
-        logger.info(
-            f"""
-            Using the data from DB sets {', '.join([DBSETS[j] for j in use_dbset])}
-        """
-        )
-        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j].members]
-
-    use_db = list(set(use_db))
-    try:
-        new_meta = annotate(
-            gene_fasta_paths=gene_fasta_paths,
-            dram_config=dram_config,
-            project_meta=project_meta,
-            logger=logger,
-            output_dir=output_dir,
-            working_dir=working_dir,
-            keep_tmp=keep_tmp,
-            cores=cores,
-            run_id=run_id,
-            bit_score_threshold=bit_score_threshold,
-            rbh_bit_score_threshold=rbh_bit_score_threshold,
-            # past_annotations_path=past_annotations_path,
-            use_db=use_db,
-            custom_fasta_db_name=custom_fasta_db_name,
-            custom_fasta_db_loc=custom_fasta_db_loc,
-            custom_hmm_db_loc=custom_hmm_db_loc,
-            custom_hmm_db_name=custom_hmm_db_name,
-            custom_hmm_db_cutoffs_loc=custom_hmm_db_cutoffs_loc,
-            kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
-            force=force,
-            extra=extra,
-        )
-        project_meta.update(new_meta)
-        context.set_project_meta(project_meta)
-
-    except Exception as e:
-        logger.error(e)
-        logger.exception("Fatal error in annotation")
-        raise (e)
+    log_error_wraper(annotate_pipe, context)()
+    annotate_pipe(
+        context=context,
+        gene_fasta_paths=gene_fasta_paths,
+        bit_score_threshold=bit_score_threshold,
+        rbh_bit_score_threshold=rbh_bit_score_threshold,
+        use_db=use_db,
+        use_dbset=use_dbset,
+        tempory_dir=tempory_dir,
+        custom_fasta_db_name=custom_fasta_db_name,
+        custom_fasta_db_loc=custom_fasta_db_loc,
+        custom_hmm_db_loc=custom_hmm_db_loc,
+        custom_hmm_db_name=custom_hmm_db_name,
+        custom_hmm_db_cutoffs_loc=custom_hmm_db_cutoffs_loc,
+        kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+        force=force,
+    )
 
 
 @click.command("list_dbs")

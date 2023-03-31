@@ -139,7 +139,7 @@ from dram2.annotate import annotate_cmd, list_databases, list_database_sets
 def dram2(
     ctx: click.Context,
     threads: int,
-    db_path: Optional[Path] = None,
+    # db_path: Optional[Path] = None,
     config_file: Optional[Path] = None,
     log_file_path: Optional[Path] = None,
     dram_dir: Optional[Path] = None,
@@ -149,7 +149,7 @@ def dram2(
 ):
     ctx.obj = DramContext(
         threads=threads,
-        db_path=db_path,
+        #db_path=db_path,
         config_file=config_file,
         log_file_path=log_file_path,
         dram_dir=dram_dir,

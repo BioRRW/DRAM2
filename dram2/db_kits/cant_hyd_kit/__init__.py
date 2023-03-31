@@ -17,17 +17,23 @@ from dram2.db_kits.utils import (
     FILE_LOCATION_TAG,
     DRAM_DATAFOLDER_TAG,
     DBKIT_TAG,
+    generic_hmmscan_formater,
+    run_hmmscan,
+    do_blast_style_search,
 )
 
 
 VERSION: str = "1.0.0-beta.1"
 CITATION: str = "CAMPER has no citeation and is in beta so you should not be using it."
 
-HMM_KEY: str = "cant_hyd_hmms"
+HMM_KEY: str = "hmmdb"
 FAA_KEY: str = "cant_hyd_faa"
-HMM_SCORES_KEY: str = "cant_hyd_hmm_scores"
+HMM_SCORES_KEY: str = "hmmdb_cutoffs"
 FAA_SCORES_KEY: str = "cant_hyd_faa_scores"
 DRAM2_MODUAL_KEY: str = "cant_hyd_dram2_modual"
+GENOME_SUMMARY_KEY = "genome_summary_form"
+MMSDB_KEY = "mmsdb"
+MMSDB_CUTOFFS_KEY = "mmsdb_cutoffs"
 
 HMM_DEST: str = "CANT_HYD.hmm"
 FAA_DEST: str = "CANT_HYD.faa"
@@ -70,11 +76,55 @@ class CantHydKit(DBKit):
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         """Perform a search, be that HMM, Blast or something else."""
-        pass
+        if fasta.faa is None:
+            raise ValueError(
+                f"Fasta with out called genes faa was passed to the search function for {self.formal_name}"
+            )
+        self.logger.info("Getting hits from dbCAN")
+        hmm_annotations = run_hmmscan(
+            genes_faa=fasta.faa.absolute().as_posix(),
+            db_loc=self.hmmdb.absolute().as_posix(),
+            db_name=self.name,
+            output_loc=self.working_dir.absolute().as_posix(),
+            threads=self.threads,
+            logger=self.logger,
+            formater=partial(
+                generic_hmmscan_formater,
+                db_name=self.name,
+                sql_descriptions=self.description_db,
+            ),
+        )
+        blast_annotatons = do_blast_style_search(
+            fasta.mmsdb,
+            self.mmsdb,
+            self.working_dir,
+            self.logger,
+            self.name,
+            self.bit_score_threshold,
+            self.rbh_bit_score_threshold,
+            self.threads,
+        )
+        breakpoint()
+        annotations = pd.concat(hmm_annotations, blast_annotatons)
+
+    def get_descriptions(self, annotatons):
+        header_dict = multigrep(
+            hits[f"{self.name}_hit"],
+            f"{self.mmsdb_target}_h",
+            self.logger,
+            "\x00",
+            self.working_dir,
+        )
+        hits = get_basic_descriptions(annotatons, header_dict, self.name)
+        return hits
 
     def load_dram_config(self):
         """Extract data from the larger DRAM config yaml"""
-        pass
+        self.genome_summary = self.get_config_path(GENOME_SUMMARY_KEY)
+        self.mmsdb = self.get_config_path(MMSDB_KEY)
+        self.hmmdb = self.get_config_path(HMM_KEY)
+        self.mmsdb_cutoffs = self.get_config_path(MMSDB_CUTOFFS_KEY)
+        self.hmm_cutoffs = self.get_config_path(HMM_SCORES_KEY)
 
     def download(self, user_locations_dict: dict[str, Path]):
         """Download your raw data, return a full location dictionary."""
@@ -158,11 +208,11 @@ class CantHydKit(DBKit):
             ["hmmpress", "-f", (self.output_dir / HMM_DEST).as_posix()], self.logger
         )  # all are pressed just in case
         return {
-            "genome_summary_form": {"location": DRAM2_MODUAL_DEST},
-            "mmsdb": {"location": MSDB_DEST},
-            "mmsdb_cutoffs": {"location": FAA_SCORES_DEST},
-            "hmmdb": {"location": HMM_DEST},
-            "hmmdb_cutoffs": {"location": HMM_SCORES_DEST},
+            GENOME_SUMMARY_KEY: {"location": DRAM2_MODUAL_DEST},
+            MMSDB_KEY: {"location": MSDB_DEST},
+            MMSDB_CUTOFFS_KEY: {"location": FAA_SCORES_DEST},
+            HMM_KEY: {"location": HMM_DEST},
+            HMM_SCORES_KEY: {"location": HMM_SCORES_DEST},
         }
 
 
@@ -184,6 +234,3 @@ def test_dbkit_CantHydKit_Setup():
 def test_dbkit_CantHydKit_search():
     """Test the CANT HYD DBKIT"""
     pass
-
-
-test_dbkit_CantHydKit_Setup()
