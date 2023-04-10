@@ -29,7 +29,14 @@ setup(
         "dram2.tree_kit": [
             "data/nxr_nar/color_map.tsv",
             "data/nxr_nar/nxr-nar-tree-mapping.tsv",
-            "data/pmoa_amoa/pmoa_amoa-tree-mapping.tsv",
+            "data/nxr_nar/nxr-nar-tree-mapping.tsv",
+            "data/nxr_nar/nxr-nar_seqs_for_tree_aligned.faa",
+            "data/nxr_nar/nxr_nar.refpkg/CONTENTS.json",
+            "data/nxr_nar/nxr_nar.refpkg/nxr_nar.tre",
+            "data/nxr_nar/nxr_nar.refpkg/phylo_modelNQB2rG.json",
+            "data/nxr_nar/nxr_nar.refpkg/RAxML_info.nxr_nar_raxml",
+            "data/nxr_nar/nxr_nar.refpkg/nxr-nar_seqs_for_tree_aligned.faa",
+
         ],
         "dram2.distill": [
             "data/amg_database.tsv",
@@ -41,6 +48,9 @@ setup(
         "dram2.db_kits.methyl_kit": [
             "methylotrophy.faa",
             "methylotrophy_distillate.tsv",
+        ],
+        "dram2.db_kits.camper_kit": [
+            "CAMPER_distillate.tsv",
         ],
         "dram2.db_kits.cant_hyd_kit": [
             "data/BacMet_ExpVerified_BiocideRes_genes_SHORT.faa",
