@@ -51,24 +51,20 @@ from dram2.annotate import annotate_cmd, list_databases, list_database_sets
 @click.group(
     cls=OrderedGroup,
     help=(
-        "\b\n"  # this \b tells click to respect your formating till \n\n
+        "\b\n"  # this \b tells click to respect your formatting till \n\n
         "____________  ___  ___  ___\n"
         "|  _  \\ ___ \\/ _ \\ |  \\/  |\n"
         "| | | | |_/ / /_\\ \\| .  . |\n"
-        "| | | |    /|  _  || |\\/| |\n"
+        "| | | |	/|  _  || |\\/| |\n"
         "| |/ /| |\\ \\| | | || |  | |\n"
-        "|___/ \\_| \\_\\_| |_/\\_|  |_/"
-        """
-
-
-        Welcome to DRAM2, the premiere metabolic annotator and analyzer.
-        Bellow you will find a set of commands that you can use to annualize
-        your MAGS V-mags or other genome collections.\n\n If you are new why not
-        start with the pre defined protocal commands which will take you from
-        raw data to refined distillate in a mater of seconds. \n\nThere are
-        many advanced options to choose from so pleas look over the DRAM2
-        documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com
-        """
+        "|___/ \\_| \\_\\_| |_/\\_|  |_/\n\n"
+        "Welcome to DRAM2, the premiere metabolic annotator and analyzer. "
+        "Bellow you will find a set of commands that you can use to annualize "
+        "your MAGS V-mags or other genome collections.\n\n If you are new, why not "
+        "start with the pre-defined protocol commands which will take you from "
+        "raw data to refined distillate in a matter of seconds. \n\nThere are "
+        "many advanced options to choose from, so please look over the DRAM2 "
+        "documentation at: www.ADDTHISWHENREADTHEDOCSISPUBLISHED.com"
     ),
     context_settings=dict(help_option_names=["-h", "--help"]),
 )
@@ -77,17 +73,14 @@ from dram2.annotate import annotate_cmd, list_databases, list_database_sets
     "--dram_dir",
     type=click.Path(path_type=Path),
     help="""
-    This is both the location where the output of new DRAM2 actions will go, and
-    also the location where the ouputs of past DRAM2 actions and metadata can be found.
+    This is both the location where the output of new DRAM2 actions will go, and also the location where the outputs of past DRAM2 actions and metadata can be found.
     """,
 )
 @click.option(
     "--config_file",
     type=click.Path(path_type=Path),
     help="""
-    Point to a config file that you would like to use for this action specificaly. With
-    out this argument DRAM2 looks for the config at first in
-    `USER_HOME/.config/dram_config.yaml` then in `/etc/dram2_config.yaml`.
+    Point to a config file that you would like to use for this action specifically. With out of this argument, DRAM2 looks for the config at first in `USER_HOME/.config/dram_config.yaml` then in `/etc/dram2_config.yaml`.
     """,
 )
 @click.version_option(__version__)
@@ -98,21 +91,16 @@ from dram2.annotate import annotate_cmd, list_databases, list_database_sets
     type=int,
     default=DEFAULT_VERBOSE,
     help="""
-    Verbosity of the logging output, the number of 'v's maps to the default
-    logging level of pythons logging modual. the default is 4 aka - vvvv. The mapping is
-    -v=CRITICAL, -vv=ERROR, -vvv=WARNING, -vvvv=INFO, -vvvvv=DEBUG,
-    -vvvvvv...=NOTSET.
+    Verbosity of the logging output, the number of 'v's maps to the default logging level of pythons logging module. The default is 4 aka -vvvv. The mapping is -v = CRITICAL ,-vv = ERROR, -vvv = WARNING, -vvvv = INFO, -vvvvv = DEBUG, -vvvvvv... = NOTSET.
     """,
 )
 @click.option(
     "-t",
     "--threads",
     type=int,
-    default=DEFAULT_THREADS,
+    default=10,
     help="""
-    number of threads to run or the number of processors to use. This command is passed
-    to external tools called by DRAM2, as well as being used in DRAM2 its self. Note
-    that increasing the threads may increase the amount of memory required.
+    number of threads to run or the number of processors to use. This command is passed to external tools called by DRAM2, as well as being used in DRAM2 itself. Note that increasing the threads may increase the amount of memory required.
     """,
 )
 @click.option(

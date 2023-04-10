@@ -426,9 +426,7 @@ def get_all_fastas(
 
 
 def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> AnnotationMeta:
-    """
-
-    """
+    """ """
     used_dbs: set[str] = set(annotation_dict[USED_DBS_TAG])
     fasta_names: set[str] = set(annotation_dict[FASTAS_CONF_TAG])
     working_dir: Path = Path(annotation_dict[WORKING_DIR_TAG])
@@ -902,10 +900,7 @@ def merge_past_annotations(
     default=[],
     type=click.Choice([i.name for i in DB_KITS], case_sensitive=False),
     help="""
-        Specify exactly which DBs to use. This argument can be used multiple
-        times, so for example if you want to annotate with FeGenie and Camper
-        you would have a command like `dram2 - o output/dir annotate - -use_db
-        fegenie - -use_db camper`, the options available are in this help.
+        Specify exactly which DBs to use. This argument can be used multiple times, so for example if you want to annotate with FeGenie and Camper you would have a command like `dram2 - o output/dir annotate - -use_db fegenie - -use_db camper`, the options available are in this help.
         """,
 )
 @click.option(
@@ -913,8 +908,7 @@ def merge_past_annotations(
     type=int,
     default=60,
     help="""
-    The minimum bit score as calkulated by a HMMER or MMseqs search to retain
-    hits.
+    The minimum bit score is calculated by a HMMER or MMseqs search to retain hits.
     """,
 )
 @click.option(
@@ -930,7 +924,7 @@ def merge_past_annotations(
     type=str,
     multiple=True,
     help="""
-    Names of custom databases, can be used multiple times.
+    Names of custom databases can be used multiple times.
     """,
 )
 @click.option(
@@ -938,8 +932,7 @@ def merge_past_annotations(
     multiple=True,
     type=click.Path(exists=True, path_type=Path),
     help="""
-    Location of fastas to annotate against, can be used multiple times but
-    must match number of custom_db_name's.
+    Location of fastas to annotate against, can be used multiple times but must match the number of custom_db_name's.
     """,
 )
 @click.option(
@@ -952,8 +945,7 @@ def merge_past_annotations(
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
     help="""
-    Location of HMMs to annotate against, can be used multiple times but
-    must match number of custom_hmm_name's
+    Location of HMMs to annotate against, can be used multiple times but must match number of custom_hmm_name's
     """,
 )
 @click.option(
@@ -961,17 +953,14 @@ def merge_past_annotations(
     type=click.Path(exists=True, path_type=Path),
     multiple=True,
     help="""
-    Location of file with custom HMM cutoffs and descriptions, can be used
-    multiple times.
+    Location of file with custom HMM cutoffs and descriptions, can be used multiple times.
     """,
 )
 @click.option(
     "--tempory_dir",
     type=click.Path(path_type=Path),
     help="""
-    Location of the temporary file where the annotations will be stored, this
-    file will still be defeated at the end of the annotation process if the
-    keep tmp flag is not set.
+    Location of the temporary file where the annotations will be stored, this file will still be defeated at the end of the annotation process if the the tmp flag is not set.
     """,
 )
 @click.option(
@@ -985,8 +974,8 @@ def annotate_cmd(
     ctx: click.Context,
     gene_fasta_paths: list[Path],
     use_db: list[str],
-    bit_score_threshold: float = DEFAULT_BIT_SCORE_THRESHOLD,
-    rbh_bit_score_threshold: float = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
+    bit_score_threshold: int = DEFAULT_BIT_SCORE_THRESHOLD,
+    rbh_bit_score_threshold: int = DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     # log_file_path: str = str(None),
     # past_annotations_path: str = str(None),
     use_dbset: Sequence = (),
@@ -1000,24 +989,28 @@ def annotate_cmd(
     tempory_dir: Optional[Path] = None,
     force: bool = False,
     # db_path: Path = None,
-    # extra=None,
+    extra=None,
     # study_set: Sequence = (),
 ):
     """
     Annotate Genes with Gene Database
     ---
 
-    Get gene identifiers from a set of databases and format them for other
-    DRAM2 analysis tools. To use this tool, your genes should already be
-    called.
+    Get gene identifiers from a set of databases and format them for other DRAM2 analysis tools. To use this tool, your genes should already be called.
 
 
-    The annotation process depends on the user's selection. You can use the
-    - -use_db argument to select a set of databases, or use the use_dbset
-    argument to use a pre-configured set of databases.
+    The annotation process depends on the user's selection. You can use the --use_db argument to select a set of databases, or use the use_dbset argument to use a pre-configured set of databases.
 
-    Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root
-    command before any subcommand.
+    This command takes a positional argument/arguments, namely gene_fasta_paths. This argument lets you pass path/paths to faa files containing  amino acid sequences for called genes. This means that the use of the program will look like
+    this::
+
+        dram2 -d dram_dir annotate <option> /some/path/*.faa
+
+        or This::
+
+        dram2 -d dram_dir annotate <option> some.faa another.faa
+
+    Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root command before any sub-command.
 
     """
     context: DramContext = ctx.obj
@@ -1076,12 +1069,11 @@ def list_database_sets():
         - the descriptions.
         - The names formal names, of the member databases
 
-    Example Use:
+    Example Use::
 
         conda activate ./dram2_env
         dram2 list_db_sets
         dram2 list_dbs
-
     """
     for i in DBSETS.values():
         members = [db for db in DB_KITS if db.name in i.members]

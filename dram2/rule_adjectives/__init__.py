@@ -66,9 +66,7 @@ def show_rules_path(ctx, param, value):
     "adjectives",
     context_settings=dict(help_option_names=["-h", "--help"]),
     cls=OrderedGroup,
-    help="""Describe Gene Features(Adjectives)\n\n The DRAM2 Adjectives are features,
-    defined by a set of rules which themselves are based on key genes and selective use
-    of phylogenetic trees.""",
+    help="""Describe Gene Features(Adjectives)\n\n The DRAM2 Adjectives are features, defined by a set of rules which themselves are based on key genes and selective use of phylogenetic trees.""",
 )
 @click.pass_context
 def adjectives_cmd(
@@ -78,22 +76,13 @@ def adjectives_cmd(
     Describe Gene Features(Adjectives)
     ---
 
-    The DRAM2 Adjectives are features, defined by a set of rules which themselves are
-    based on key genes and selective use of phylogenetic trees.
+    You can use the sub-comands to evaluate genes or explore the rules that govern them.
 
-    In order to use this command, you must first complete the following for all genes
-    in your project:
+    For example::
 
-    - Call the Genes with `dram2 call`
-    - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the
-      following database:
-        - KEGG or KOfam
-        - Pfam
-        - CAMPER
-        - FeGenie
-        - Sulfur
-    - Add phylogenetic tree information to the annotations with `dram2 philotrees`
+        dram2 <opts> adjectives eval
     """
+
     pass
 
 
@@ -106,10 +95,7 @@ def adjectives_cmd(
     type=click.Path(exists=True, path_type=Path),
     default=None,
     help="""
-    Location of an annotations.tsv. You don't need to use this option if you
-    are using the output_dir for dram with a project_config. If you use this option,
-    you must also use the force flag to bypass the safeguards that prevent you from
-    running distill with insufficient data.
+    Location of an annotations.tsv. You don't need to use this option if you are using the output_dir for dram with a project_config. If you use this option, you must also use the force flag to bypass the safeguards that prevent you from running distill with insufficient data.
     """,
 )
 @click.option(
@@ -117,8 +103,7 @@ def adjectives_cmd(
     type=click.Path(exists=True, path_type=Path),
     default=None,
     help="""
-    Location of the output adjectives.tsv. if you leave this blank the adjectives.tsv
-    file will be put in the output directory.
+    Location of the output adjectives.tsv. if you leave this blank the adjectives.tsv file will be put in the output directory.
     """,
 )
 @click.option(
@@ -127,16 +112,16 @@ def adjectives_cmd(
     multiple=True,
     default=[],
     help="""
-    A list of adjectives, by name, to evaluate. This limits the number of adjectives
-    that are evaluated and is faster.""",
+    A list of adjectives, by name, to evaluate. This limits the number of adjectives that are evaluated, and is faster.
+""",
 )
 @click.option(
     "-p",
     "--plot_adjectives",
     multiple=True,
     default=[],
-    help="""A list of adjectives, by name, to plot. This limits the number of
-    adjectives that are plotted and is probably needed for speed.""",
+    help="""
+A list of adjectives, by name, to plot. This limits the number of adjectives that are plotted and is probably needed for speed.""",
 )
 @click.option(
     "-g",
@@ -155,8 +140,7 @@ def adjectives_cmd(
     type=click.Path(exists=False),
     default=None,
     help="""
-    The path for a tsv that will pass to strainer to filter genes. The only
-    option at this time is ‘pgtb’ for positive genes that are on true bugs.
+    The path for a tsv that will pass to strainer to filter genes. The only option at this time is ‘pgtb’ for positive genes that are on true bugs.
     """,
 )
 @click.option(
@@ -170,8 +154,7 @@ def adjectives_cmd(
     type=click.Path(exists=False),
     default=None,
     help="""
-    This is a tool to debug the list of IDs found by DRAM it is mostly for
-    experts.
+    This is a tool to debug the list of IDs found by DRAM it is mostly for experts.
     """,
 )
 @click.option(
@@ -179,8 +162,7 @@ def adjectives_cmd(
     type=click.Path(exists=True),
     default=RULES_TSV_PATH,
     help="""
-    This is an optional path to a rules file with strict formatting. It will
-    overwrite the original rules file that is stored with the script.
+    This is an optional path to a rules file with strict formatting. It will overwrite the original rules file that is stored with the script.
     """,
 )
 @click.option(
@@ -198,9 +180,7 @@ def adjectives_cmd(
     expose_value=False,
     is_eager=True,
     help="""
-    List the names for all adjectives_tsv that are
-    available, you can pass these names to limit the
-    adjectives that are evaluated
+    List the names for all adjectives_tsv that are available, you can pass these names to limit the adjectives that are evaluated
     """,
 )
 @click.option(
@@ -210,9 +190,7 @@ def adjectives_cmd(
     expose_value=False,
     is_eager=True,
     help="""
-    List the names for all adjectives_tsv that are
-    available, you can pass these names to limit the
-    adjectives that are evaluated,
+    List the names for all adjectives_tsv that are available, you can pass these names to limit the adjectives that are evaluated,
     """,
 )
 @click.option(
@@ -222,8 +200,7 @@ def adjectives_cmd(
     show_default=True,
     default=False,
     help="""
-    Skip the normal checks on the dram project_config and just try to use the
-    annotations and trees provided if available.
+    Skip the normal checks on the dram project_config and just try to use the annotations and trees provided if available.
     """,
 )
 @click.pass_context
@@ -245,11 +222,9 @@ def evaluate_cmd(
      Evaluate Genes and Describe Their Features(Adjectives)
     - --
 
-    The DRAM2 Adjectives are features, defined by a set of rules which themselves are
-    based on key genes and selective use of phylogenetic trees.
+    The DRAM2 Adjectives are features, defined by a set of rules which themselves are based on key genes and selective use of phylogenetic trees.
 
-    In order to use this command you must first complete the falowing for all genes in
-    your project:
+    In order to use this command you must first complete the falowing for all genes in your project:
 
     - Call the Genes with `dram2 call` (the genes dir itself is not needed)
     - annotate the genes with`dram2 annotate using `dram2 annotate` be sure you use the
@@ -262,6 +237,8 @@ def evaluate_cmd(
     - Add phylogenetic tree information to the annotations with `dram2 philotrees`
 
     This will make the adjectives.tsv
+
+          Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root command before any sub-command.
     """
 
     context: DramContext = ctx.obj
@@ -337,8 +314,7 @@ def evaluate_cmd(
     multiple=True,
     default=[],
     help="""
-    A list of adjectives, by name, to evaluate. This limits the number of adjectives
-    that are evaluated and is faster.
+    A list of adjectives, by name, to evaluate. This limits the number of adjectives that are evaluated and is faster.
     """,
 )
 @click.option(
@@ -354,9 +330,7 @@ def evaluate_cmd(
     expose_value=False,
     is_eager=True,
     help="""
-    List the names for all adjectives_tsv that are
-    available, you can pass these names to limit the
-    adjectives that are evaluated
+    List the names for all adjectives_tsv that are available, you can pass these names to limit the adjectives that are evaluated
     """,
 )
 @click.option(
@@ -374,9 +348,7 @@ def evaluate_cmd(
     expose_value=False,
     is_eager=True,
     help="""
-    List the names for all adjectives_tsv that are
-    available, you can pass these names to limit the
-    adjectives that are evaluated
+    List the names for all adjectives_tsv that are available, you can pass these names to limit the adjectives that are evaluated
     """,
 )
 @click.pass_context
@@ -388,11 +360,11 @@ def plot_rules_cmd(
 ):
     """
     Make a Set of Plots to Show How Rules are Evaluated
-    - --
+    ---
 
-    Understanding how annotations use its rules to call a given gene is
-    non-trivial. This function provides a method to name these genes.
+    Understanding how annotations use its rules to call a given gene is non-trivial. This function provides a method to plot rule maps for rules and genes.
 
+    Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root command before any sub-command.
     """
     context: DramContext = ctx.obj
 

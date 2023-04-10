@@ -286,7 +286,7 @@ class dbCANKit(DBKit):
             self.name,
         )
         description_db.populate_description_db(
-            output_dir,
+            description_out,
             self.name,
             partial(
                 process_dbcan_descriptions,

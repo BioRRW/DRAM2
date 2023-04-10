@@ -259,16 +259,15 @@ class CamperKit(DBKit):
         to change this.
 
         """
-        if version is None:
-            version = self.version
+        version = "0.0.1"
         if "camper_tar_gz" in user_locations_dict:
             camper_database = user_locations_dict["camper_tar_gz"]
         else:
-            camper_database = path.join(self.working_dir, f"CAMPER_{version}.tar.gz")
+            camper_database = self.working_dir / f"CAMPER_{version}.tar.gz"
             download_file(
                 f"https://github.com/WrightonLabCSU/CAMPER/archive/refs/tags/v{version}.tar.gz",
-                logger,
                 camper_database,
+                self.logger,
             )
         # Note the 'v' in the name, GitHub wants it in the tag then it just takes it out. This could be a problem
         return {"camper_tar_gz": camper_database}

@@ -58,9 +58,9 @@ GENES_RUN_TAG: str = "genes"
     is_flag=True,
     help=(
         """
-        Remove all called genes and information about them, you will only get the
-        current set of genes from the command not the genes from past runs of call.
-        """
+        Remove all called genes and information about them, you will only get the current
+     set of genes from the command, not the genes from past runs of call.
+     """
     ),
 )
 @click.option(
@@ -71,9 +71,8 @@ GENES_RUN_TAG: str = "genes"
         """
         Mode of prodigal to use for gene calling. NOTE: normal or single mode require
         genomes which are high quality with low contamination and long
-        contigs(average length > 3 Kbp).Read more about this option in
-        the prodigal wiki: https://github.com/hyattpd/prodigal/wiki.
-        """
+        contigs(average length > 3 Kbp). Read more about this option in
+        the prodigal wiki: https://github.com/hyattpd/prodigal/wiki. """
     ),
 )
 @click.option(
@@ -82,9 +81,8 @@ GENES_RUN_TAG: str = "genes"
     type=click.Path(path_type=Optional[Path]),
     help=(
         """
-        The directory to store the genes files to be used or deleated latter. This
-        feature is beta.
-        """
+        The directory to store the genes files to be used or deleted later. This feature
+     is beta. """
     ),
 )
 @click.option(
@@ -93,41 +91,37 @@ GENES_RUN_TAG: str = "genes"
     default=DEFAULT_TRANS_TABLE,
     help=(
         """
-        Prodigal trans tables to use for gene calling. Read more about this option in
-        the prodigal wiki: https://github.com/hyattpd/prodigal/wiki.
-        """
+        Prodigal trans tables to use for gene calling. Read more about this option in the
+     prodigal wiki: https://github.com/hyattpd/prodigal/wiki. """
     ),
 )
 @click.pass_context
 def call_genes_cmd(
     ctx: click.Context,
     fasta_paths: list[Path],
-    genes_dir: Optional[Path] = None,
+    genes_dir: Optional[Path],
     min_contig_size=DEFAULT_MIN_CONTIG_SIZE,
     prodigal_mode=DEFAULT_PRODIGAL_MODE,
     prodigal_trans_tables=DEFAULT_TRANS_TABLE,
-    force: bool = DEFAULT_FORCE,
+    force: bool = False,
 ):
     """
-    Call Genes and Filter Fastas
+    Call Genes and Filter FASTAs
     ----------------------------
 
-    Prodigal is one of many tools that we use in the DRAM pipeline. You will
-    notice that this function not only calls Prodigal, it also performs a number
-    of checks and organizes the files.  These first steps allow us to be
-    confident we will not fail down the line.
+    Prodigal is one of many tools that we use in the DRAM pipeline. You will notice that this function not only calls Prodigal, it also performs a number of checks and organizes the files.  These first steps allow us to be confident we will not fail down the line.
 
-    This command takes a positional argument/arguments namely FASTAs. The FASTA
-    are path/paths to FASTAs representing mags or other genome collections of
-    uncalled genes. This means that the use of the program will look like
-    this: :
+    This command takes a positional argument/arguments, namely FASTAs. This argument lets you pass path/paths to FASTAs representing mags or other genome collections of uncalled genes. This means that the use of the program will look like this::
 
-       dram2 -d dram_dir call <option> /some/path/*.fasta
+         dram2 -d dram_dir call <option> /some/path/*.fasta
 
     or This::
 
-       dram2 -d dram_dir call <option> /some/path/fasta1.fasta / some/path/fasta2.fasta
+         dram2 -d dram_dir call <option> /some/path/fasta1.fasta / some/path/fasta2.fasta
+
+    Don't Forget that the dram-db(-d) and threads(-t) must be passed to the dram2 root command before any sub-command.
     """
+
     context: DramContext = ctx.obj
 
     # get assembly locations
