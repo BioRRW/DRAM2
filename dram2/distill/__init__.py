@@ -161,7 +161,7 @@ def distill_cmd(
     run_id: str = get_time_stamp_id(DISTILLATE_RUN_TAG)
     logger: logging.Logger = logging.getLogger("dram2_log")
     context.get_logger()
-    output_dir: Path = context.get_output_dir()
+    output_dir: Path = context.get_dram_dir()
     project_meta: dict = context.get_project_meta()
     dram_config: dict = context.get_dram_config(logger)  # FIX
     try:

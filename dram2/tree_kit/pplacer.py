@@ -50,7 +50,7 @@ class DramTree:
         """ """
         self.logger.info("Aligning sequences with MAFFT")
         # The file at the end of the output path has the extension 'fasta'!
-        output_path = working_dir / f"{QUERY_TMP_NAME}.fasta"
+        output_path = Path(working_dir) / f"{QUERY_TMP_NAME}.fasta"
         if os.path.exists(output_path):
             self.logger.warn(
                 f"The alignment file {output_path} already "

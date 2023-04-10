@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from dram2.utils import DramUsageError
+from functools import partial
 
 CITATION = (
     " M. Kanehisa, M. Furumichi, Y. Sato, M. Ishiguro-Watanabe, and"
@@ -15,7 +16,7 @@ CITATION = (
 )
 
 from sqlalchemy import Column, String
-from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE, make_header_dict_from_mmseqs_db
 from dram2.db_kits.utils import make_mmseqs_db
 
 
@@ -125,16 +126,21 @@ class KeggKit(DBKit):
             KeggDescription,
             self.name,
         )
+        process_function = partial(make_header_dict_from_mmseqs_db, kegg_mmseqs_db.as_posix())
         description_db.populate_description_db(
-            output_dir,
+            description_out,
             self.name,
+            process_function
+            
         )
         self.logger.info("KEGG database processed")
-        return {"mmsdb": {"location": kegg_mmseqs_db}}
+        return {"mmsdb": {"location": kegg_mmseqs_db.relative_to(output_dir).as_posix()},
+                "description_db": {"location": description_out.relative_to(output_dir).as_posix()}}
 
-    def download(self, user_locations_dict: dict[str, Path]):
+    def download(self, user_locations_dict: dict[str, Path]) -> dict[str, Path]:
         """
         you know
         """
         if "kegg_pep" not in user_locations_dict:
             raise DramUsageError("You need to provide the KEGG pep.")
+        return user_locations_dict

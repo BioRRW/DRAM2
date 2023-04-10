@@ -85,7 +85,11 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
             )
 
     with open(dbcan_fam_activities) as f:
-        description_data = pd.concat([line_reader(line) for line in f.readlines()])
+        description_data = (pd.concat([line_reader(line) for line in f.readlines()])
+                            .groupby("id")
+                            .apply(lambda x: ",".join(x["description"].unique()))
+                            )
+        description_data = pd.DataFrame(description_data, columns=["description"]).reset_index()
 
     ec_data = pd.read_csv(
         dbcan_subfam_ec, sep="\t", names=["id", "id2", "ec"], comment="#"
@@ -99,6 +103,7 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
     )
     ec_data = pd.DataFrame(ec_data, columns=["ec"]).reset_index()
     data = pd.merge(description_data, ec_data, how="outer", on="id").fillna("")
+    data.drop_duplicates()
     return [i.to_dict() for _, i in data.iterrows()]
 
 
@@ -175,9 +180,6 @@ class dbCANKit(DBKit):
         "dbcan_ec",
         "dbcan_fam",
     ]
-
-    def setup() -> dict:
-        pass
 
     def load_dram_config(self):
         self.hmm_db = self.get_config_path("hmmdb")
@@ -295,6 +297,6 @@ class dbCANKit(DBKit):
             ),
         )
         return {
-            "description_db": {"location": description_out.as_posix()},
-            "hmmdb": {"location": hmm_out.as_posix()},
+            "description_db": {"location": description_out.relative_to(output_dir).as_posix()},
+            "hmmdb": {"location": hmm_out.relative_to(output_dir).as_posix()},
         }

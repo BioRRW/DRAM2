@@ -44,9 +44,11 @@ class CountMotifsKit(DBKit):
                 split_label = seq.metadata["id"].split("_")
                 scaffold = "_".join(split_label[:-1])
                 gene_position = split_label[-1]
-                start_position, end_position, strandedness = seq.metadata[
-                    "description"
-                ].split("#")[1:4]
+                smet = seq.metadata[ "description" ].split("#")[1:4]
+                if smet is not None and len(smet) == 3:
+                    start_position, end_position, strandedness = smet
+                else:
+                    self.logger.warning(f"Something may be wrong with the fasta {fasta.faa}")
                 df_dict[seq.metadata["id"]] = [
                     scaffold,
                     int(gene_position),

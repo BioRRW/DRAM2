@@ -27,7 +27,7 @@ CITATION = (
 
 
 class MeropsDescription(BASE):
-    __tablename__ = "merops_description"
+    __tablename__ = "peptidase_description"
 
     id = Column(String(10), primary_key=True, nullable=False, index=True)
 

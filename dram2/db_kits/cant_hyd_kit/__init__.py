@@ -204,7 +204,8 @@ class CantHydKit(DBKit):
 
     def get_genome_summary(self) -> Path:
         """Get the ids from a complete annotations pandas DataFrame."""
-        pass
+        genome_summary = self.get_config_path(GENOME_SUMMARY_KEY)
+        return genome_summary
 
     def search(self, fasta: Fasta) -> pd.DataFrame | pd.Series:
         """Perform a search, be that HMM, Blast or something else."""
@@ -265,7 +266,6 @@ class CantHydKit(DBKit):
 
     def load_dram_config(self):
         """Extract data from the larger DRAM config yaml"""
-        self.genome_summary = self.get_config_path(GENOME_SUMMARY_KEY)
         self.mmsdb = self.get_config_path(MMSDB_KEY)
         self.hmmdb = self.get_config_path(HMM_KEY)
         self.mmsdb_cutoffs = self.get_config_path(MMSDB_CUTOFFS_KEY)

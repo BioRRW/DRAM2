@@ -21,7 +21,7 @@ from functools import partial
 import logging
 import pandas as pd
 
-VERSION = "1.0.0-beta.1"
+VERSION = "1.0.0b2"
 CITATION: str = "CAMPER has no citeation and is in beta so you should not be using it."
 FA_DB_KEY = "camper_fa_db"
 FA_DB_CUTOFFS_KEY = "camper_fa_db_cutoffs"
@@ -235,19 +235,11 @@ class CamperKit(DBKit):
         )
 
     def load_dram_config(self):
-        self.camper_fa_db = self.get_config_path("mmsdb")
-        self.camper_hmm = self.get_config_path("hmmdb")
-        self.camper_fa_db_cutoffs = self.get_config_path("mmsdb_cutoffs")
-        self.camper_hmm_cutoffs = self.get_config_path("hmmdb_cutoffs")
-        self.camper_distillate = self.get_config_path("genome_summary_form")
-
-    # def setup(self):
-    #     if self.db_path is None:
-    #         raise ValueError(f"CAMPER needs an output location to setup the db")
-    #     tarfile = self.download(self.working_dir, self.logger)
-    #     # tarfile = "./CAMPER-1.0.0-beta.1.tar.gz"
-    #     self.config = self.pre_process(tarfile, self.db_path, self.logger, self.threads)
-    #     # raise ValueError("I have not made this yet")
+        self.camper_fa_db = self.get_config_path("camper_fa_db")
+        self.camper_hmm = self.get_config_path("camper_hmm")
+        self.camper_fa_db_cutoffs = self.get_config_path("camper_fa_db_cutoffs")
+        self.camper_hmm_cutoffs = self.get_config_path("camper_hmm_cutoffs")
+        self.camper_distillate = self.get_config_path("camper_distillate")
 
     def download(self, user_locations_dict: dict[str, Path]):
         """
@@ -325,4 +317,4 @@ class CamperKit(DBKit):
         run_process(
             ["hmmpress", "-f", final_paths["camper_hmm"]], self.logger
         )  # all are pressed just in case
-        return {i: {"location": j} for i, j in final_paths.items()}
+        return {i: {"location": Path(j).relative_to(output_dir).as_posix()} for i, j in final_paths.items()}

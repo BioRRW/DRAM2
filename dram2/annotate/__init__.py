@@ -647,9 +647,15 @@ def annotate_pipe(
         logger,
         force,
     )
-    logger.info(f"Started annotation with databases: {','.join(use_db)}")
-    # initialize all used databases
+    if len(use_dbset) > 0:
+        logger.info(
+            f"Using the data from DB sets "
+            f"{', '.join([DBSETS[j].name for j in use_dbset])}"
+        )
+        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j].members]
     databases = [i(dram_config, logger) for i in DB_KITS if i.name in set(use_db)]
+    logger.info(f"Started annotation with databases: {','.join([i.formal_name for i in databases])}")
+    # initialize all used databases
     if len(fastas) < 1:
         raise DramUsageError(
             "No FASTAs were passed to the annotator DRAM has nothing to do."
@@ -672,12 +678,6 @@ def annotate_pipe(
             fastas,
         )
 
-    if len(use_dbset) > 0:
-        logger.info(
-            f"Using the data from DB sets "
-            f"{', '.join([DBSETS[j].name for j in use_dbset])}"
-        )
-        use_db = list(use_db) + [i for j in use_dbset for i in DBSETS[j].members]
 
     use_db = list(set(use_db))
     # add argument for annotations
@@ -713,7 +713,7 @@ def annotate_pipe(
             "to merge new annotations."
         )
         past_annotations = pd.read_csv(
-            output_dir / past_annotation_meta.annotation_tsv,
+            past_annotation_meta.annotation_tsv,
             sep="\t",
             index_col=0,
         )

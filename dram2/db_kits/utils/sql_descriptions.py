@@ -80,9 +80,8 @@ class SQLDescriptions:
         self.session = db_session()
 
     # functions for adding descriptions to tables
-    def add_descriptions_to_database(self, description_list, clear_table=True):
-        if clear_table:
-            self.session.query(self.description_class).delete()
+    def add_descriptions_to_database(self, description_list):
+        self.session.query(self.description_class).delete()
         # TODO: try batching
         self.session.bulk_save_objects(
             [self.description_class(**i) for i in description_list]
@@ -134,21 +133,14 @@ class SQLDescriptions:
         return {i.id: i.__dict__[description_name] for i in descriptions}
 
     def populate_description_db(
-        self, output_loc: Path, name: str, process_function: Callable | None = None
+        self, output_loc: Path, name: str, process_function: Callable 
     ):
-        self.start_db_session()
         # I don't think this is needed
         if output_loc.exists():
             remove(output_loc)
         create_description_db(output_loc)
+        self.start_db_session()
+        self.add_descriptions_to_database(
+            process_function())
+        self.logger.info(f"Description updated for the {name} database")
 
-        def check_db(db_name, db_function):
-            self.add_descriptions_to_database(
-                db_function(), f"{db_name}_description", clear_table=True
-            )
-            self.logger.info(f"Description updated for the {db_name} database")
-
-        if process_function is None:
-            process_function = partial(make_header_dict_from_mmseqs_db, name)
-
-            check_db(name, process_function)

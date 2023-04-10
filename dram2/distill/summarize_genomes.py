@@ -1198,8 +1198,8 @@ def distill(
         logger.warning("You are u")
         annotations = pd.read_csv(annotations_tsv_path, sep="\t", index_col=0)
     else:
-        annotation_meta = get_last_annotation_meta(project_meta, output_dir)
-        annotations = get_past_annotation_data(annotation_meta, force)
+        annotation_meta: AnnotationMeta = get_last_annotation_meta(project_meta, output_dir)
+        annotations = get_past_annotation_data(annotation_meta, output_dir, force)
     if "bin_taxnomy" in annotations:
         annotations = annotations.sort_values("bin_taxonomy")
 
@@ -1209,7 +1209,7 @@ def distill(
 
     db_kits_with_ids = [i for i in DB_KITS if i.selectable and i.can_get_ids]
     if not force:
-        dbs_we_have_ano = set(annotation_meta.uds)
+        dbs_we_have_ano = set(annotation_meta.used_dbs)
         db_kits_with_ids = [i for i in db_kits_with_ids if i.name in dbs_we_have_ano]
     else:
         logger.warning("Skipping the normal checks because of the force flag")

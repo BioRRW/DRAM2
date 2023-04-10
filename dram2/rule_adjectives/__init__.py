@@ -243,8 +243,8 @@ def evaluate_cmd(
 
     context: DramContext = ctx.obj
     logger = context.get_logger()
-    output_dir: Path = context.get_output_dir()
-    cores: int = context.cores
+    output_dir: Path = context.get_dram_dir()
+    cores: int = context.threads
     project_config: dict = context.get_project_meta()
     dram_config = context.get_dram_config(logger)  # FIX
     try:
@@ -261,7 +261,7 @@ def evaluate_cmd(
         annotations_tsv = get_annotations_path(
             annotation_run, annotations_tsv_path, force
         )
-        if isinstance(userrules_tsv, Path):
+        if isinstance(user_rules_tsv, Path):
             rules_tsv = user_rules_tsv
         else:
             rules_tsv: Path = RULES_TSV_PATH

@@ -602,7 +602,7 @@ class DBKit(ABC):
                 "doing your own development?"
             )
 
-    def download(self, user_locations_dict: dict[str, Path]):
+    def download(self, user_locations_dict: dict[str, Path]) -> dict[str, Path]:
         pass
 
     def get_genome_summary(self) -> Optional[Path]:
