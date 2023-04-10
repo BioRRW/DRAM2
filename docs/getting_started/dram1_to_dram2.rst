@@ -44,9 +44,9 @@ Is the same as:
 .. code-block:: bash
 
   source /opt/Miniconda2/miniconda2/bin/activate DRAM2BETA
-  dram2 -o from_fasta -c 2 call \
+  dram2 -d from_fasta -t 2 call \
       ./input_fasta_files/*.fasta
-  dram2 -o from_fasta -c 30 annotate \
+  dram2 -d from_fasta -t 30 annotate \
         --use_dbset mini_kegg
 
 Grab an Example Directory
@@ -134,16 +134,16 @@ In the past, DRAM confused people by having them pass a string to call genes wit
 
 .. code-block:: bash
 
-    dram2 -o from_fasta -c 2 call \
+    dram2 -d from_fasta -t 2 call \
       ./input_fasta_files/*.fasta
 
 Recall the notes about commands above.
 ^^^^^^^^^
 
-Notice the output is specified by a ``-o`` and is passed to the dram2 command before the call command runs, the same with the ``-c`` command that tells dram the most cores it needs are 2.
+Notice the output is specified by a ``-o`` and is passed to the dram2 command before the call command runs, the same with the ``-t`` command that tells dram the most cores it needs are 2.
 The commands that get passed to ``dram2`` are universal and work with all ``dram2`` sub-commands, but you don't pass them after the sub-commands.
 
-So ``dram2 call -o`` would not work. The reverse is also true: you don't pass an option to ``dram2`` that goes to the sub-commands, so ``dram2 --prodigal_mode train call -0 soil/test1`` would not work.
+So ``dram2 call -d`` would not work. The reverse is also true: you don't pass an option to ``dram2`` that goes to the sub-commands, so ``dram2 --prodigal_mode train call -0 soil/test1`` would not work.
 
 Additionally, ``dram2 call`` has a list of arguments after all the options for FASTAs. In DRAM1, the wild card path to FASTA files had to be a string. That was ok, but it was confusing at times. DRAM2 uses a normal file path instead.
 
@@ -151,7 +151,7 @@ If you have FASTAs that can't be referenced with a regular expression, you can j
 
 .. code-block:: bash
 
-   dram2 -vv -o soil/test1 -c 2 call \
+   dram2 -vv -d soil/test1 -t 2 call \
      ./input_fasta_files/Cytophaga_hutchinsonii_ATCC_33406.fasta \
      ./input_fasta_files/Dechloromonas_aromatica_RCB.fasta
 
@@ -173,19 +173,19 @@ Note: you don't need to point to the called genes so long as you use the same ou
 
 .. code-block:: bash
 
-  dram2 -o from_fasta -c 30 annotate --use_dbset adjectives_kegg
+  dram2 -d from_fasta -t 30 annotate --use_dbset adjectives_kegg
 
 To demonstrate a phylogenetic NXR-NAR tree, we need to have some specific genes in this example. Let’s annotate some modified FASTAs that have these genes added. You can annotate these called genes with the command:
 
 .. code-block:: bash
 
-  dram2 -o called_annotated -c 30 annotate --use_dbset adjectives_kegg ./input_faa_files/*
+  dram2 -d called_annotated -t 30 annotate --use_dbset adjectives_kegg  ./input_faa_files/*
 
 Calling annotations can be done with a ``db_set``, as seen above, but it can also be done with the ``--use_db`` flag individually. The one above would take a long time, but you can use these smaller databases to get a taste of annotations.
 
 .. code-block:: bash
 
-  dram2 -o called_annotated -c 30 annotate --use_db fegenie --use_db camper --use_db methyl
+  dram2 -d called_annotated -t 30 annotate --use_db fegenie --use_db camper --use_db methyl --use_db cant_hyd
 
 There are also some databases that you may not think of as databases, such as Heme Motif count and even the genome statistics. It simply made sense to implement these as databases.
 
@@ -207,7 +207,7 @@ You will find that you can now select to only run some parts of the distillate. 
 
 .. code-block:: bash
 
-   dram2 -o called_annotated distill
+   dram2 -d called_annotated distill
 
 
 A Side Note On History Checks
@@ -217,8 +217,8 @@ If you try to run one of the ``dram2 annotate`` commands again, it will error by
 
 .. code-block:: bash
 
-  dram2 -o called_annotated -c 30 annotate --use_db methyl
-  dram2 -o called_annotated -c 30 annotate -f --use_db methyl
+  dram2 -d called_annotated -t 30 annotate --use_db methyl
+  dram2 -d called_annotated -t 30 annotate -f --use_db methyl
 
 If you call the genes for a FASTA but do not annotate it with the required databases, distill will give you an error, informing you of exactly what you are missing. The ``phylotree`` and ``adjectives`` commands will do the same. The force flag will once again allow you to continue, however ill-advised.
 
@@ -238,7 +238,7 @@ For our purposes here, we can simplify the process of this tool to a basic summa
 
 .. code-block:: bash
 
-   dram2 -o called_annotated phylotree
+   dram2 -d called_annotated phylotree
 
 This process depends on Annotation, and Adjectives now depend on this process. Unfortunately, we only have the NXR/NAR tree available in this test, but AMOA/PMOA is coming soon
 
@@ -254,7 +254,7 @@ The figure above shows a very simplified view of how rule-based Genome Adjective
 
 .. code-block:: bash
 
-   dram2 -o called_annotated adjectives eval
+   dram2 -d called_annotated adjectives eval
 
 
 
@@ -269,12 +269,12 @@ You will learn more about how DRAM2 works and what is left to do with informatio
 
 .. code-block:: bash
 
-   dram2 -o called_annotated  -c 30 -vvvvv annotate --use_db dbcan
+   dram2 -d called_annotated  -t 30 -vvvvv annotate --use_db dbcan
 
 This adjective run is nice and quiet.
 
 .. code-block:: bash
 
-    dram2 -o called_annotated  -v adjectives eval
+    dram2 -d called_annotated  -v adjectives eval
 
 
