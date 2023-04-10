@@ -212,7 +212,8 @@ def get_reciprocal_best_hits(
 
 def multigrep(search_terms, search_against, logger, split_char="\n", output="."):
     # TODO: multiprocess this over the list of search terms
-    """Search a list of exact substrings against a database, takes name of mmseqs db index with _h to search against"""
+    """Search a list of exact substrings against a database, takes name of mmseqs db 
+    index with _h to search against"""
     hits_file = path.join(output, "hits.txt")
     with open(hits_file, "w") as f:
         f.write("%s\n" % "\n".join(search_terms))
@@ -561,6 +562,7 @@ class DBKit(ABC):
     keep_tmp: bool = False
     has_genome_summary: bool = False
     can_get_ids: bool = True
+    location_keys: list[str] = []
 
     # For updating a counter
     fastas_to_annotate: int = 0
@@ -600,8 +602,7 @@ class DBKit(ABC):
                 "doing your own development?"
             )
 
-    @classmethod
-    def download(cls):
+    def download(self, user_locations_dict: dict[str, Path]):
         pass
 
     def get_genome_summary(self) -> Optional[Path]:

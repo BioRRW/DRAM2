@@ -67,11 +67,8 @@ from dram2.db_kits.utils import (
     DEFAULT_RBH_BIT_SCORE_THRESHOLD,
     DEFAULT_KOFAM_USE_DBCAN2_THRESHOLDS,
     DEFAULT_THREADS,
-    DEFAULT_GENES_CALLED,
-    DEFAULT_USE,
     DEFAULT_FORCE,
     DEFAULT_KEEP_TMP,
-    DEFAULT_FORCE,
 )
 from dram2.call_genes import DEFAULT_GENES_FILE
 from dram2 import db_kits as db_kits
@@ -303,20 +300,6 @@ def check_fasta_names(fastas: list[Fasta]):
         )
 
 
-def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
-    """
-    Take a path and make a genes fasta object.
-
-    :param fasta_loc:
-    :param working_dir:
-    :returns:
-    """
-    fasta_name = fasta_loc.stem
-    fasta_working_dir = working_dir / fasta_name
-    fasta_working_dir.mkdir(parents=True, exist_ok=True)
-    return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
-
-
 def make_mmseqs_db_for_fasta(
     fasta: Fasta, logger: logging.Logger, threads: int
 ) -> Fasta:
@@ -358,6 +341,24 @@ def has_dup_fasta_name(fastas: list[Fasta], logger: logging.Logger) -> int:
         logger.debug(f"duplicated names: {', '.join(duplicated)}")
         return len(duplicated)
     return 0
+
+
+def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
+    """
+    Take a path and make a genes fasta object.
+
+    Todo:
+    ----
+
+        - Make this into a universal for merger and this
+    :param fasta_loc:
+    :param working_dir:
+    :returns:
+    """
+    fasta_name = fasta_loc.stem
+    fasta_working_dir = working_dir / fasta_name
+    fasta_working_dir.mkdir(parents=True, exist_ok=True)
+    return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
 
 
 def get_all_fastas(
@@ -425,10 +426,15 @@ def get_all_fastas(
 
 
 def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> AnnotationMeta:
+    """
+
+    """
     used_dbs: set[str] = set(annotation_dict[USED_DBS_TAG])
     fasta_names: set[str] = set(annotation_dict[FASTAS_CONF_TAG])
     working_dir: Path = Path(annotation_dict[WORKING_DIR_TAG])
     annotation_tsv: Path = Path(annotation_dict[ANNOTATION_FILE_TAG])
+    if not annotation_tsv.is_absolute():
+        annotation_tsv = output_dir / annotation_tsv
     if ANNOTATION_FILE_TAG not in annotation_dict:
         raise DramUsageError(
             """
@@ -443,16 +449,16 @@ def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> Annotati
             required pipeline needed  to run dram distill.
                 """
         )
-    if not annotations_path.exists():
-        raise DramUsageError(
-            f"""
-            The path to annotations has been recorded but it does not point to a
-            annotations file that exists in the dram_directory make sure the
-            path to your annotations is at the relive path
-            {annotation_tsv} with respect to the dram_directory:
-            {output_dir}.
-            """
-        )
+    # if not annotations_path.exists():
+    #     raise DramUsageError(
+    #         f"""
+    #         The path to annotations has been recorded but it does not point to a
+    #         annotations file that exists in the dram_directory make sure the
+    #         path to your annotations is at the relive path
+    #         {annotation_tsv} with respect to the dram_directory:
+    #         {output_dir}.
+    #         """
+    #     )
     if not annotation_tsv.exists():
         raise DramUsageError(
             """
@@ -491,7 +497,9 @@ def dict_to_annotation_meta(annotation_dict: dict, output_dir: Path) -> Annotati
 def get_last_annotation_meta(
     project_meta: dict, output_dir: Path
 ) -> AnnotationMeta | None:
-    annotaions_dicts: dict = project_meta.get(ANNOTATIONS_TAG)
+    annotaions_dicts: dict | None = project_meta.get(ANNOTATIONS_TAG)
+    if annotaions_dicts is None:
+        return None
     run_id = annotaions_dicts[LATEST_TAG]
     latest_dict = annotaions_dicts[run_id]
     annotation_meta = dict_to_annotation_meta(latest_dict, output_dir)
@@ -511,8 +519,8 @@ def make_new_meta_data(
     threads: int,
     force: bool,
     output_dir: Path,
-    db_path: Path,
-    extra: dict,
+    # db_path: Path,
+    # extra: dict,
     keep_tmp: bool,
 ) -> dict:
     """
@@ -541,9 +549,9 @@ def make_new_meta_data(
     if past_annotation_meta is not None:
         new_annotation_meta.used_dbs.update(past_annotation_meta.used_dbs)
     if ANNOTATIONS_TAG in project_meta:
-        project_meta[ANNOTATIONS_TAG].update(new_annotation_meta.get_dict())
+        project_meta[ANNOTATIONS_TAG].update({run_id: new_annotation_meta.get_dict()})
     else:
-        project_meta[ANNOTATIONS_TAG] = new_annotation_meta.get_dict()
+        project_meta[ANNOTATIONS_TAG] = {run_id: new_annotation_meta.get_dict()}
     project_meta[ANNOTATIONS_TAG][LATEST_TAG] = run_id
     project_meta[FASTAS_CONF_TAG] = [i.export(output_dir) for i in fastas]
     return project_meta
@@ -559,7 +567,7 @@ def search_fasta_with_database(databases: list[DBKit], fasta: Fasta) -> pd.DataF
         .assign(**{FASTA_COL: fasta.name})
         .assign(**{GENE_ID_COL: lambda x: x.index})
     )
-    data.set_index([f"{fasta.name}_{j}" for j in data.index.values])
+    data.index = [f"{fasta.name}_{j}" for j in data.index.values]
     return data
 
 
@@ -744,8 +752,17 @@ def annotate_pipe(
         run_id,
         databases,
         fastas,
-        **db_args,
         annotation_tsv=annotation_tsv,
+        working_dir=working_dir,
+        bit_score_threshold=bit_score_threshold,
+        rbh_bit_score_threshold=rbh_bit_score_threshold,
+        kofam_use_dbcan2_thresholds=kofam_use_dbcan2_thresholds,
+        threads=cores,
+        force=force,
+        output_dir=output_dir,
+        # extra=extra,
+        # db_path=db_path,  # where to store dbs on the fly
+        keep_tmp=keep_tmp,
     )
     project_meta.update(new_meta)
     context.set_project_meta(project_meta)
@@ -830,6 +847,12 @@ def merge_past_annotations(
                 use the force flag to overwrite this data in the
                 old annotations file,
                 """
+            )
+        else:
+            logger.warning(
+                f"There is a name collision s for the column/columns: "
+                f"({', '.join(problem_colliders)}). \n\n This data "
+                f"will be overrighten."
             )
     colliding_genes = set(new_annotations.index).intersection(
         set(past_annotations.index)
@@ -998,8 +1021,7 @@ def annotate_cmd(
 
     """
     context: DramContext = ctx.obj
-    log_error_wraper(annotate_pipe, context)()
-    annotate_pipe(
+    log_error_wraper(annotate_pipe, context, "annotating genes")(
         context=context,
         gene_fasta_paths=gene_fasta_paths,
         bit_score_threshold=bit_score_threshold,

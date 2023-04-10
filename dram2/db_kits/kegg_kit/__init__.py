@@ -3,7 +3,9 @@ import re
 from dram2.db_kits.utils import do_blast_style_search, DBKit
 from dram2.utils import Fasta
 import logging
+from pathlib import Path
 import pandas as pd
+from dram2.utils import DramUsageError
 
 CITATION = (
     " M. Kanehisa, M. Furumichi, Y. Sato, M. Ishiguro-Watanabe, and"
@@ -14,6 +16,7 @@ CITATION = (
 
 from sqlalchemy import Column, String
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
+from dram2.db_kits.utils import make_mmseqs_db
 
 
 class KeggDescription(BASE):
@@ -36,6 +39,9 @@ class KeggKit(DBKit):
     name = "kegg"
     formal_name: str = "KEGG"
     citation: str = CITATION
+    location_keys: list[str] = [
+        "kegg_pep",
+    ]
 
     def setup(self):
         pass
@@ -97,28 +103,38 @@ class KeggKit(DBKit):
             ]
         return ids
 
+    def setup(
+        self,
+        location_dict: dict[str, Path],
+        output_dir: Path,
+    ) -> dict:
+        # make mmseqsdb from modified kegg fasta
+        kegg_pep = location_dict["kegg_pep"]
+        kegg_mmseqs_db = output_dir / f"kegg.mmsdb"
+        make_mmseqs_db(
+            kegg_pep,
+            kegg_mmseqs_db,
+            self.logger,
+            create_index=True,
+            threads=self.threads,
+        )
+        description_out = output_dir / "kegg.sqlight"
+        description_db = SQLDescriptions(
+            description_out,
+            self.logger,
+            KeggDescription,
+            self.name,
+        )
+        description_db.populate_description_db(
+            output_dir,
+            self.name,
+        )
+        self.logger.info("KEGG database processed")
+        return {"mmsdb": {"location": kegg_mmseqs_db}}
 
-"/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/dram_db/kegg.sqlite"
-"/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/split_sql_dbs/kegg.sqlite"
-"""
-from pathlib import Path
-
-conf = {
-    "dram_data_folder": Path("/home/Database/DRAM/sep_12_22_dram1.4.0_full_db/"),
-    "db_kits":{
-        "kegg": {
-            "mmsdb": {'location': Path("kegg.20221012.mmsdb")},
-            'description_db':{ 'location': Path("/home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/split_sql_dbs/kegg.sqlite")}}}}
-
-
-data = pd.read_csv("soil/test1/annotations.tsv", sep='\t', index_col=0)
-
-
-test = KeggKit(conf, logging.getLogger())
-test.load_dram_config()
-test.get_descriptions(data)
-test.get_descriptions(pd.DataFrame({'kegg_hit': ['chu:CHU_1316']}))
-
-data.columns
-test.description_db.get_descriptions(data["kegg_hit"], "description")
-"""
+    def download(self, user_locations_dict: dict[str, Path]):
+        """
+        you know
+        """
+        if "kegg_pep" not in user_locations_dict:
+            raise DramUsageError("You need to provide the KEGG pep.")

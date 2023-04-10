@@ -43,7 +43,7 @@ LOG_FILE_NAME: str = "dram2.log"
 DEFAULT_VERBOSE = 4  # maps to logging levels
 DEFAULT_THREADS = 10
 
-__version__ = "2.0.0"
+__version__ = "2.0.0rc2"
 
 
 def get_config_path(logger: logging.Logger, custom_path: Optional[Path] = None) -> Path:
@@ -181,6 +181,8 @@ class DramContext(object):
 
         Docs: https://docs.python.org/3/library/logging.html
 
+        dram2 -d temp3 build_db  -y test.yaml
+        dram2 -d temp3 build_db -y test.yaml
         """
         logger = logging.getLogger("dram2_log")
 
@@ -273,7 +275,7 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
-def log_error_wraper(fun: Callable, context: DramContext) -> Callable:
+def log_error_wraper(fun: Callable, context: DramContext, command_name:str) -> Callable:
     """
     Add a wraper to function so errors are logged.
 
@@ -291,6 +293,6 @@ def log_error_wraper(fun: Callable, context: DramContext) -> Callable:
         except Exception as e:
             logger = context.get_logger()
             logger.error(e)
-            logger.exception("Fatal error in calling genes")
+            logger.exception(f"Fatal error in {command_name}")
             raise e
     return error_logging_fun

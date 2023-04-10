@@ -1,4 +1,4 @@
-﻿hmm_name,A_rank,B_rank,score type,description
+﻿hmm_name,A_rank,B_rank,score_type,description
 AlkB,550,530,full,HMM; alkB; AlkB-type alkane hydroxylase
 AlmA_GroupI,900,830,full,HMM; almA; Flavin-binding monooxygenase
 AlmA_GroupIII,900,830,full,HMM; almA; Flavin-binding monooxygenase

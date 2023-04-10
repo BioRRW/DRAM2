@@ -14,10 +14,13 @@ from sqlalchemy import Column, String
 import logging
 from typing import Optional
 import pandas as pd
+from shutil import move
 
 from dram2.db_kits.utils.sql_descriptions import SQLDescriptions, BASE
 
 KNOWN_DBCAN_NONE_DESCRIPTORS = {"GT2_Glycos_transf_2", "GT2_Glyco_tranf_2_3"}
+DEFAULT_DBCAN_RELEASE = "11"
+DEFAULT_DBCAN_DATE = "08062022"
 
 VERSION = "11"
 DATE = "08062022"
@@ -29,6 +32,14 @@ CITATION = (
 )
 DESCRIPTION_COL = "description"
 EC_COL = "subfam_ec"
+# partial(
+#     self.process_pfam_descriptions,
+#     self.config.get("database_descriptions")["pfam_hmm"],
+# ),
+# partial(
+#     self.process_vogdb_descriptions,
+#     self.config.get("database_descriptions")["vog_annotations"],
+# ),
 
 
 class DbcanDescription(BASE):
@@ -74,8 +85,7 @@ def process_dbcan_descriptions(dbcan_fam_activities, dbcan_subfam_ec):
             )
 
     with open(dbcan_fam_activities) as f:
-        description_data = pd.concat(
-            [line_reader(line) for line in f.readlines()])
+        description_data = pd.concat([line_reader(line) for line in f.readlines()])
 
     ec_data = pd.read_csv(
         dbcan_subfam_ec, sep="\t", names=["id", "id2", "ec"], comment="#"
@@ -140,8 +150,7 @@ def dbcan_hmmscan_formater(
         hits_df[f"{db_name}_subfam_ec"] = hits_df[f"{db_name}_ids"].apply(
             lambda x: "; ".join(
                 sql_descriptions.get_descriptions(
-                    x.split("; "),
-                    "ec", KNOWN_DBCAN_NONE_DESCRIPTORS
+                    x.split("; "), "ec", KNOWN_DBCAN_NONE_DESCRIPTORS
                 ).values()
             )
         )
@@ -155,12 +164,17 @@ class dbCANKit(DBKit):
 
     name = "dbcan"
     formal_name: str = "dbCAN"
-    max_threads:int = 2
+    max_threads: int = 2
     version: str = VERSION
     citation: str = CITATION
     date: str = DATE
     hmm_db: Path
     description_db: SQLDescriptions
+    location_keys: list[str] = [
+        "dbcan_hmm",
+        "dbcan_ec",
+        "dbcan_fam",
+    ]
 
     def setup() -> dict:
         pass
@@ -198,7 +212,6 @@ class dbCANKit(DBKit):
         )
         return annotations
 
-
     def get_ids(self, annotations: pd.Series) -> list:
         main_id = f"{self.name}_best_hit"
         if main_id not in annotations:
@@ -207,8 +220,81 @@ class dbCANKit(DBKit):
             return [str(annotations[main_id]).split("_")[0]]
         return []
 
-    # "cazy_id": lambda x: [i.split("_")[0] for i in x.split("; ")],
-    # "cazy_hits": lambda x: [
-    #     f"{i[1:3]}:{i[4:-1]}" for i in re.findall(r"\(EC [\d+\.]+[\d-]\)", x)
-    # ],
-    # "cazy_subfam_ec": lambda x: [f"EC:{i}" for i in re.findall(r"[\d+\.]+[\d-]", x)],
+    def download(self, user_locations_dict: dict[str, Path]):
+        """
+        you know
+        """
+        if "dbcan_ec" in user_locations_dict:
+            dbcan_subfam_ec = user_locations_dict["dbcan_ec"].as_posix()
+        else:
+            dbcan_subfam_ec = path.join(
+                self.working_dir, f"CAZyDB.{DEFAULT_DBCAN_DATE}.fam.subfam.ec.txt"
+            )
+            url = (
+                f"https://bcb.unl.edu/dbCAN2/download/Databases/"
+                f"V{DEFAULT_DBCAN_RELEASE}/CAZyDB.{DEFAULT_DBCAN_DATE}.fam.subfam.ec.txt"
+            )
+            self.logger.info(f"Downloading dbCAN sub-family encumber from : {url}")
+            download_file(url, dbcan_subfam_ec, self.logger)
+
+        if "dbcan_hmm" in user_locations_dict:
+            dbcan_subfam_ec = user_locations_dict["dbcan_hmm"].as_posix()
+        else:
+            dbcan_hmm = path.join(
+                self.working_dir, f"dbCAN-HMMdb-V{DEFAULT_DBCAN_RELEASE}.txt"
+            )
+            link_path = f"http://bcb.unl.edu/dbCAN2/download/dbCAN-HMMdb-V{DEFAULT_DBCAN_RELEASE}.txt"
+            self.logger.debug(f"Downloading dbCAN from: {link_path}")
+            download_file(link_path, dbcan_hmm, self.logger)
+        if "dbcan_fam" in user_locations_dict:
+            dbcan_subfam_ec = user_locations_dict["dbcan_fam"].as_posix()
+        else:
+            dbcan_fam_activities = path.join(
+                self.working_dir, f"CAZyDB.{DEFAULT_DBCAN_RELEASE}.fam-activities.txt"
+            )
+            url = (
+                f"https://bcb.unl.edu/dbCAN2/download/Databases/"
+                f"V{DEFAULT_DBCAN_RELEASE}/CAZyDB."
+                f"{DEFAULT_DBCAN_DATE}.fam-activities.txt"
+            )
+            self.logger.info(f"Downloading dbCAN family activities from : {url}")
+            download_file(url, dbcan_fam_activities, self.logger)
+        return {
+            "dbcan_hmm": Path(dbcan_hmm),
+            "dbcan_ec": Path(dbcan_subfam_ec),
+            "dbcan_fam": Path(dbcan_fam_activities),
+        }
+
+    def setup(
+        self,
+        location_dict: dict[str, Path],
+        output_dir: Path,
+    ) -> dict:
+        hmm_path = location_dict["dbcan_hmm"]
+        dbcan_ec = location_dict["dbcan_ec"]
+        dbcan_fam = location_dict["dbcan_fam"]
+        hmm_out = output_dir / path.basename(hmm_path)
+        description_out = output_dir / "dbcan.sqlight"
+        move(hmm_path, hmm_out)
+        run_process(["hmmpress", "-f", hmm_out], self.logger)
+        self.logger.info("dbCAN database processed")
+
+        description_db = SQLDescriptions(
+            description_out,
+            self.logger,
+            DbcanDescription,
+            self.name,
+        )
+        description_db.populate_description_db(
+            output_dir,
+            self.name,
+            partial(
+                process_dbcan_descriptions,
+                dbcan_ec,
+                dbcan_fam,
+            ),
+        )
+        return {
+            "description_db": {"location": description_out.as_posix()},
+            "hmmdb": {"location": hmm_out.as_posix()},
+        }

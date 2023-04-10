@@ -132,7 +132,7 @@ def call_genes_cmd(
 
     # get assembly locations
 
-    log_error_wraper(call_genes_pipe, context)(
+    log_error_wraper(call_genes_pipe, context, "call_genes")(
         context,
         fasta_paths=fasta_paths,
         genes_dir=genes_dir,
@@ -141,7 +141,6 @@ def call_genes_cmd(
         prodigal_trans_tables=prodigal_trans_tables,
         force=force,
     )
-
 
 
 def call_genes_pipe(
@@ -336,7 +335,8 @@ def filter_and_call_genes(
     """
     :param fasta: A FASTA object, probably representing a BIN from a MAG.
     :param logger: Standard python logger
-    :param min_contig_size: The minimum contig size for DRAM to consider calling genes on
+    :param min_contig_size: The minimum contig size for DRAM to consider calling genes
+    on
     :param keep_tmp: True or False keep the temp file
     :param prodigal_mode: Mode of prodigal to use
     :param trans_table: Prodigal trans table setting, look it up on Prodigal website
@@ -434,6 +434,20 @@ def get_fasta_name(fasta_loc: Path):
 
 def mkdir(i: str, working_dir: Path):
     (working_dir / i).mkdir(exist_ok=False, parents=True)
+
+
+def path_to_gene_fastas(fasta_loc: Path, working_dir: Path) -> Fasta:
+    """
+    Take a path and make a genes fasta object.
+
+    :param fasta_loc:
+    :param working_dir:
+    :returns:
+    """
+    fasta_name = fasta_loc.stem
+    fasta_working_dir = working_dir / fasta_name
+    fasta_working_dir.mkdir(parents=True, exist_ok=True)
+    return Fasta(fasta_name, fasta_loc, fasta_working_dir, fasta_loc, None, None, None)
 
 
 def get_fasta_names_dirs(

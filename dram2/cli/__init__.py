@@ -149,7 +149,7 @@ def dram2(
 ):
     ctx.obj = DramContext(
         threads=threads,
-        #db_path=db_path,
+        # db_path=db_path,
         config_file=config_file,
         log_file_path=log_file_path,
         dram_dir=dram_dir,
@@ -193,9 +193,10 @@ dram2.add_command(adjectives_cmd)
 
 
 try:
-    from dram2.db_builder import db_builder_cmd
+    from dram2.db_builder import db_builder_cmd, db_list_cmd
 
     dram2.add_command(db_builder_cmd)
+    dram2.add_command(db_list_cmd)
 except ImportError:
     pass
 
