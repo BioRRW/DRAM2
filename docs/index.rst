@@ -31,6 +31,7 @@ The DRAM development team is actively working on DRAM2. We do not anticipate add
 
   getting_started/setup_configure_dram2
   getting_started/basic_use
+  getting_started/update_database
   getting_started/dram1_to_dram2
   getting_started/command
   getting_started/example_use_case
