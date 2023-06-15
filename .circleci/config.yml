@@ -6,7 +6,7 @@ version: 2.1
 
 # Define jobs
 jobs:
-  build-and-test:
+  build:
     working_directory: ~/testing-dir
     docker:
       - image: ubuntu:focal
@@ -27,8 +27,14 @@ jobs:
             conda config --add channels bioconda
             conda config --add channels conda-forge
             conda info -a
+  test:
+    working_directory: ~/testing-dir
+    docker:
+      - image: ubuntu:focal
+    steps:
+      - checkout
       - run:
-          name: Run tests in enviroment
+          name: Test DRAM2BETA env
           # This assumes pytest is installed via the install-package step above
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
@@ -47,6 +53,9 @@ jobs:
             # pytest tests/test_utils.py
 # Invoke jobs via workflows
 workflows:
-  all-tests:
+  build_and_test:
     jobs:
-      - build-and-test
+      - build
+      - test:
+          requires:
+          - build
