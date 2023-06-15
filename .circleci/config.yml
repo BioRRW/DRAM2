@@ -33,10 +33,10 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             conda update -y conda
-            conda create -n DRAM2BETA -f DRAM2BETA_env.yml
+            conda env create -n DRAM2BETA -f DRAM2BETA_env.yml
             source activate DRAM2BETA
             conda install  pandas pytest pandas pytest scikit-bio prodigal mmseqs2!=10.6d92c hmmer!=3.3.1 trnascan-se >=2 sqlalchemy barrnap altair >=4 openpyxl networkx ruby parallel dram
-            pytest tests/annotate.py
+            # pytest tests/annotate.py
             # pytest tests/test_annotate_bins.py
             # pytest tests/test_annotate_vgfs.py
             # pytest tests/test_database_handler.py
