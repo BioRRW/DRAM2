@@ -7,7 +7,7 @@
 Welcome to the DRAM2 Docs!
 =========================================
 
-You are reading the official documentation for DRAM22 (Distilled and Refined Annotation of Metabolism, Version 2) a tool for annotating metagenomic assembled genomes. DRAM2 annotates MAGs  using a set of :ref:`databases<database_info>` including custom user databases. DRAM2 is run in two stages. First an annotation step to assign database identifiers to gene, and then a distill step to curate these annotations into useful functional categories. Additionally, viral contigs are further analyzed during to identify potential AMGs. This is done via assigning an auxiliary score and flags representing the confidence that a gene is both metabolic and viral.
+You are reading the official documentation for DRAM2 (Distilled and Refined Annotation of Metabolism, Version 2) a tool for annotating metagenomic assembled genomes. DRAM2 annotates MAGs  using a set of :ref:`databases<database_info>` including custom user databases. DRAM2 is run in three stages. First an genes are called given a MAG, or set of MAGs, in FASTA format. Second, an annotation step to assign database identifiers to called genes. Lastly, a distill step to curate these annotations into useful functional categories. Additionally, viral contigs are further analyzed during to identify potential AMGs. This is done via assigning an auxiliary score and flags representing the confidence that a gene is both metabolic and viral.
 
 For more detail on how the Science of DRAM2 works please see our `paper <>`_ or
 read .
