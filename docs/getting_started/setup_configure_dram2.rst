@@ -103,23 +103,6 @@ argument) and the speed of your internet connection. On a less than 5 year old s
 Make my database Global
 ^^^^^^^^^^^
 
-Getting Started Part 3: Usage
------------------------------
-
-Once DRAM is set up you are ready to annotate some MAGs. The following command will generate your full annotation::
-
-   DRAM.py annotate -i 'my_bins/*.fa' -o annotation
-
-`my_bins` should be replaced with the path to a directory which contains all of your bins you would like to annotated and `.fa` should be replaced with the file extension used for your bins (i.e. `.fasta`, `.fna`, etc). If you only need to annotate a single genome (or an entire assembly) a direct path to a nucleotide fasta should be provided. Using 20 processors, DRAM.py takes about 17 hours to annotate ~80 MAGs of medium quality or higher from a mouse gut metagenome.
-
-In the output `annotation` folder, there will be various files. `genes.faa` and `genes.fna` are fasta files with all genes called by prodigal with additional header information gained from the annotation as nucleotide and amino acid records respectively. `genes.gff` is a GFF3 with the same annotation information as well as gene locations. `scaffolds.fna` is a collection of all scaffolds/contigs given as input to `DRAM.py annotate` with added bin information in the headers. `annotations.tsv` is the most important output of the annotation. This includes all annotation information about every gene from all MAGs. Each line is a different gene and each column contains annotation information. `trnas.tsv` contains a summary of the tRNAs found in each MAG.
-
-Then after your annotation is finished you can summarize these annotations with the following command::
-
-   DRAM.py distill -i annotation/annotations.tsv -o genome_summaries --trna_path annotation/trnas.tsv --rrna_path annotation/rrnas.tsv
-
-This will generate the distillate and liquor files.
-
 System Requirements
 -------------------
 DRAM has a large memory burden and is designed to be run on high performance computers. DRAM annotates against a large
