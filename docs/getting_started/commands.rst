@@ -1,12 +1,12 @@
 ======================
-Quick Command Refrance
+Quick Command Refrence
 ======================
 
 
 >> dram2
 --------
 
-The root command of DRAM2 protocal which provids infomation to all other commands.
+The root command of DRAM2 protocal which provides infomation to all other commands.
 
 Options:
  * -o, --output_dir PATH  output directory
