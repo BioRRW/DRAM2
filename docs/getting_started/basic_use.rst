@@ -2,7 +2,7 @@
 Using DRAM2: Quick start
 ========================
 
-Quick start guide for DRAM2.
+Guide covering the three main commands which encompass a typical DRAM2 run. This includes calling genes from an input MAG(s), annotating the called genes and summarizing these annotations into a distillate.
 
 
 **Overview:**
@@ -141,17 +141,17 @@ Bring up the help menu:
                                         calling. Read more about this option in
                                         the prodigal wiki:
                                         https://github.com/hyattpd/prodigal/wiki.
-     -h, --help                      Show this message and exit.
+     -h, --help                         Show this message and exit.
 
 **Basic usage:**
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> call <options> /some/path/*.fasta
 
 For multiple FASTA file inputs in separate directories:
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> call <options> /some/path/fasta1.fasta /some/path/fasta2.fasta
 
@@ -222,7 +222,7 @@ Example 2: Annotating using multiple databases::
 
 Example 3: Annotating with all of the databases which provide entries in the metabolism_summary:
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_dbset metabolism_set
 
@@ -316,13 +316,14 @@ Example 1: Basic distillation
 
 Example 2: Distillation of specific databases.
 
-   **For instance, if you annotated using only KEGG (the same as Example 1 in Annotate):**
+   *For instance, if you annotated using only KEGG (the same as Example 1 in Annotate):*
 
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
-   **Then you can specify only the KEGG distillation.**
+
+  **Then you can specify only the KEGG distillation.**
 
 .. code-block:: bash::
 
