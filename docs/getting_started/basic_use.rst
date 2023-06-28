@@ -1,28 +1,31 @@
+========================
 Using DRAM2: Quick start
-=================
+========================
 
 Quick start guide for DRAM2.
-
+---------
 Overview:
---------
+---------
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
    * Step 1: Calling genes (dram2 call)
    * Step 2: Annotating called genes (dram2 annotate)
    * Step 3: Summarizing annotations (dram2 distill)
 
-
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Brief notes on the DRAM2 command structure
-------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Every DRAM2 use case starts with ``dram2`` followed by a command. All DRAM2 commands and options can be found within the main DRAM2 help menu:
 
 .. code-block:: bash
+
    dram2 --help
 
 DRAM2 options:
 
 .. code-block:: bash
+
   -d, --dram_dir PATH    This is both the location where the output of new
                          DRAM2 actions will go, and also the location where
                          the outputs of past DRAM2 actions and metadata can be
@@ -51,14 +54,17 @@ DRAM2 options **must** preced the command you wish to use:
 For example, specifying the location of the DRAM2 output and number of threads must preced the ``call`` command and the subsequent ``call`` options:
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> call <call-options>
 
 .. code-block:: bash
+
    dram2 --help
 
 DRAM2 commands as listed in the help menu
 
 .. code-block:: bash
+
    Commands:
      call              Call Genes and Filter FASTAs
      annotate          Annotate Genes with Gene Database
@@ -76,17 +82,19 @@ DRAM2 commands as listed in the help menu
      build_db          Build Your Own Custom DRAM Database
      build_db_list     List the input files you can provied
 
-As you can see from the ``dram2 --help` output, not all commands listed are functional.
+As you can see from the ``dram2 --help`` output, not all commands listed are functional.
 
 DRAM2 commands, and their corresponding options can be found through their individual ``--help`` menus. 
 For example:
 
 .. code-block:: bash
+
    dram2 call --help
 
 Or,
 
 .. code-block:: bash
+
    dram2 annotate --help
 
 Brief notes on the DRAM2 output structure
@@ -94,9 +102,9 @@ Brief notes on the DRAM2 output structure
 
 As seen above in the help menu output, the DRAM2 option to specify the output directory, ``dram2 -d <path/to/output/directory>``, is used not only to specify the output directory but also specifies the location of previous DRAM2 actions. 
 
-   *It is generally a good idea to keep the same output directory for subsequent DRAM2 actions*
+   *It is generally a good idea to keep the same output directory for subsequent DRAM2 actions.*
 
-For example, specifying the same output directory (``-d``) for ``dram2 -d call`` and ``dram2 annotate``. This is beneficial as this directory will accumulate metadata about your DRAM2 run which expidites subsequent DRAM2 commands using the same input dataset.
+For example, specifying the same output directory (``-d``) for ``dram2 call`` and ``dram2 annotate``. This is beneficial as this directory will accumulate metadata about your DRAM2 run which expidites subsequent DRAM2 commands using the same input dataset.
 
 Step 1: Calling genes
 ---------------------
@@ -104,9 +112,11 @@ Step 1: Calling genes
 Bring up the help menu:
 
 .. code-block:: bash
+
    dram2 call --help
 
 .. code-block:: bash
+
    Options:
      -f, --force                        Remove all called genes and information
                                         about them, you will only get the current
@@ -134,11 +144,13 @@ Basic usage:
 ------------
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> call <options> /some/path/*.fasta
 
 For multiple FASTA file inputs in separate directories:
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> call <options> /some/path/fasta1.fasta /some/path/fasta2.fasta
 
 Step 2: Annotating called genes
@@ -149,9 +161,11 @@ Annotation of called genes results in the creation of a new directory ``annotate
 Bring up the help menu:
 
 .. code-block:: bash
+
    dram2 annotate --help
 
 .. code-block:: bash
+
    Options:
      -s, --use_dbset [metabolism_kegg_set|metabolism_set|adjectives|adjectives_kegg]
      --use_db [camper|cant_hyd|dbcan|fegenie|stats|kegg|kofam|merops|methyl|heme|pfam|sulfur|uniref]
@@ -195,16 +209,19 @@ Basic usage:
 Example 1: Annotating using the KEGG database
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
 Example 2: Annotating using multiple databases
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg --use_db kegg --use_db kofam --use_db merops
 
 Example 3: Annotating with all of the databases which provide entries in the metabolism_summary:
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_dbset metabolism_set
 
 Step 3: Summarizing annotations
@@ -219,9 +236,11 @@ The Distillation step summarizes the annotated genes within the ``annotated`` di
 Bring up the help menu:
 
 .. code-block:: bash
+
    dram2 distill --help
 
 .. code-block:: bash
+
    Options:
      --annotations_tsv_path PATH     Location of an annotations.tsv. You don't
                                      need to use this option if you are using the
@@ -286,6 +305,7 @@ Bring up the help menu:
 Example 1: Basic distillation
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> distill
 
 Example 2: Distillation of specific databases.
@@ -293,11 +313,13 @@ Example 2: Distillation of specific databases.
    **For instance, if you annotated using only KEGG (the same as Example 1 in Annotate):**
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
    **Then you can specify only the KEGG distillation.**
 
 .. code-block:: bash
+
    dram2 -d <path/to/output/directory> -t <#threads> distill --use_db_distilate kegg
 
 
