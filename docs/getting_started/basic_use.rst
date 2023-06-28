@@ -145,11 +145,13 @@ Bring up the help menu:
 
 **Basic usage:**
 
+**Example 1:** Single input FASTA file:
+
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> call <options> /some/path/*.fasta
 
-For multiple FASTA file inputs in separate directories:
+**Example 2:** For multiple FASTA file inputs in separate directories:
 
 .. code-block:: bash::
 
@@ -208,19 +210,19 @@ Bring up the help menu:
 
 **Basic usage:**
 
-Example 1: Annotating using the KEGG database
+**Example 1:** Annotating using the KEGG database
 
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
-Example 2: Annotating using multiple databases::
+**Example 2:** Annotating using multiple databases::
 
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg --use_db kegg --use_db kofam --use_db merops
 
-Example 3: Annotating with all of the databases which provide entries in the metabolism_summary:
+**Example 3:** Annotating with all of the databases which provide entries in the metabolism_summary:
 
 .. code-block:: bash::
 
@@ -308,13 +310,13 @@ Bring up the help menu:
 
 **Basic usage:**
 
-Example 1: Basic distillation
+**Example 1:** Basic distillation
 
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> distill
 
-Example 2: Distillation of specific databases.
+**Example 2:** Distillation of specific databases.
 
    *For instance, if you annotated using only KEGG (the same as Example 1 in Annotate):*
 
@@ -323,7 +325,7 @@ Example 2: Distillation of specific databases.
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
 
-  **Then you can specify only the KEGG distillation.**
+**Then you can specify only the KEGG distillation.**
 
 .. code-block:: bash::
 
