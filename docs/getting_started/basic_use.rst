@@ -1,6 +1,6 @@
-========================
-Using DRAM2: Quick start
-========================
+==============================
+Using DRAM2: Quick start guide
+==============================
 
 Guide covering the three main commands which encompass a typical DRAM2 run. This includes calling genes from an input MAG(s), annotating the called genes and summarizing these annotations into a distillate.
 
@@ -50,9 +50,9 @@ DRAM2 options:
   --keep_tmp             Keep all temporary files
   -h, --help             Show this message and exit.
 
-DRAM2 options **must** preced the command you wish to use:
+DRAM2 options **must** precede the command you wish to use:
 
-For example, specifying the location of the DRAM2 output and number of threads must preced the ``call`` command and the subsequent ``call`` options:
+For example, specifying the location of the DRAM2 output and number of threads must precede the ``call`` command and the subsequent ``call`` options:
 
 .. code-block:: bash::
 
@@ -62,7 +62,7 @@ For example, specifying the location of the DRAM2 output and number of threads m
 
    dram2 --help
 
-DRAM2 commands as listed in the help menu
+DRAM2 commands as listed in the help menu:
 
 .. code-block:: bash
 
@@ -75,7 +75,7 @@ DRAM2 commands as listed in the help menu
      pull_trna         Pull tRNA Sequences With tRNAscan (Not Ready)
      distill           DRAM Distillate
      generate_genbank  Make A DRAM GenBank File (Not Ready)
-     merge             Merge DRAM Projects
+     merge             Merge DRAM Projects (Gene calls and annotations only)
      strainer          Strain to Genes of Interest (Not Ready)
      neighbors         Pull Genes based on Their Neighborhoods (Not Ready)
      phylotree         Phylogenetic trees to DRAM
@@ -216,7 +216,7 @@ Bring up the help menu:
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
-**Example 2:** Annotating using multiple databases::
+**Example 2:** Annotating using multiple databases:
 
 .. code-block:: bash::
 
@@ -325,7 +325,7 @@ Bring up the help menu:
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
 
-**Then you can specify only the KEGG distillation.**
+*Then you can specify only the KEGG distillation.*
 
 .. code-block:: bash::
 
