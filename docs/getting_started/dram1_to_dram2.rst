@@ -60,7 +60,6 @@ Just copy the directory into a good working location on zenith.
 
    cp -r /home/projects-wrighton-2/DRAM/development_flynn/dram2_dev/jan_26_23_main_pipeline/example_files_try_one ./my_dram_test_dir
    cd ./my_dram_test_dir
-It contains these folders
 
 Activate the Environment
 ------------------------
@@ -140,10 +139,10 @@ In the past, DRAM confused people by having them pass a string to call genes wit
 Recall the notes about commands above.
 ^^^^^^^^^
 
-Notice the output is specified by a ``-o`` and is passed to the dram2 command before the call command runs, the same with the ``-t`` command that tells dram the most cores it needs are 2.
+Notice the output is specified by a ``-d`` and is passed to the dram2 command before the call command runs, the same with the ``-t`` command that tells dram the most cores it needs are 2.
 The commands that get passed to ``dram2`` are universal and work with all ``dram2`` sub-commands, but you don't pass them after the sub-commands.
 
-So ``dram2 call -d`` would not work. The reverse is also true: you don't pass an option to ``dram2`` that goes to the sub-commands, so ``dram2 --prodigal_mode train call -0 soil/test1`` would not work.
+So ``dram2 call -d`` would not work. The reverse is also true: you don't pass an option to ``dram2`` that goes to the sub-commands, so ``dram2 --prodigal_trans_tables 11 call -d soil/test1`` would not work.
 
 Additionally, ``dram2 call`` has a list of arguments after all the options for FASTAs. In DRAM1, the wild card path to FASTA files had to be a string. That was ok, but it was confusing at times. DRAM2 uses a normal file path instead.
 
@@ -167,9 +166,8 @@ Take a look at the help.
 
   dram2 annotate --help
 
-
-To use the FASTAs we just called and annotate them with all the databases that we need for adjectives, you can use this command.
-Note: you don't need to point to the called genes so long as you use the same output directory.
+To annotate the genes called and annotate them with all the databases needed for KEGG adjectives, you can use this command.
+*Note: you don't need to point to the called genes so long as you use the same output directory.*
 
 .. code-block:: bash
 
@@ -191,10 +189,28 @@ There are also some databases that you may not think of as databases, such as He
 
 To see what sets/databases are available, you can use the help message, and you can learn more about the databases with this command:
 
-.. code-block:: bash
-    dram2 list_databases
+.. code-block:: bash::
 
-This will have more information in the future.
+    dram2 list_dbs
+
+Alternatively, you can run the ``dram2 annotate`` help menu to see a list of databases:
+
+.. code-block:: bash::
+
+   dram2 annotate --help
+
+.. code-block:: bash::
+
+   Options:
+     -s, --use_dbset [metabolism_kegg_set|metabolism_set|adjectives|adjectives_kegg]
+     --use_db [camper|cant_hyd|dbcan|fegenie|stats|kegg|kofam|merops|methyl|heme|pfam|sulfur|uniref]
+                                     Specify exactly which DBs to use. This
+                                     argument can be used multiple times, so for
+                                     example if you want to annotate with FeGenie
+                                     and Camper you would have a command like
+                                     `dram2 - o output/dir annotate --use_db
+                                     fegenie --use_db camper`, the options
+                                     available are in this help.
 
 
 
