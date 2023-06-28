@@ -7,17 +7,17 @@ A DRAM2 terminology overview is necessary due to its complexity. This figure out
 .. image:: ../figs/Fig-3-Dram-Visualization.png
 
 
-** DRAM2 Modules **
+**DRAM2 Modules**
   * Raw 
   * Distill
   * Product
 
-** DRAM2 toolkits **
+**DRAM2 toolkits**
 
 *DRAM2 toolkits will be further described soon*
 
 
-** DRAM2 Commands **
+**DRAM2 Commands**
 
 DRAM2 offers a wide variety of commands, each of which output results in a given module. DRAM2 commands may be a a *tool* in a toolkit.
 
