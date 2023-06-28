@@ -4,9 +4,9 @@ Using DRAM2: Quick start
 
 Quick start guide for DRAM2.
 
-^^^^^^^^^
-Overview:
-^^^^^^^^^
+
+**Overview:**
+
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
    * Step 1: Calling genes **(dram2 call)**
@@ -25,16 +25,16 @@ Every DRAM2 use case starts with ``dram2`` followed by a command. All DRAM2 comm
 
 DRAM2 options:
 
-.. code-block:: bash
+.. code-block:: bash::
 
   -d, --dram_dir PATH    This is both the location where the output of new
                          DRAM2 actions will go, and also the location where
                          the outputs of past DRAM2 actions and metadata can be
                          found.
-  --config_file PATH     Point to a config file that you would like to use \for
+  --config_file PATH     Point to a config file that you would like to use for
                          this action specifically. With out of this argument,
                          DRAM2 looks for the config at first in
-                         \`USER_HOME/.config/dram_config.yaml\` then in
+                         `USER_HOME/.config/dram_config.yaml` then in
                          `/etc/dram2_config.yaml`.
   --version              Show the version and exit.
   -v, --verbose          Verbosity of the logging output, the number of 'v's
