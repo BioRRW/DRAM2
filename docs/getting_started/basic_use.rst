@@ -4,14 +4,14 @@ Using DRAM2: Quick start
 
 Quick start guide for DRAM2.
 
-=========
+^^^^^^^^^
 Overview:
-=========
+^^^^^^^^^
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
-   * Step 1: Calling genes (dram2 call)
-   * Step 2: Annotating called genes (dram2 annotate)
-   * Step 3: Summarizing annotations (dram2 distill)
+   * Step 1: Calling genes **(dram2 call)**
+   * Step 2: Annotating called genes **(dram2 annotate)**
+   * Step 3: Summarizing annotations **(dram2 distill)**
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Brief notes on the DRAM2 command structure
@@ -31,10 +31,10 @@ DRAM2 options:
                          DRAM2 actions will go, and also the location where
                          the outputs of past DRAM2 actions and metadata can be
                          found.
-  --config_file PATH     Point to a config file that you would like to use for
+  --config_file PATH     Point to a config file that you would like to use \for
                          this action specifically. With out of this argument,
                          DRAM2 looks for the config at first in
-                         `USER_HOME/.config/dram_config.yaml` then in
+                         \`USER_HOME/.config/dram_config.yaml\` then in
                          `/etc/dram2_config.yaml`.
   --version              Show the version and exit.
   -v, --verbose          Verbosity of the logging output, the number of 'v's
@@ -143,9 +143,7 @@ Bring up the help menu:
                                         https://github.com/hyattpd/prodigal/wiki.
      -h, --help                      Show this message and exit.
 
-^^^^^^^^^^^^
-Basic usage:
-^^^^^^^^^^^^
+**Basic usage:**
 
 .. code-block:: bash
 
@@ -208,9 +206,7 @@ Bring up the help menu:
                                      again.
      -h, --help                      Show this message and exit.
 
-^^^^^^^^^^^^
-Basic usage:
-^^^^^^^^^^^^
+**Basic usage:**
 
 Example 1: Annotating using the KEGG database
 
@@ -309,9 +305,7 @@ Bring up the help menu:
                                      just make the product html
      -h, --help                      Show this message and exit.
 
-^^^^^^^^^^^^
-Basic usage:
-^^^^^^^^^^^^
+**Basic usage:**
 
 Example 1: Basic distillation
 
@@ -332,6 +326,4 @@ Example 2: Distillation of specific databases.
 .. code-block:: bash
 
    dram2 -d <path/to/output/directory> -t <#threads> distill --use_db_distilate kegg
-
-
 
