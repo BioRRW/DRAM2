@@ -6,7 +6,6 @@ Guide covering the three main commands which encompass a typical DRAM2 run. This
 
 
 **Overview:**
-
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
    * Step 1: Calling genes **(dram2 call)**
@@ -92,7 +91,7 @@ For example:
 
    dram2 call --help
 
-Or,
+Or
 
 .. code-block:: bash
 
@@ -111,6 +110,11 @@ For example, specifying the same output directory (``-d``) for ``dram2 call`` an
 ^^^^^^^^^^^^^^^^^^^^^
 Step 1: Calling genes
 ^^^^^^^^^^^^^^^^^^^^^
+
+Calling genes results in the creation of a ``genes`` directory populated with a directory for each FASTA input. Each new directory will contain three outputs:
+  *``genes.fna``: FASTA formatted nucleotide sequences of called genes
+  *``genes.gff``: General Feature Format (GFF3) of called genes
+  *``genes.faa``: FASTA formatted protein sequences of called genes
 
 Bring up the help menu:
 
@@ -210,13 +214,13 @@ Bring up the help menu:
 
 **Basic usage:**
 
-**Example 1:** Annotating using the KEGG database
+**Example 1:** Annotate using the KEGG database
 
 .. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
-**Example 2:** Annotating using multiple databases:
+**Example 2:** Annotate using multiple databases:
 
 .. code-block:: bash::
 
@@ -232,7 +236,7 @@ Bring up the help menu:
 Step 3: Summarizing annotations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Distillation step summarizes the annotated genes within the ``annotated`` directory and generates a new directory ``distill`` which is populated with multiple files:
+The distillation step summarizes the annotated genes within the ``annotated`` directory and generates a new directory ``distill`` which is populated with multiple files:
 
    * ``genome_stats.tsv``: Genome statistics for all input genomes
    * ``metabolism_summary.xlsx``: Metabolism summary of all input genomes, which gives gene counts of functional and structural genes across a wide variety of metabolisms
