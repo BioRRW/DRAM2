@@ -2,7 +2,7 @@
 DRAM2 Visualization and Terminology
 ===================================
 
-A DRAM1 terminology overview is necessary due to its complexity. This figure outlines some of this terminology and additional information is given below.
+A DRAM2 terminology overview is necessary due to its complexity. This figure outlines some of this terminology and additional information is given below.
 
 .. image:: ../figs/Fig-3-Dram-Visualization.png
 
