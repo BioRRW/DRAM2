@@ -54,7 +54,7 @@ DRAM2 options **must** preced the command you wish to use:
 
 For example, specifying the location of the DRAM2 output and number of threads must preced the ``call`` command and the subsequent ``call`` options:
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> call <call-options>
 
@@ -118,7 +118,7 @@ Bring up the help menu:
 
    dram2 call --help
 
-.. code-block:: bash
+.. code-block:: bash::
 
    Options:
      -f, --force                        Remove all called genes and information
@@ -167,7 +167,7 @@ Bring up the help menu:
 
    dram2 annotate --help
 
-.. code-block:: bash
+.. code-block:: bash::
 
    Options:
      -s, --use_dbset [metabolism_kegg_set|metabolism_set|adjectives|adjectives_kegg]
@@ -210,13 +210,13 @@ Bring up the help menu:
 
 Example 1: Annotating using the KEGG database
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
-Example 2: Annotating using multiple databases
+Example 2: Annotating using multiple databases::
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg --use_db kegg --use_db kofam --use_db merops
 
@@ -230,11 +230,12 @@ Example 3: Annotating with all of the databases which provide entries in the met
 Step 3: Summarizing annotations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Distillation step summarizes the annotated genes within the ``annotated`` directory and generates a new directory ``distill`` which is populated with multiple files: 
-   * ``genome_stats.tsv`` : Genome statistics for all input genomes
-   * ``metabolism_summary.xlsx`` : Metabolism summary of all input genomes, which gives gene counts of functional and structural genes across a wide variety of metabolisms
-   * ``product.tsv`` : Coverage of pathways, the coverage of electron transport chain components, and the presence of selected metabolic functions
-   * ``product.html`` : Interactive heatmap showing coverage of pathways and metabolic functions from the ``product.ts
+The Distillation step summarizes the annotated genes within the ``annotated`` directory and generates a new directory ``distill`` which is populated with multiple files:
+
+   * ``genome_stats.tsv``: Genome statistics for all input genomes
+   * ``metabolism_summary.xlsx``: Metabolism summary of all input genomes, which gives gene counts of functional and structural genes across a wide variety of metabolisms
+   * ``product.tsv``: Coverage of pathways, the coverage of electron transport chain components, and the presence of selected metabolic functions
+   * ``product.html``: Interactive heatmap showing coverage of pathways and metabolic functions from the ``product.ts
 
 Bring up the help menu:
 
@@ -242,7 +243,7 @@ Bring up the help menu:
 
    dram2 distill --help
 
-.. code-block:: bash
+.. code-block:: bash::
 
    Options:
      --annotations_tsv_path PATH     Location of an annotations.tsv. You don't
@@ -309,7 +310,7 @@ Bring up the help menu:
 
 Example 1: Basic distillation
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> distill
 
@@ -317,13 +318,13 @@ Example 2: Distillation of specific databases.
 
    **For instance, if you annotated using only KEGG (the same as Example 1 in Annotate):**
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_db kegg
 
    **Then you can specify only the KEGG distillation.**
 
-.. code-block:: bash
+.. code-block:: bash::
 
    dram2 -d <path/to/output/directory> -t <#threads> distill --use_db_distilate kegg
 
