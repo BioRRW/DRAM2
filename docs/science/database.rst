@@ -7,6 +7,8 @@ DRAM2's Default Databases
 
 DRAM2 has a wide variety of database for gene annotation. A majority of these databases are described below.
 
+*Some of the databases listed here are in-house databases created by people in the Wrighton Lab and will not be documented here upon release*
+
 A list of DRAM2 databases and database sets can be found within the help menus:
 
 .. code-block:: bash::
