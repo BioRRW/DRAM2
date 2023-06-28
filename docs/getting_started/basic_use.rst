@@ -4,7 +4,6 @@ Using DRAM2: Quick start guide
 
 Guide covering the three main commands which encompass a typical DRAM2 run. This includes calling genes from an input MAG(s), annotating the called genes and summarizing these annotations into a distillate.
 
-
 **Overview:**
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
