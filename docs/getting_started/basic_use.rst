@@ -3,9 +3,10 @@ Using DRAM2: Quick start
 ========================
 
 Quick start guide for DRAM2.
----------
+
+=========
 Overview:
----------
+=========
    * Brief notes on the DRAM2 command structure
    * Brief notes on DRAM2 output structure
    * Step 1: Calling genes (dram2 call)
@@ -97,8 +98,9 @@ Or,
 
    dram2 annotate --help
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Brief notes on the DRAM2 output structure
------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As seen above in the help menu output, the DRAM2 option to specify the output directory, ``dram2 -d <path/to/output/directory>``, is used not only to specify the output directory but also specifies the location of previous DRAM2 actions. 
 
@@ -106,8 +108,9 @@ As seen above in the help menu output, the DRAM2 option to specify the output di
 
 For example, specifying the same output directory (``-d``) for ``dram2 call`` and ``dram2 annotate``. This is beneficial as this directory will accumulate metadata about your DRAM2 run which expidites subsequent DRAM2 commands using the same input dataset.
 
+^^^^^^^^^^^^^^^^^^^^^
 Step 1: Calling genes
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 Bring up the help menu:
 
@@ -140,8 +143,9 @@ Bring up the help menu:
                                         https://github.com/hyattpd/prodigal/wiki.
      -h, --help                      Show this message and exit.
 
+^^^^^^^^^^^^
 Basic usage:
-------------
+^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -153,8 +157,9 @@ For multiple FASTA file inputs in separate directories:
 
    dram2 -d <path/to/output/directory> call <options> /some/path/fasta1.fasta /some/path/fasta2.fasta
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Step 2: Annotating called genes
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Annotation of called genes results in the creation of a new directory ``annotated`` which will be populated with an ``annotations.tsv`` file.
 
@@ -203,8 +208,9 @@ Bring up the help menu:
                                      again.
      -h, --help                      Show this message and exit.
 
+^^^^^^^^^^^^
 Basic usage:
-------------
+^^^^^^^^^^^^
 
 Example 1: Annotating using the KEGG database
 
@@ -224,8 +230,9 @@ Example 3: Annotating with all of the databases which provide entries in the met
 
    dram2 -d <path/to/output/directory> -t <#threads> annotate --use_dbset metabolism_set
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Step 3: Summarizing annotations
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Distillation step summarizes the annotated genes within the ``annotated`` directory and generates a new directory ``distill`` which is populated with multiple files: 
    * ``genome_stats.tsv`` : Genome statistics for all input genomes
@@ -301,6 +308,10 @@ Bring up the help menu:
                                      make these distillates it makes sense to
                                      just make the product html
      -h, --help                      Show this message and exit.
+
+^^^^^^^^^^^^
+Basic usage:
+^^^^^^^^^^^^
 
 Example 1: Basic distillation
 
