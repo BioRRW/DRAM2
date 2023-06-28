@@ -6,7 +6,7 @@ DRAM2 has a wide variety of database for gene annotation. A majority of these da
 
 *Some of the databases listed here are in-house databases created by people in the Wrighton Lab and will not be documented here upon release*
 
-A list of DRAM2 databases and database sets can be found within the help menus:
+A list of DRAM2 databases and database sets can be found within the ``dram2 annotate`` help menu:
 
 .. code-block:: bash::
 
@@ -17,6 +17,8 @@ A list of DRAM2 databases and database sets can be found within the help menus:
    Options:
      -s, --use_dbset [metabolism_kegg_set|metabolism_set|adjectives|adjectives_kegg]
      --use_db [camper|cant_hyd|dbcan|fegenie|stats|kegg|kofam|merops|methyl|heme|pfam|sulfur|uniref]
+
+Alternatively, databases can be listed using the commands: ``dram2 --list_dbs`` or ``dram2 --list_db_sets``.
 
 
 ^^^^^^
