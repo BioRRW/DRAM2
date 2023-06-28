@@ -113,7 +113,7 @@ Step 1: Calling genes
 
 Calling genes results in the creation of a ``genes`` directory populated with a directory for each FASTA input. Each new directory will contain three outputs:
 
-  * ``genes.fna``: FASTA formatted nucleotide sequences of called genes
+  * ``genes.fna``: FASTA formatted nucleotide sequences of called genes  
   * ``genes.gff``: General Feature Format (GFF3) of called genes
   * ``genes.faa``: FASTA formatted protein sequences of called genes
 
