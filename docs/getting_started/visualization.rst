@@ -19,7 +19,9 @@ A DRAM2 terminology overview is necessary due to its complexity. This figure out
 
 **DRAM2 Commands**
 
-DRAM2 offers a wide variety of commands, each of which output results in a given module. DRAM2 commands may be a a *tool* in a toolkit.
+DRAM2 offers a wide variety of commands, each of which output results in a given module. DRAM2 commands may be a a *tool* in a toolkit or may be used to produce data within a given module.
+
+For example: The ``dram2 call`` command is used to *ingest* raw sequencing data and generate called gene data.
 
 A list of all DRAM2 commands can be accessed via the help menu:
 
