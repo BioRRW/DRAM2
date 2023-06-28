@@ -187,11 +187,12 @@ Calling annotations can be done with a ``db_set``, as seen above, but it can als
 
 There are also some databases that you may not think of as databases, such as Heme Motif count and even the genome statistics. It simply made sense to implement these as databases.
 
-To see what sets/databases are available, you can use the help message, and you can learn more about the databases with this command:
+To see a list of available databases/database_sets, you can run one of the following commands:
 
 .. code-block:: bash::
 
     dram2 list_dbs
+    dram2 list_db_sets
 
 Alternatively, you can run the ``dram2 annotate`` help menu to see a list of databases:
 
