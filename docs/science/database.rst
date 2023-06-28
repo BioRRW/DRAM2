@@ -1,9 +1,6 @@
-
-.. _database_info:
-
-=========================
-DRAM2's Default Databases
-=========================
+===============
+DRAM2 Databases
+===============
 
 DRAM2 has a wide variety of database for gene annotation. A majority of these databases are described below.
 
