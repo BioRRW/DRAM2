@@ -7,7 +7,14 @@
 Welcome to the DRAM2 Docs!
 =========================================
 
-You are reading the official documentation for DRAM2 (Distilled and Refined Annotation of Metabolism, Version 2) a tool for annotating metagenomic assembled genomes. DRAM2 annotates MAGs  using a set of :ref:`databases<database_info>` including custom user databases. DRAM2 is run in three stages. First an genes are called given a MAG, or set of MAGs, in FASTA format. Second, an annotation step to assign database identifiers to called genes. Lastly, a distill step to curate these annotations into useful functional categories. Additionally, viral contigs are further analyzed during to identify potential AMGs. This is done via assigning an auxiliary score and flags representing the confidence that a gene is both metabolic and viral.
+You are reading the official documentation for DRAM2 (Distilled and Refined Annotation of Metabolism, Version 2) a tool for annotating metagenomic assembled genomes. DRAM2 annotates MAGs  using a set of :ref:`databases<database_info>` including custom user databases. 
+
+DRAM2 is run in three stages. 
+
+   * First an genes are called given a MAG, or set of MAGs, in FASTA format. 
+   * Second, an annotation step to assign database identifiers to called genes. 
+   * Lastly, a distill step to curate these annotations into useful functional categories. 
+   * Additionally, viral contigs are further analyzed during to identify potential AMGs. This is done via assigning an auxiliary score and flags representing the confidence that a gene is both metabolic and viral.
 
 For more detail on how the Science of DRAM2 works please see our DRAM1 `paper <https://academic.oup.com/nar/article/48/16/8883/5884738>`_.
 
@@ -29,9 +36,10 @@ The DRAM development team is actively working on DRAM2. We do not anticipate add
   :maxdepth: 1
 
   getting_started/setup_configure_dram2
+  getting_started/visualization
   getting_started/basic_use
-  getting_started/update_database
   getting_started/dram1_to_dram2
+  getting_started/update_database
   getting_started/command
   getting_started/example_use_case
 
