@@ -110,6 +110,7 @@ For example, specifying the same output directory (``-d``) for ``dram2 call`` an
 Step 1: Calling genes
 ^^^^^^^^^^^^^^^^^^^^^
 
+Genes are called using Prodigal with a minimum contig size = 2500bp
 Calling genes results in the creation of a ``genes`` directory populated with a directory for each FASTA input. Each new directory will contain three outputs:
 
   * ``genes.fna``: FASTA formatted nucleotide sequences of called genes  
